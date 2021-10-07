@@ -6,6 +6,7 @@
  */
 import {ip, defaultRepo} from "./globals"
 import addPerson from "./api-commands/write/addPerson";
+import processAddPerson from "./request-processing/processAddPerson";
 const express = require("express")
 const fetch = require('node-fetch');
 const bodyParser = require("body-parser");
@@ -64,19 +65,7 @@ app.get('/read/:query/:userID', function (request, response){
     }
 })
 */
-app.put("/addPerson", function (request, response) {
-    const uid = request.body.userID
-    if(uid === undefined){
-        response.send("Requires a unique ID to be sent through the body! Make sure Content-Type is set to application/json!\n")
-    }
-    else{
-        addPerson(uid,defaultRepo).then((value) => {
-            response.send("Successfully added a new graph!\n")
-        }).catch((e) => {
-            response.send(`Something went wrong: ${e.message}`)
-        })
-    }
-})
+app.put("/addPerson", processAddPerson)
 
 /**
  * WRITE to Learner Model for a player. 
