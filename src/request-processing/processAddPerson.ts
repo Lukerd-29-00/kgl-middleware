@@ -16,9 +16,9 @@ function processAddPerson(request: Request<{},any,ReqBody>, response: Response):
     }
     else{
         addPerson(request.body.userID,defaultRepo).then((value) => {
-            response.send("Successfully added a new graph!\n")
+            response.send(value)
         }).catch((e) => {
-            response.send(`Something went wrong: ${e.message}`)
+            response.send(e.message)
         })
     }
 }

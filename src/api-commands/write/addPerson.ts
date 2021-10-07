@@ -19,13 +19,12 @@ async function addPerson(userID: string, repo: string): Promise<string>{
     const transaction: personAddTransaction = {subj: null, pred: null, obj: null, action: "UPDATE", graph: `${ip}/Person_${userID}`,location: location,body: body}
     return await ExecTransaction(transaction).then(
         async (value: void) => {
-            const commit: Transaction = {subj: null, pred: null, obj: null, action: "COMMIT", location: location, body: "", graph: null}
-            await ExecTransaction(commit)
-            return "update successful"
+            const loc = location.split(/\//g)
+            return `Successfully created transaction# ${loc[loc.length-1]}\n`
         }
     ).catch(async (e: Error) => {
         const output = await rollback(location).then((value: void) => {return undefined}).catch((e: Error) => {return e.message})
-        throw Error(output === undefined ? e.message : output)
+        throw Error(output === undefined ? e.message : `Failed rollback after error: ${e.message}`)
     })
 }
 

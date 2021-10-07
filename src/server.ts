@@ -6,6 +6,7 @@
  *  July 30, 2021
  */
 import processAddPerson from "./request-processing/processAddPerson";
+import processCommit from "./request-processing/processCommit";
 const express = require("express")
 const fetch = require('node-fetch');
 const bodyParser = require("body-parser");
@@ -20,6 +21,7 @@ app.use(bodyParser.urlencoded({ extended: true }))
 
 app.put("/addPerson", processAddPerson)
 
+app.post("/commit", processCommit)
 
 
 
