@@ -1,0 +1,13 @@
+PREFIX cco: <http://www.ontologyrepository.com/CommonCoreOntologies/>
+PREFIX : <http://www.ontologyrepository.com/CommonCoreOntologies/>
+
+select ?Glyph where { 
+    PLACEHOLDER a cco:Person; 
+            cco:agent_in ?StasisLearningContent .
+    
+    ?StasisLearningContent a cco:Stasis ;
+             cco:has_object ?LearningContent .
+    
+    ?LearningContent cco:is_measured_by_nominal ?GlyphIRI .
+    ?GlyphIRI cco:has_text_value ?Glyph . 
+} 

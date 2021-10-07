@@ -1,0 +1,28 @@
+##############################
+# Grapheme 
+##############################
+# The relationship between the Graphemes and Phonemes shouild be preloaded
+
+<GraphemeIRI> rdf:type owl:NamedIndividual , cco:Grapheme;
+    cco:is_a_nominal_measure_of <GlyphForGraphemeIRI> .
+
+<GlyphForGraphemeIRI> rdf:type owl:NamedIndividual , cco:Glyph;
+    cco:is_measured_by_nominal  <GraphemeIRI> ;
+    cco:has_text_value "{content_literal}" .
+
+
+##############################
+# Morpheme 
+##############################
+# The Glyphs Parts Should be preloaded
+
+<MorphemeIRI> rdf:type owl:NamedIndividual , cco:Morpheme;
+        cco:is_a_nominal_measurement_of <GlyphForMorphemeIRI> .
+
+<GlyphForMorphemeIRI> rdf:type owl:NamedIndividual , cco:Glyph;
+    cco:is_measured_by_nominal <MorphemeIRI>  ;
+    cco:has_part <GlyphPartIRI> , <GlyphPart2IRI>, <GlyphPart2IRI> ;
+    cco:has_text_value "{content_literal}" .
+    
+
+    

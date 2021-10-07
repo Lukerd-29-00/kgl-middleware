@@ -1,0 +1,25 @@
+{
+  "name": "kgl-middleware",
+  "version": "1.0.0",
+  "description": "MiddleWare software for KGL",
+  "main": "server.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node-ts server.ts"
+  },
+  "author": "Casey Rock",
+  "license": "ISC",
+  "dependencies": {
+    "@types/n3": "^1.10.3",
+    "body-parser": "^1.19.0",
+    "express": "^4.17.1",
+    "fs": "0.0.1-security",
+    "http": "0.0.1-security",
+    "n3": "^1.11.1",
+    "node-fetch": "^2.6.1",
+    "rdf-namespaces": "^1.9.2"
+  },
+  "devDependencies": {
+    "ts-node": "^10.2.1"
+  }
+}
