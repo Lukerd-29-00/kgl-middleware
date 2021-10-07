@@ -16,6 +16,8 @@
 
 2. Start the middleware server
 `cd src && npm start && cd -`
+The first time you run it, you will need to install dependencies first:
+`cd src && npm i && cd -`
 
 3. Load the LearnerModelPreUploads files into graphdb
 
