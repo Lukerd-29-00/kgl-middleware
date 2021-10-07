@@ -1,24 +1,21 @@
 # Knowledge Graphs For Learners 
 
 ### Artifacts
-1. `./graphdata` = containes the volumes for the graphdb docker container 
-2. `./images` = Stores the prebuild docker images needed to run KGL
-3. `./LearnerModelPreUploads` = Preload turtle files into graphdb
-4. `./kgl-middleware` = Contains the middle ware software that read and writes to the graphdb. This foulder acks as the volume for the node container 
+
+1. `./LearnerModelPreUploads` = Preload turtle files into graphdb
+2. `./src` = Contains the middle ware software that read and writes to the graphdb. This foulder acks as the volume for the node container
+3. `./StandardContentParser` I don't know what this is, but it looked important so I included it in this new repo. I can filter it out later if needed.
 
 
 ### What you need to run
-1. docker
-2. docker-compose
-3. node js
+1. node js
+2. grpaphdb
 
 ### How to start
-1. Load the docker images 
-`docker load < ./images/graphdb.tar.gz`
-`docker load < ./images/kglMiddleware.tar.gz`
+1. Start graphdb (exact details may depend on version and OS)
 
-2. Run the docker containers with docker-compose
-`docker-compose up -d`
+2. Start the middleware server
+`cd src && npm start && cd -`
 
 3. Load the LearnerModelPreUploads files into graphdb
 
