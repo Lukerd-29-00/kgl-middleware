@@ -14,8 +14,9 @@ interface personAddTransaction extends Transaction {
 }
 
 async function addPerson(userID: string, repo: string): Promise<string>{
+    console.log('hi')
     const location = await startTransaction(repo)
-    const body = `cco:Person_${userID} ${rdf.type} cco:Person .`
+    const body = `cco:Person_${userID} <${rdf.type}> cco:Person .`
     const transaction: personAddTransaction = {subj: null, pred: null, obj: null, action: "UPDATE", graph: `${ip}/Person_${userID}`,location: location,body: body}
     return await ExecTransaction(transaction).then(
         async (value: void) => {

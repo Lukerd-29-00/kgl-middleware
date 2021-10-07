@@ -1,4 +1,5 @@
 import {ip} from "../../../globals"
+import fetch from "node-fetch"
 
 
 async function startTransaction(repo: string): Promise<string>{
@@ -8,7 +9,7 @@ async function startTransaction(repo: string): Promise<string>{
             "Content-Type": "application/json" 
         }
     })
-    const location = res.headers["location"]
+    const location = res.headers.get("location")
     return location
 }
 

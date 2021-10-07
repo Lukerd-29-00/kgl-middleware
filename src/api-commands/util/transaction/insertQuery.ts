@@ -6,6 +6,6 @@ export function insertQuery(graph: string, triples: string, prefixes: Map<string
     for(let entry = entries.next(); !entry.done;entry = entries.next()){
         query += `PREFIX ${entry.value[0]}: <${entry.value[1]}>\n`
     }
-    query += `INSERT DATA {GRAPH <${ip}/${graph}> { ${triples} } }`
+    query += `INSERT DATA {GRAPH <${graph}> { ${triples} } }`
     return query
 }

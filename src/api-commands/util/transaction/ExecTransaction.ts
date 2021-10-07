@@ -1,4 +1,4 @@
-import { join } from "path/posix";
+import fetch from 'node-fetch'
 import { insertQuery } from "./insertQuery";
 import { Transaction } from "./Transaction";
 
@@ -31,7 +31,7 @@ async function ExecTransaction(transaction: Transaction): Promise<void>{
         body: body
     })
     if(!res.ok){
-        throw Error(`Something went wrong executing ${transaction.body} at ${transaction.location}: ${res.text}`)
+        throw Error(`Something went wrong executing ${transaction.body} at ${transaction.location}}`)
     }
 }
 

@@ -69,11 +69,13 @@ app.put("/addPerson", function (request, response) {
     if(uid === undefined){
         response.send("Requires a unique ID to be sent through the body! Make sure Content-Type is set to application/json!\n")
     }
-    addPerson(uid,defaultRepo).then((value) => {
-        response.send("Successfully added a new graph!\n")
-    }).catch((e) => {
-        response.send(`Something went wrong: ${e.message}`)
-    })
+    else{
+        addPerson(uid,defaultRepo).then((value) => {
+            response.send("Successfully added a new graph!\n")
+        }).catch((e) => {
+            response.send(`Something went wrong: ${e.message}`)
+        })
+    }
 })
 
 /**
