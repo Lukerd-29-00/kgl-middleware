@@ -18,7 +18,8 @@
     "http": "0.0.1-security",
     "n3": "^1.11.1",
     "node-fetch": "^2.6.1",
-    "rdf-namespaces": "^1.9.2"
+    "rdf-namespaces": "^1.9.2",
+    "ts-transformer-keys": "^0.4.3"
   },
   "devDependencies": {
     "ts-node": "^10.2.1",

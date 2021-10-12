@@ -1,8 +1,10 @@
-import { Request, Response } from "express";
-import commitTransaction from "../api-commands/util/transaction/commitTransaction";
-import {defaultRepo, ip} from "../globals"
+import { Response } from "express";
+import { Request } from "express"
+import { ResponseMessage } from "rdf-namespaces/dist/http";
+import rollback from "../api-commands/util/transaction/Rollback";
+import {ip, defaultRepo} from "../globals";
 
-interface ReqBody{ 
+interface ReqBody {
     transactionID: string
 }
 
@@ -21,17 +23,16 @@ function isReqBody(body: Object): body is ReqBody{
     return output
 }
 
-async function processCommit(request: Request<{},{},ReqBody>,response: Response): Promise<void>{
+async function processRollback(request: Request<{},{},ReqBody>, response: Response): Promise<void>{
     if(!isReqBody(request.body)){
         response.send("Missing transactionID!")
     }
     else{
-        await (commitTransaction(`${ip}/repositories/${defaultRepo}/transactions/${request.body.transactionID}`).then((value: string) => {
+        await (rollback(`${ip}/repositories/${defaultRepo}/transactions/${request.body.transactionID}`).then((value: string) => {
             response.send(value)
         }).catch((e: Error) => {
             response.send(e.message)
         }))
     }
 }
-
-export default processCommit
+export default processRollback

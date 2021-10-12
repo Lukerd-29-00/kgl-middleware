@@ -7,6 +7,7 @@
  */
 import processAddPerson from "./request-processing/processAddPerson";
 import processCommit from "./request-processing/processCommit";
+import processRollback from "./request-processing/processRollback";
 const express = require("express")
 const fetch = require('node-fetch');
 const bodyParser = require("body-parser");
@@ -22,6 +23,8 @@ app.use(bodyParser.urlencoded({ extended: true }))
 app.put("/addPerson", processAddPerson)
 
 app.post("/commit", processCommit)
+
+app.delete("/rollback", processRollback)
 
 
 
