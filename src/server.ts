@@ -5,6 +5,7 @@
  *  Casey Rock 
  *  July 30, 2021
  */
+import isActive from "./request-processing/isActive";
 import processAddPerson from "./request-processing/processAddPerson";
 import processCommit from "./request-processing/processCommit";
 import processRollback from "./request-processing/processRollback";
@@ -26,7 +27,7 @@ app.post("/commit", processCommit)
 
 app.delete("/rollback", processRollback)
 
-
+app.get("/active", isActive)
 
 /**This function should be a separate script run to initialize the server; game devs have no reason to use this function!
  * WRITE the FTM Graduate Learner Model for a first time player. 
