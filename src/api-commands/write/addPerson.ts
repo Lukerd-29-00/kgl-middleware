@@ -15,10 +15,10 @@ interface personAddTransaction extends Transaction {
 
 async function addPerson(userID: string, repo: string): Promise<string>{
     const location = await startTransaction(repo)
-    const body = `cco:Person_${1234} <${rdf.type}> cco:Person.`
+    const body = `cco:Person_${userID} <${rdf.type}> cco:Person.`
     const transaction: personAddTransaction = {subj: null, pred: null, obj: null, action: "UPDATE", graph: `${ip}/Person_${userID}`,location: location,body: body}
     return await ExecTransaction(transaction).then(
-        async (value: void) => {
+        async (value: string) => {
             const loc = location.split(/\//g)
             return `Successfully created transaction# ${loc[loc.length-1]}\n`
         }

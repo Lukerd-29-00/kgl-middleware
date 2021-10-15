@@ -5,9 +5,11 @@
  *  Casey Rock 
  *  July 30, 2021
  */
+import { rdf } from "rdf-namespaces";
 import isActive from "./request-processing/isActive";
 import processAddPerson from "./request-processing/processAddPerson";
 import processCommit from "./request-processing/processCommit";
+import processIsPresent from "./request-processing/processIsPresent";
 import processRollback from "./request-processing/processRollback";
 const express = require("express")
 const fetch = require('node-fetch');
@@ -28,6 +30,8 @@ app.post("/commit", processCommit)
 app.delete("/rollback", processRollback)
 
 app.get("/active", isActive)
+
+app.put("/isPresent",processIsPresent)
 
 /**This function should be a separate script run to initialize the server; game devs have no reason to use this function!
  * WRITE the FTM Graduate Learner Model for a first time player. 
