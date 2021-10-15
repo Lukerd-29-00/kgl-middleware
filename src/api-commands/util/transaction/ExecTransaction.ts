@@ -2,7 +2,7 @@ import fetch from 'node-fetch'
 import { insertQuery } from "./insertQuery";
 import { Transaction } from "./Transaction";
 
-async function ExecTransaction(transaction: Transaction): Promise<void>{
+async function ExecTransaction(transaction: Transaction): Promise<string>{
     const url = new URL(transaction.location)
     let body = transaction.body
     let headers = {}
@@ -16,14 +16,21 @@ async function ExecTransaction(transaction: Transaction): Promise<void>{
         url.searchParams.set("obj",transaction.obj)
     }
     url.searchParams.set("action",transaction.action)
-    if(transaction.action === "UPDATE"){
-        headers = {
-            "Content-Type": "application/sparql-update",
-            "Accept": "text/plain"
-        }
-        const prefs = new Map<string,string>()
-        prefs.set("cco","http://www.ontologyrepository.com/CommonCoreOntologies/")
-        body = insertQuery(transaction.graph, body, prefs)
+    switch(transaction.action){
+        case "UPDATE":
+            headers = {
+                "Content-Type": "application/sparql-update",
+                "Accept": "text/plain"
+            }
+            const prefs = new Map<string,string>()
+            prefs.set("cco","http://www.ontologyrepository.com/CommonCoreOntologies/")
+            body = insertQuery(transaction.graph, body, prefs)
+            break;
+        case "QUERY":
+            headers = {
+                "Content-Type": "application/sparql-query",
+            }
+            break;
     }
     const res = await fetch(url.toString(), {
         method: "PUT",
@@ -34,6 +41,7 @@ async function ExecTransaction(transaction: Transaction): Promise<void>{
         console.log(await res.text())
         throw Error(`Something went wrong executing ${transaction.body} at ${transaction.location}\n`)
     }
+    return await res.text()
 }
 
 export default ExecTransaction
