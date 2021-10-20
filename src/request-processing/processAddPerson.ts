@@ -1,21 +1,35 @@
 import { Request, Response } from "express"
 import addPerson from "../api-commands/write/addPerson"
-import {defaultRepo} from "../globals"
+import invalidBody from "./invalidBody"
 
 interface ReqBody{
-    userID: string
+    userID: string,
+    transactionID?: string
 }
 
-function isReqBody(body: any): body is ReqBody{
-    return (body as ReqBody).userID !== undefined
+function isReqBody(body: Object): body is ReqBody{
+    const entries = Object.entries(body)
+    let output: boolean = (body as ReqBody).userID !== undefined
+    for(let i = 0;output && i < entries.length;i += 1){
+        switch(entries[i][0]){
+            case "userID":
+                break;
+            case "transactionID":
+                break;
+            default:
+                output = false;
+                break;
+        }
+    }
+    return output
 }
 
 async function processAddPerson(request: Request<{},any,ReqBody>, response: Response): Promise<void>{
     if(!isReqBody(request.body)){
-        response.send("Requires a unique ID to be sent through the body! Make sure Content-Type is set to application/json!\n")
+        invalidBody("userID","transactionID",response,"addPerson")
     }
     else{
-        await (addPerson(request.body.userID,defaultRepo).then((value) => {
+        await (addPerson(request.body.userID,request.body.transactionID).then((value) => {
             response.send(value)
         }).catch((e) => {
             response.send(e.message)

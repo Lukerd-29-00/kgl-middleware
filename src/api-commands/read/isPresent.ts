@@ -6,12 +6,16 @@ import commitTransaction from "../util/transaction/commitTransaction"
 import { Transaction } from "../util/transaction/Transaction"
 import SparqlQueryGenerator from "../../QueryGenerators/SparqlQueryGenerator"
 
-async function isPresent(userID: string): Promise<boolean> {
-    let location = await startTransaction(defaultRepo)
+async function isPresent(userID: string, location?: string): Promise<boolean> {
+    if(location === undefined){
+        location = await startTransaction(defaultRepo)
+    }
+    else{
+        location = `${ip}/repositories/${defaultRepo}/transactions/${location}`
+    }
     const query = await SparqlQueryGenerator({graphQueries: [[`${ip}/Person_${userID}`,"?person a cco:Person ."]], query: null, targets: ["?person"]})
     let exec: Transaction = {action: "QUERY", subj: null, pred: null, obj: null, graph: `${ip}/Person_${userID}`,location: location, body: query}
     return (ExecTransaction(exec).then((value: string) => {
-        commitTransaction(location)
         let output = value.split(/\n/)
         return output.length === 3
     }).catch((e: Error) => {

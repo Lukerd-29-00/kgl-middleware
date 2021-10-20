@@ -2,7 +2,7 @@ import startTransaction from "../util/transaction/startTransaction"
 import ExecTransaction from "../util/transaction/ExecTransaction"
 import { Transaction } from "../util/transaction/Transaction"
 import rollback from "../util/transaction/Rollback"
-import {ip} from "../../globals"
+import {ip, defaultRepo} from "../../globals"
 import {rdf} from "rdf-namespaces"
 
 interface personAddTransaction extends Transaction {
@@ -13,14 +13,21 @@ interface personAddTransaction extends Transaction {
     graph: string
 }
 
-async function addPerson(userID: string, repo: string): Promise<string>{
-    const location = await startTransaction(repo)
+async function addPerson(userID: string, location?: string): Promise<string>{
+    let locationSet = false
+    if(location === undefined){
+        location = await startTransaction(defaultRepo)
+        locationSet = true
+    }
+    else{
+        location = `${ip}/repositories/${defaultRepo}/transactions/${location}`
+    }
     const body = `cco:Person_${userID} <${rdf.type}> cco:Person.`
     const transaction: personAddTransaction = {subj: null, pred: null, obj: null, action: "UPDATE", graph: `${ip}/Person_${userID}`,location: location,body: body}
     return await ExecTransaction(transaction).then(
         async (value: string) => {
             const loc = location.split(/\//g)
-            return `Successfully created transaction# ${loc[loc.length-1]}\n`
+            return locationSet ? `Successfully created transaction# ${loc[loc.length-1]}\n` : ""
         }
     ).catch(async (e: Error) => {
         const output = await rollback(location).then((value: string) => {return undefined}).catch((e: Error) => {return e.message})
