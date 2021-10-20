@@ -1,8 +1,10 @@
 import { Request, Response } from "express";
 import isPresent from "../api-commands/read/isPresent";
+import invalidBody from "./invalidBody";
 
 interface ReqBody{
-    userID: string
+    userID: string,
+    transactionID?: string
 }
 
 function isReqBody(body: Object): body is ReqBody{
@@ -11,6 +13,8 @@ function isReqBody(body: Object): body is ReqBody{
     for(let i = 0;output && i < entries.length;i += 1){
         switch(entries[i][0]){
             case "userID":
+                break;
+            case "transactionID":
                 break;
             default:
                 output = false;
@@ -22,11 +26,10 @@ function isReqBody(body: Object): body is ReqBody{
 
 async function processIsPresent(request: Request<{},{},ReqBody>, response: Response): Promise<void>{
     if(!isReqBody(request.body)){
-        response.status(400)
-        response.send("Error: request must have userID in body and nothing else!")
+        invalidBody("userID","transactionID",response,"isPresent")
     }
     else {
-        isPresent(request.body.userID).then((output: boolean) => {
+        isPresent(request.body.userID,request.body.transactionID).then((output: boolean) => {
             if(output){
                 response.send("")
             }
