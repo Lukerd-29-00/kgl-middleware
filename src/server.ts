@@ -11,60 +11,28 @@ import processAddPerson from "./request-processing/processAddPerson";
 import processCommit from "./request-processing/processCommit";
 import processIsPresent from "./request-processing/processIsPresent";
 import processRollback from "./request-processing/processRollback";
+import processWriteToLearnerRecord from "./request-processing/processWriteToLearnerRecord"
 const express = require("express")
-const fetch = require('node-fetch');
 const bodyParser = require("body-parser");
-const fs = require('fs')
-const packets = require('./ftmDataPacket')
-const ImportQuery = require('./triplesWrite')
 const app = express()
 const port = 4000
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }))
 
+app.put('/writeToLearnerRecord', processWriteToLearnerRecord)
+
 app.put("/addPerson", processAddPerson)
 
-app.post("/commit", processCommit)
+// app.post("/commit", processCommit)
 
-app.delete("/rollback", processRollback)
+// app.delete("/rollback", processRollback)
 
-app.get("/active", isActive)
+// app.get("/active", isActive)
 
-app.put("/isPresent",processIsPresent)
+// app.put("/isPresent", processIsPresent)
 
-/**This function should be a separate script run to initialize the server; game devs have no reason to use this function!
- * WRITE the FTM Graduate Learner Model for a first time player. 
- * @param userID: the user id for the person 
- 
-app.post('/WriteFtmGraduateLM/:userID', function (request, response){
-    try{
-            let userId = request.params.userID;
-            let userIRI = `cco:Player_${userId}`
-            
-            for(packet of packets){
-                let realPacket = packet.replace(/PLACEHOLDER/g, userIRI)
-                let encodedQuery = encodeURIComponent(realPacket)
-                fetch(`${ip}/repositories/LearnerModels/statements?update=${encodedQuery}` , {
-                    method: 'POST', 
-                    headers: {
-                        'Content-Type': 'application/rdf+xml',
-                    },
-                }).then(response => response.text())
-                    .then(data => {
-                        console.log('Success:', data);
-                    }).catch((error) => {
-                        console.error('Error:', error);
-                });
-            }
-        response.send("Uploaded Learner Model")
-    }catch(error){
-        console.log(error)
-    }
-})
-*/
-
-app.listen(port, () =>{
+app.listen(port, () => {
     console.log(`Middleware software listening on port ${port}`)
 })
 
