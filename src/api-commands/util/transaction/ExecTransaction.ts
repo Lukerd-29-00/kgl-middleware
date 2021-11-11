@@ -38,8 +38,7 @@ async function ExecTransaction(transaction: Transaction): Promise<string>{
         body: body
     })
     if(!res.ok){
-        console.log(await res.text())
-        throw Error(`Something went wrong executing ${transaction.body} at ${transaction.location}\n`)
+        throw Error(`Something went wrong executing ${transaction.body} at ${transaction.location}: ${await res.text()}\n`)
     }
     return await res.text()
 }

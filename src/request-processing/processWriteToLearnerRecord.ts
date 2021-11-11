@@ -1,6 +1,13 @@
 import { Request, Response } from "express"
 import invalidBody from "./invalidBody"
-import { ip } from '../globals'
+import { defaultRepo, ip } from '../globals'
+import startTransaction from "../api-commands/util/transaction/startTransaction"
+import ExecTransaction from "../api-commands/util/transaction/ExecTransaction"
+import {Transaction} from "../api-commands/util/transaction/Transaction"
+import { json } from "body-parser"
+import { response } from "rdf-namespaces/dist/link"
+import rollback from "../api-commands/util/transaction/Rollback"
+import commitTransaction from "../api-commands/util/transaction/commitTransaction"
 
 interface ReqBody {
     userID: string,
@@ -36,9 +43,9 @@ function isReqBody(body: Object): body is ReqBody {
     return output
 }
 
-function processWriteToLearnerRecord(request: Request<{}, any, ReqBody>, response: Response) {
+async function processWriteToLearnerRecord(request: Request<{}, any, ReqBody>, response: Response) {
     if (!isReqBody(request.body)) {
-        invalidBody("userID", "transactionID", response, "addPerson")
+        invalidBody(["userID", "standardLearnedContent", "timestamp", "correct"], [], response, "writeToLearnerRecord")
     } else {
         let userID = request.body.userID
         let content = request.body.standardLearnedContent.replace("http://www.ontologyrepository.com/CommonCoreOntologies/", '')
@@ -46,30 +53,35 @@ function processWriteToLearnerRecord(request: Request<{}, any, ReqBody>, respons
         let contentIRI = request.body.standardLearnedContent
         let correct = request.body.correct
 
-        let rawTriples = `cco:Person_${userID} rdf:type cco:Person ; \n`
-        rawTriples += `\tcco:agent_in cco:Act_Learning_${content}_${timestamp}_Person_${userID} . \n\n`
-        rawTriples += `cco:Act_Learning_${content}_${timestamp}_Person_${userID} rdf:type cco:ActOfEducationalTrainingAcquisition ; \n`
-        rawTriples += `\tcco:has_object <${contentIRI}>; \n `
-        rawTriples += `\tcco:is_measured_by_nominal ${content}_${timestamp}_Nominal_cco:Person_${userID} . \n\n`
-        rawTriples += `\t${content}_${timestamp}_Nominal_cco:Person_${userID} rdf:type cco:NominalMeasurementInformationContentEntity ; \n `
-        rawTriples += `\tcco:is_tokenized_by "${correct}"^^xsd:String .  \n `
-        console.log(rawTriples)
-        // writeToLearnerRecord()
+        let rawTriples = `cco:Person_${userID} rdf:type cco:Person ;\n`
+        rawTriples += `\tcco:agent_in cco:Act_Learning_${content}_${timestamp}_Person_${userID} .\n\n`
+        rawTriples += `cco:Act_Learning_${content}_${timestamp}_Person_${userID} rdf:type cco:ActOfEducationalTrainingAcquisition ;\n`
+        rawTriples += `\tcco:has_object <${contentIRI}> ;\n `
+        rawTriples += `\tcco:is_measured_by_nominal ${content}_${timestamp}_Nominal_cco:Person_${userID} .\n\n`
+        rawTriples += `\t${content}_${timestamp}_Nominal_cco:Person_${userID} rdf:type cco:NominalMeasurementInformationContentEntity ;\n `
+        rawTriples += `\tcco:is_tokenized_by "${correct}"^^xsd:string .\n `
+        await writeToLearnerRecord(rawTriples, userID).catch((e: Error) => {
+            response.status(500);
+            response.send(e.message);
+        });
     }
 }
 
-function writeToLearnerRecord(encodedTriples: string, response: Response) {
-    fetch(`${ip}/repositories/LearnerModels/statements?update=` + encodedTriples, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/rdf+xml',
-        },
-    }).then(response => response.text())
-        .then(data => {
-            response.send("Updated Learner Record")
-        }).catch((error) => {
-            response.send("Unable to Update Learner Record: " + error)
+async function writeToLearnerRecord(triples: string, userID: string): Promise<void> {
+    const location = await startTransaction(defaultRepo);
+    const transaction: Transaction = {action: "UPDATE", graph: `${ip}/${userID}`, location: location, subj: null, pred: null, obj: null, body: triples};
+    return await (ExecTransaction(transaction).then(() => {
+        commitTransaction(location).then(() => {
+            return;
+        }).catch((e: Error) => {
+            rollback(location).catch(() => {});
+            throw Error(`Failed to commit transaction: ${e.message}`);
         });
+
+    }).catch((e) => {
+        rollback(location).catch(() => {});
+        throw Error(`Could not write to triple store: ${e.message}`);
+    }));
 }
 
 // async function processWriteToLearnerRecord(request: Request<{}, any, ReqBody>, response: Response): Promise<void> {
