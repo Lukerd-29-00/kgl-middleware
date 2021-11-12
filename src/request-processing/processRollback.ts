@@ -1,6 +1,5 @@
 import { Response } from "express";
 import { Request } from "express"
-import { ResponseMessage } from "rdf-namespaces/dist/http";
 import rollback from "../api-commands/util/transaction/Rollback";
 import {ip, defaultRepo} from "../globals";
 

@@ -5,9 +5,7 @@
  *  Casey Rock 
  *  July 30, 2021
  */
-import { rdf } from "rdf-namespaces";
 import isActive from "./request-processing/isActive";
-import processAddPerson from "./request-processing/processAddPerson";
 import processCommit from "./request-processing/processCommit";
 import processIsPresent from "./request-processing/processIsPresent";
 import processRollback from "./request-processing/processRollback";
@@ -22,15 +20,13 @@ app.use(bodyParser.urlencoded({ extended: true }))
 
 app.put('/writeToLearnerRecord', processWriteToLearnerRecord)
 
-app.put("/addPerson", processAddPerson)
+app.post("/commit", processCommit)
 
-// app.post("/commit", processCommit)
+app.delete("/rollback", processRollback)
 
-// app.delete("/rollback", processRollback)
+app.get("/active", isActive)
 
-// app.get("/active", isActive)
-
-// app.put("/isPresent", processIsPresent)
+app.put("/isPresent", processIsPresent)
 
 app.listen(port, () => {
     console.log(`Middleware software listening on port ${port}`)

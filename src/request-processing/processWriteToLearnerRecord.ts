@@ -4,8 +4,6 @@ import { defaultRepo, ip } from '../globals'
 import startTransaction from "../api-commands/util/transaction/startTransaction"
 import ExecTransaction from "../api-commands/util/transaction/ExecTransaction"
 import {Transaction} from "../api-commands/util/transaction/Transaction"
-import { json } from "body-parser"
-import { response } from "rdf-namespaces/dist/link"
 import rollback from "../api-commands/util/transaction/Rollback"
 import commitTransaction from "../api-commands/util/transaction/commitTransaction"
 
@@ -69,7 +67,7 @@ async function processWriteToLearnerRecord(request: Request<{}, any, ReqBody>, r
 
 async function writeToLearnerRecord(triples: string, userID: string): Promise<void> {
     const location = await startTransaction(defaultRepo);
-    const transaction: Transaction = {action: "UPDATE", graph: `${ip}/${userID}`, location: location, subj: null, pred: null, obj: null, body: triples};
+    const transaction: Transaction = {action: "UPDATE", location: location, subj: null, pred: null, obj: null, body: triples};
     return await (ExecTransaction(transaction).then(() => {
         commitTransaction(location).then(() => {
             return;
@@ -83,18 +81,5 @@ async function writeToLearnerRecord(triples: string, userID: string): Promise<vo
         throw Error(`Could not write to triple store: ${e.message}`);
     }));
 }
-
-// async function processWriteToLearnerRecord(request: Request<{}, any, ReqBody>, response: Response): Promise<void> {
-//     if (!isReqBody(request.body)) {
-//         invalidBody("userID", "transactionID", response, "addPerson")
-//     } else {
-//         await (addLearnerRecord(request.body.userID, Response).then((value) => {
-//             response.send(value)
-//         }).catch((e) => {
-//             response.send(e.message)
-//         }))
-//     }
-// }
-
 
 export default processWriteToLearnerRecord

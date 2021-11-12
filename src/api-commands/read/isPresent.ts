@@ -13,8 +13,8 @@ async function isPresent(userID: string, location?: string): Promise<boolean> {
     else{
         location = `${ip}/repositories/${defaultRepo}/transactions/${location}`
     }
-    const query = await SparqlQueryGenerator({graphQueries: [[`${ip}/Person_${userID}`,"?person a cco:Person ."]], query: null, targets: ["?person"]})
-    let exec: Transaction = {action: "QUERY", subj: null, pred: null, obj: null, graph: `${ip}/Person_${userID}`,location: location, body: query}
+    const query = await SparqlQueryGenerator({query: "?person a cco:Person .", targets: ["?person"]})
+    let exec: Transaction = {action: "QUERY", subj: null, pred: null, obj: null, location: location, body: query}
     return (ExecTransaction(exec).then((value: string) => {
         let output = value.split(/\n/)
         return output.length === 3

@@ -24,7 +24,7 @@ async function ExecTransaction(transaction: Transaction): Promise<string>{
             }
             const prefs = new Map<string,string>()
             prefs.set("cco","http://www.ontologyrepository.com/CommonCoreOntologies/")
-            body = insertQuery(transaction.graph, body, prefs)
+            body = insertQuery(body, prefs)
             break;
         case "QUERY":
             headers = {
