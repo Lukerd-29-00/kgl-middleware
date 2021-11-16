@@ -1,6 +1,6 @@
 import { Request, Response } from "express"
 import invalidBody from "./invalidBody"
-import { defaultRepo, ip } from '../globals'
+import { defaultRepo, ip } from '../config'
 import startTransaction from "../api-commands/util/transaction/startTransaction"
 import ExecTransaction from "../api-commands/util/transaction/ExecTransaction"
 import {Transaction} from "../api-commands/util/transaction/Transaction"
@@ -41,10 +41,10 @@ function isReqBody(body: Object): body is ReqBody {
     return output
 }
 
-async function processWriteToLearnerRecord(request: Request<{}, any, ReqBody>, response: Response) {
+async function processWriteToLearnerRecord(request: Request<{}, any, ReqBody>, response: Response, ip: string, repo: string) {
     if (!isReqBody(request.body)) {
         invalidBody(["userID", "standardLearnedContent", "timestamp", "correct"], [], response, "writeToLearnerRecord")
-    } else {
+    }else {
         let userID = request.body.userID
         let content = request.body.standardLearnedContent.replace("http://www.ontologyrepository.com/CommonCoreOntologies/", '')
         let timestamp = request.body.timestamp
@@ -58,28 +58,28 @@ async function processWriteToLearnerRecord(request: Request<{}, any, ReqBody>, r
         rawTriples += `\tcco:is_measured_by_nominal ${content}_${timestamp}_Nominal_cco:Person_${userID} .\n\n`
         rawTriples += `\t${content}_${timestamp}_Nominal_cco:Person_${userID} rdf:type cco:NominalMeasurementInformationContentEntity ;\n `
         rawTriples += `\tcco:is_tokenized_by "${correct}"^^xsd:string .\n `
-        await writeToLearnerRecord(rawTriples, userID).catch((e: Error) => {
+        await writeToLearnerRecord(rawTriples, userID, ip, repo).catch((e: Error) => {
             response.status(500);
             response.send(e.message);
-        });
+        })
     }
 }
 
-async function writeToLearnerRecord(triples: string, userID: string): Promise<void> {
-    const location = await startTransaction(defaultRepo);
-    const transaction: Transaction = {action: "UPDATE", location: location, subj: null, pred: null, obj: null, body: triples};
+async function writeToLearnerRecord(ip: string, repo: string, triples: string, userID: string): Promise<void> {
+    const location = await startTransaction(ip, repo)
+    const transaction: Transaction = {action: "UPDATE", location: location, subj: null, pred: null, obj: null, body: triples}
     return await (ExecTransaction(transaction).then(() => {
         commitTransaction(location).then(() => {
             return;
         }).catch((e: Error) => {
-            rollback(location).catch(() => {});
-            throw Error(`Failed to commit transaction: ${e.message}`);
-        });
+            rollback(location).catch(() => {})
+            throw Error(`Failed to commit transaction: ${e.message}`)
+        })
 
     }).catch((e) => {
         rollback(location).catch(() => {});
-        throw Error(`Could not write to triple store: ${e.message}`);
-    }));
+        throw Error(`Could not write to triple store: ${e.message}`)
+    }))
 }
 
 export default processWriteToLearnerRecord

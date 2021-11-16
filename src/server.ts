@@ -5,32 +5,33 @@
  *  Casey Rock 
  *  July 30, 2021
  */
-import isActive from "./request-processing/isActive";
-import processCommit from "./request-processing/processCommit";
-import processIsPresent from "./request-processing/processIsPresent";
-import processRollback from "./request-processing/processRollback";
+import isActive from "./request-processing/isActive"
+import processCommit from "./request-processing/processCommit"
+import processIsPresent from "./request-processing/processIsPresent"
+import processRollback from "./request-processing/processRollback"
 import processWriteToLearnerRecord from "./request-processing/processWriteToLearnerRecord"
-const express = require("express")
-const bodyParser = require("body-parser");
-const app = express()
-const port = 4000
+import express, {Express, Request, Response} from "express"
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }))
+export default function getApp(ip: string, repo: string, prefixes: Array<[string ,string]>): Express{
+    const app = express()
+    app.use(express.json());
 
-app.put('/writeToLearnerRecord', processWriteToLearnerRecord)
+    app.use(express.urlencoded({ extended: true }))
 
-app.post("/commit", processCommit)
+    app.put('/writeToLearnerRecord', (req: Request, res: Response) => { processWriteToLearnerRecord(req, res, ip, repo)})
 
-app.delete("/rollback", processRollback)
+    app.post("/commit", (req: Request, res: Response) => {processCommit(req, res, ip, repo)})
 
-app.get("/active", isActive)
+    app.delete("/rollback", (req: Request, res: Response) => {processRollback(req,res,ip,repo)})
 
-app.put("/isPresent", processIsPresent)
+    app.get("/active", (req: Request, res: Response) => {isActive(req, res, ip, repo)})
 
-app.listen(port, () => {
-    console.log(`Middleware software listening on port ${port}`)
-})
+    app.put("/isPresent", (req: Request, res: Response) => {processIsPresent(req,res,ip,repo)})
+
+    return app
+}
+
+
 
 
 
