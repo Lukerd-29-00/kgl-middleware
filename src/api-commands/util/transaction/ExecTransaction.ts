@@ -24,7 +24,7 @@ async function ExecTransaction(transaction: Transaction): Promise<string>{
             }
             const prefs = new Map<string,string>()
             prefs.set("cco","http://www.ontologyrepository.com/CommonCoreOntologies/")
-            body = insertQuery(transaction.graph, body, prefs)
+            body = insertQuery(body, prefs)
             break;
         case "QUERY":
             headers = {
@@ -38,8 +38,7 @@ async function ExecTransaction(transaction: Transaction): Promise<string>{
         body: body
     })
     if(!res.ok){
-        console.log(await res.text())
-        throw Error(`Something went wrong executing ${transaction.body} at ${transaction.location}\n`)
+        throw Error(`Something went wrong executing ${transaction.body} at ${transaction.location}: ${await res.text()}\n`)
     }
     return await res.text()
 }

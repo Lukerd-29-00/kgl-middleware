@@ -13,6 +13,13 @@ function getStrings(arr: string | string[]): string | null{
     }
 }
 
+/**
+ * Sends the user an error depending on what required fields they missed or what fields they added that weren't needed, and lists the optional fields.
+ * @param requiredFields The fields that the calling function needs a request to have.
+ * @param optionalFields The fields that can be present in the calling function, but are not required.
+ * @param response The Express response object used to reply to the user.
+ * @param endpoint The endpoint that triggered the error.
+ */
 export default function invalidBody(requiredFields: string | string[], optionalFields: string | string[], response: Response, endpoint: string): void{
     response.status(400)
     const required = getStrings(requiredFields)
