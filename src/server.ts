@@ -5,18 +5,18 @@
  *  Casey Rock 
  *  July 30, 2021
  */
-import isActive from "./request-processing/isActive";
-import processCommit from "./request-processing/processCommit";
-import processIsPresent from "./request-processing/processIsPresent";
-import processRollback from "./request-processing/processRollback";
+import isActive from "./request-processing/isActive"
+import processCommit from "./request-processing/processCommit"
+import processIsPresent from "./request-processing/processIsPresent"
+import processRollback from "./request-processing/processRollback"
 import processWriteToLearnerRecord from "./request-processing/processWriteToLearnerRecord"
-const express = require("express")
-const bodyParser = require("body-parser");
-const app = express()
-const port = 4000
+import express from "express"
+import {port} from "./globals"
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }))
+const app = express()
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }))
 
 app.put('/writeToLearnerRecord', processWriteToLearnerRecord)
 

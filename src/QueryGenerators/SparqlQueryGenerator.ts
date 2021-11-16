@@ -21,20 +21,14 @@ function getTargets(targets: Array<string>): string{
     return output
 }
 
-async function SparqlQueryGenerator(query: Query): Promise<string> {
-    let output = new Array<Promise<string>>();
-    
+async function SparqlQueryGenerator(query: Query): Promise<string> {   
     let targets: null | string = null
     if(query.targets !== null){
         targets = getTargets(query.targets)
     }
-    return Promise.all(output).then((value: Array<string>) => {  
-        let str = query.query
-        str = `${getPrefixes(prefixes)}select ${targets === null ? "* " : targets}where {
-            ${str}    
-        }`
-        return str
-    })
+    return ( `${getPrefixes(prefixes)}select ${targets === null ? "* " : targets}where {
+        ${query.query}
+    }`)
 }
 
 export default SparqlQueryGenerator

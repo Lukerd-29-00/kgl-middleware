@@ -2,6 +2,7 @@ import { Response } from "express";
 import { Request } from "express"
 import rollback from "../api-commands/util/transaction/Rollback";
 import {ip, defaultRepo} from "../globals";
+import invalidBody from "./invalidBody";
 
 interface ReqBody {
     transactionID: string
@@ -24,12 +25,13 @@ function isReqBody(body: Object): body is ReqBody{
 
 async function processRollback(request: Request<{},{},ReqBody>, response: Response): Promise<void>{
     if(!isReqBody(request.body)){
-        response.send("Missing transactionID!")
+        invalidBody("transactionID",[],response,"/rollback")
     }
     else{
         await (rollback(`${ip}/repositories/${defaultRepo}/transactions/${request.body.transactionID}`).then((value: string) => {
             response.send(value)
         }).catch((e: Error) => {
+            response.status(500)
             response.send(e.message)
         }))
     }
