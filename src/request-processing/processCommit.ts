@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import commitTransaction from "../api-commands/util/transaction/commitTransaction";
-import {defaultRepo, ip} from "../globals"
 import invalidBody from "./invalidBody";
 
 interface ReqBody{ 
@@ -22,7 +21,7 @@ function isReqBody(body: Object): body is ReqBody{
     return output
 }
 
-async function processCommit(request: Request<{},{},ReqBody>,response: Response): Promise<void>{
+async function processCommit(request: Request<{},{},ReqBody>,response: Response, ip: string, defaultRepo: string): Promise<void>{
     if(!isReqBody(request.body)){
         invalidBody("transactionID",[],response,"/commit")
     }

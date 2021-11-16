@@ -1,6 +1,6 @@
-import app from "./server"
-import {port} from "./globals"
+import getApp from "./server"
+import {port, ip, defaultRepo, prefixes} from "./config"
 
-app.listen(port, () => {
-    console.log(`App listening on port ${port}`)
+getApp(ip,defaultRepo,prefixes).listen(port, () => {
+    console.log(`App listening on port ${port}.`)
 })

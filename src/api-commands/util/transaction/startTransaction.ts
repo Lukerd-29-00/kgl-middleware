@@ -1,8 +1,7 @@
-import {ip} from "../../../globals"
 import fetch from "node-fetch"
 
 
-async function startTransaction(repo: string): Promise<string>{
+async function startTransaction(ip: string, repo: string): Promise<string>{
     const res = await fetch(`${ip}/repositories/${repo}/transactions`, {
         method: "POST",
         headers: {

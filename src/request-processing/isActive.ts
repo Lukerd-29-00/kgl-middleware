@@ -1,9 +1,8 @@
 import { Request, Response } from "express";
-import { ip, defaultRepo } from "../globals";
 import fetch from "node-fetch";
 import invalidBody from "./invalidBody";
 
-async function isActive(request: Request<{},{},{}>, response: Response): Promise<void>{
+async function isActive(request: Request<{},{},{}>, response: Response, ip: string, defaultRepo: string): Promise<void>{
     if(Object.entries(request.body).length !== 0){
         invalidBody([],[],response,"/active")
     }else{

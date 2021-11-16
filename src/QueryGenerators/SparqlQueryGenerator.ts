@@ -1,4 +1,4 @@
-import {prefixes} from "../globals"
+import {prefixes} from "../config"
 
 interface Query {
     query: string

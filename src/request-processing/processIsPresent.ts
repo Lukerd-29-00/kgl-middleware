@@ -24,12 +24,12 @@ function isReqBody(body: Object): body is ReqBody{
     return output
 }
 
-async function processIsPresent(request: Request<{},{},ReqBody>, response: Response): Promise<void>{
+async function processIsPresent(request: Request<{},{},ReqBody>, response: Response, ip: string, repo: string): Promise<void>{
     if(!isReqBody(request.body)){
         invalidBody("userID","transactionID",response,"isPresent")
     }
     else {
-        isPresent(request.body.userID,request.body.transactionID).then((output: boolean) => {
+        isPresent(request.body.userID,ip, repo, request.body.transactionID,).then((output: boolean) => {
             if(output){
                 response.send("")
             }

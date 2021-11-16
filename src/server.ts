@@ -10,29 +10,26 @@ import processCommit from "./request-processing/processCommit"
 import processIsPresent from "./request-processing/processIsPresent"
 import processRollback from "./request-processing/processRollback"
 import processWriteToLearnerRecord from "./request-processing/processWriteToLearnerRecord"
-import express, {Express} from "express"
-import {port} from "./globals"
+import express, {Express, Request, Response} from "express"
 
+export default function getApp(ip: string, repo: string, prefixes: Array<[string ,string]>): Express{
+    const app = express()
+    app.use(express.json());
 
+    app.use(express.urlencoded({ extended: true }))
 
+    app.put('/writeToLearnerRecord', (req: Request, res: Response) => { processWriteToLearnerRecord(req, res, ip, repo)})
 
-const app = express()
+    app.post("/commit", (req: Request, res: Response) => {processCommit(req, res, ip, repo)})
 
-app.use(express.json());
+    app.delete("/rollback", (req: Request, res: Response) => {processRollback(req,res,ip,repo)})
 
-app.use(express.urlencoded({ extended: true }))
+    app.get("/active", (req: Request, res: Response) => {isActive(req, res, ip, repo)})
 
-app.put('/writeToLearnerRecord', processWriteToLearnerRecord)
+    app.put("/isPresent", (req: Request, res: Response) => {processIsPresent(req,res,ip,repo)})
 
-app.post("/commit", processCommit)
-
-app.delete("/rollback", processRollback)
-
-app.get("/active", isActive)
-
-app.put("/isPresent", processIsPresent)
-
-export default app
+    return app
+}
 
 
 
