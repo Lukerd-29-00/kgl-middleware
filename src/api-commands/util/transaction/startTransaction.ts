@@ -10,6 +10,9 @@ async function startTransaction(repo: string): Promise<string>{
         }
     })
     const location = res.headers.get("location")
+    if(location === null){
+        throw Error("Could not get location; is graphdb using the wrong version?")
+    }
     return location
 }
 

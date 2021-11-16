@@ -10,12 +10,16 @@ import processCommit from "./request-processing/processCommit"
 import processIsPresent from "./request-processing/processIsPresent"
 import processRollback from "./request-processing/processRollback"
 import processWriteToLearnerRecord from "./request-processing/processWriteToLearnerRecord"
-import express from "express"
+import express, {Express} from "express"
 import {port} from "./globals"
+
+
+
 
 const app = express()
 
 app.use(express.json());
+
 app.use(express.urlencoded({ extended: true }))
 
 app.put('/writeToLearnerRecord', processWriteToLearnerRecord)
@@ -28,9 +32,9 @@ app.get("/active", isActive)
 
 app.put("/isPresent", processIsPresent)
 
-app.listen(port, () => {
-    console.log(`Middleware software listening on port ${port}`)
-})
+export default app
+
+
 
 
 

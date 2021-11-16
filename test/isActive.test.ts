@@ -1,7 +1,12 @@
 import SparqlQueryGenerator from "../src/QueryGenerators/SparqlQueryGenerator"
+import app from "../src/server"
+import supertest from "supertest"
+
+const request = supertest(app)
 
 describe(SparqlQueryGenerator, () => {
     it("Should generate a SPARQL query", async () => {
-        expect(1).toBe(1)
+        const req = request.get("/active")
+        req.expect(200)
     })
 })

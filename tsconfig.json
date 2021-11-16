@@ -6,7 +6,9 @@
       "noImplicitAny": true,
       "types": [
         "@types/jest",
-        "@types/node"
+        "@types/node",
+        "@types/express",
+        "@types/node-fetch"
       ]
     }
   }

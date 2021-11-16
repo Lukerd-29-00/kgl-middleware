@@ -11,12 +11,15 @@ async function isActive(request: Request<{},{},{}>, response: Response): Promise
             response.status(500)
             response.send(`Got error "${e.message}" while trying to reach "${ip}".\n"`)
         })
+        if(probe === undefined){
+            return
+        }
         if(!probe.ok){
             response.status(502)
             response.send(`Got error "${await probe.text()}" while trying to reach "${ip}".\n"`)
         }
         else{
-            response.send("ok\n")
+            response.send("")
         }
     }
 }
