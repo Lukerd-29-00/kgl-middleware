@@ -1,6 +1,6 @@
-import fetch from 'node-fetch'
-import { insertQuery } from "./insertQuery";
-import { Transaction } from "./Transaction";
+import fetch from "node-fetch"
+import { insertQuery } from "./insertQuery"
+import { Transaction } from "./Transaction"
 
 async function ExecTransaction(transaction: Transaction): Promise<string>{
     const url = new URL(transaction.location)
@@ -17,20 +17,22 @@ async function ExecTransaction(transaction: Transaction): Promise<string>{
     }
     url.searchParams.set("action",transaction.action)
     switch(transaction.action){
-        case "UPDATE":
-            headers = {
-                "Content-Type": "application/sparql-update",
-                "Accept": "text/plain"
-            }
-            const prefs = new Map<string,string>()
-            prefs.set("cco","http://www.ontologyrepository.com/CommonCoreOntologies/")
-            body = insertQuery(body, prefs)
-            break;
-        case "QUERY":
-            headers = {
-                "Content-Type": "application/sparql-query",
-            }
-            break;
+    case "UPDATE": {
+        headers = {
+            "Content-Type": "application/sparql-update",
+            "Accept": "text/plain"
+        }
+        const prefs = new Map<string,string>()
+        prefs.set("cco","http://www.ontologyrepository.com/CommonCoreOntologies/")
+        body = insertQuery(body, prefs)
+        break
+    }
+    case "QUERY": {
+        headers = {
+            "Content-Type": "application/sparql-query",
+        }
+        break
+    }
     }
     const res = await fetch(url.toString(), {
         method: "PUT",

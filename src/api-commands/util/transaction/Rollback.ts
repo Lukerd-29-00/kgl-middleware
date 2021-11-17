@@ -1,4 +1,4 @@
-import fetch from 'node-fetch'
+import fetch from "node-fetch"
 
 async function rollback(location: string): Promise<string>{
     const res = await fetch(location, {method: "DELETE", headers: {"Accept": "text/plain"}})

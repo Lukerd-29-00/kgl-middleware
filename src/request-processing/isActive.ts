@@ -1,8 +1,8 @@
-import { Request, Response } from "express";
-import fetch from "node-fetch";
-import invalidBody from "./invalidBody";
+import { Request, Response } from "express"
+import fetch from "node-fetch"
+import invalidBody from "./invalidBody"
 
-async function isActive(request: Request<{},{},{}>, response: Response, ip: string, defaultRepo: string): Promise<void>{
+async function isActive(request: Request, response: Response, ip: string, defaultRepo: string): Promise<void>{
     if(Object.entries(request.body).length !== 0){
         invalidBody([],[],response,"/active")
     }else{
@@ -16,8 +16,7 @@ async function isActive(request: Request<{},{},{}>, response: Response, ip: stri
         if(!probe.ok){
             response.status(502)
             response.send(`Got error "${await probe.text()}" while trying to reach "${ip}".\n"`)
-        }
-        else{
+        } else{
             response.send("")
         }
     }

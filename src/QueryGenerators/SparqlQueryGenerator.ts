@@ -6,11 +6,11 @@ interface Query {
 }
 
 function getPrefixes(prefixes: Array<[string, string]>): string{
-    let output: string = ""
+    let output = ""
     for(const prefix of prefixes){
         output += `PREFIX ${prefix[0]}: <${prefix[1]}>\n`
     }
-    return output;
+    return output
 }
 
 function getTargets(targets: Array<string>): string{
@@ -26,9 +26,9 @@ async function SparqlQueryGenerator(query: Query): Promise<string> {
     if(query.targets !== null){
         targets = getTargets(query.targets)
     }
-    return ( `${getPrefixes(prefixes)}select ${targets === null ? "* " : targets}where {
+    return  `${getPrefixes(prefixes)}select ${targets === null ? "* " : targets}where {
         ${query.query}
-    }`)
+    }`
 }
 
 export default SparqlQueryGenerator
