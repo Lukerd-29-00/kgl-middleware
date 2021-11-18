@@ -1,0 +1,14 @@
+{
+    "compilerOptions": {
+      "esModuleInterop": true,
+      "sourceMap": true,
+      "strict": true,
+      "noImplicitAny": true,
+      "types": [
+        "@types/jest",
+        "@types/node",
+        "@types/express",
+        "@types/node-fetch"
+      ]
+    }
+  }
