@@ -11,22 +11,36 @@ import processIsPresent from "./request-processing/processIsPresent"
 import processRollback from "./request-processing/processRollback"
 import processWriteToLearnerRecord from "./request-processing/processWriteToLearnerRecord"
 import express, {Express, Request, Response} from "express"
+import morgan from "morgan"
 
-export default function getApp(ip: string, repo: string, prefixes: Array<[string ,string]>): Express{
+export default function getApp(ip: string, repo: string, prefixes: Array<[string ,string]>, log?: boolean): Express{
     const app = express()
-    app.use(express.json());
+    if(log){
+        app.use(morgan("combined"))
+    }
+    app.use(express.json())
 
     app.use(express.urlencoded({ extended: true }))
 
-    app.put('/writeToLearnerRecord', (req: Request, res: Response) => { processWriteToLearnerRecord(req, res, ip, repo)})
+    app.put("/writeToLearnerRecord", (req: Request, res: Response) => {
+        processWriteToLearnerRecord(req, res, ip, repo)
+    })
 
-    app.post("/commit", (req: Request, res: Response) => {processCommit(req, res, ip, repo)})
+    app.post("/commit", (req: Request, res: Response) => {
+        processCommit(req, res, ip, repo)
+    })
 
-    app.delete("/rollback", (req: Request, res: Response) => {processRollback(req,res,ip,repo)})
+    app.delete("/rollback", (req: Request, res: Response) => {
+        processRollback(req,res,ip,repo)
+    })
 
-    app.get("/active", (req: Request, res: Response) => {isActive(req, res, ip, repo)})
+    app.get("/active", (req: Request, res: Response) => {
+        isActive(req, res, ip, repo)
+    })
 
-    app.put("/isPresent", (req: Request, res: Response) => {processIsPresent(req,res,ip,repo)})
+    app.put("/isPresent", (req: Request, res: Response) => {
+        processIsPresent(req,res,ip,repo)
+    })
 
     return app
 }

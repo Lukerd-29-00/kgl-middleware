@@ -1,7 +1,7 @@
 import SparqlQueryGenerator from "../src/QueryGenerators/SparqlQueryGenerator"
 import getApp from "../src/server"
 import supertest from "supertest"
-import express, {Request, Response, Express} from "express"
+import express, {Request, Response} from "express"
 import { Server } from "http"
 
 
@@ -10,7 +10,9 @@ describe(SparqlQueryGenerator, () => {
     let server: null | Server = null
 
     beforeAll(async () => {
-        mockDB.get("repositories/test/size",(req: Request, res: Response) => {res.status(500); res.send("tst")})
+        mockDB.get("repositories/test/size",(req: Request, res: Response) => {
+            res.status(500); res.send("tst")
+        })
         server = mockDB.listen(7201)
         
     })
