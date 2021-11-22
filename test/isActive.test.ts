@@ -1,4 +1,3 @@
-import SparqlQueryGenerator from "../src/QueryGenerators/SparqlQueryGenerator"
 import endpoints from "../src/endpoints/endpoints"
 import supertest from "supertest"
 import getApp from "../src/server"
@@ -6,7 +5,7 @@ import express, {Request, Response} from "express"
 import { Server } from "http"
 
 
-describe(SparqlQueryGenerator, () => {
+describe("active", () => {
     const mockDB = express()
     let server: null | Server = null
 

@@ -1,4 +1,4 @@
-import {prefixes} from "../config"
+import {prefixes} from "../../config"
 
 interface Query {
     query: string

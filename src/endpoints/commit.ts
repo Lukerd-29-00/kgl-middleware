@@ -1,5 +1,5 @@
 import { Request, Response } from "express"
-import commitTransaction from "../api-commands/util/transaction/commitTransaction"
+import commitTransaction from "../util/transaction/commitTransaction"
 import Joi from "joi"
 import { Endpoint } from "../server"
 

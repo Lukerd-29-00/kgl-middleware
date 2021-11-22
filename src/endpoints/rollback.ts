@@ -1,6 +1,6 @@
 import { Response } from "express"
 import { Request } from "express"
-import rollback from "../api-commands/util/transaction/Rollback"
+import rollback from "../util/transaction/Rollback"
 import Joi from "joi"
 import { Endpoint } from "../server"
 

@@ -1,7 +1,7 @@
 import { Request, Response } from "express"
 import startTransaction from "../util/transaction/startTransaction"
 import { Transaction } from "../util/transaction/Transaction"
-import SparqlQueryGenerator from "../QueryGenerators/SparqlQueryGenerator"
+import SparqlQueryGenerator from "../util/QueryGenerators/SparqlQueryGenerator"
 import ExecTransaction from "../util/transaction/ExecTransaction"
 import rollback from "../util/transaction/Rollback"
 import Joi from "joi"
