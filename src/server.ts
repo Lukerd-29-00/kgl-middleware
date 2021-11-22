@@ -23,7 +23,7 @@ export interface Endpoint{
  * @param response The Express response object used to reply to the user.
  * @param endpoint The endpoint that triggered the error.
  */
-function checkRequestBody(request: Request, response: Response, next: () => void, schema: Joi.Schema, endpoint: string): void{
+function checkRequestBody(request: Request, response: Response, next: () => void, schema: Joi.Schema): void{
     const {error} = schema.validate(request.body)
     if(error === undefined){
         next()
@@ -43,7 +43,9 @@ export default function getApp(ip: string, repo: string, prefixes: Array<[string
     app.use(express.urlencoded({ extended: true }))
 
     for(const endpoint of endpoints){
-        app.use(endpoint.route, (request: Request, response: Response, next: () => void) => {checkRequestBody(request,response,next,endpoint.schema,endpoint.route)})
+        app.use(endpoint.route, (request: Request, response: Response, next: () => void) => {
+            checkRequestBody(request,response,next,endpoint.schema)
+        })
         
         app[endpoint.method](endpoint.route, (request: Request, response: Response) => {
             endpoint.process(request, response, ip, repo, prefixes)

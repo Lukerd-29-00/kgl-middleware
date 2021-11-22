@@ -4,10 +4,6 @@ import rollback from "../util/transaction/Rollback"
 import Joi from "joi"
 import { Endpoint } from "../server"
 
-interface ReqBody {
-    transactionID: string
-}
-
 const schema = Joi.object({
     transactionID: Joi.string()
 })

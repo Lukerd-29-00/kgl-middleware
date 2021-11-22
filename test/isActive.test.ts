@@ -1,7 +1,7 @@
 import endpoints from "../src/endpoints/endpoints"
 import supertest from "supertest"
 import getApp from "../src/server"
-import express, {Request, Response} from "express"
+import express, {Response} from "express"
 import { Server } from "http"
 
 
@@ -10,7 +10,7 @@ describe("active", () => {
     let server: null | Server = null
 
     beforeAll(async () => {
-        mockDB.get("repositories/test/size",(req: Request, res: Response) => {
+        mockDB.get("repositories/test/size",(res: Response) => {
             res.status(500); res.send("tst")
         })
         server = mockDB.listen(7201)

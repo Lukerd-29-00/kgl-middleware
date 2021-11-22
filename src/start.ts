@@ -1,4 +1,4 @@
-import getApp, { Endpoint } from "./server"
+import getApp from "./server"
 import {port, ip, defaultRepo, prefixes} from "./config"
 import endpoints from "./endpoints/endpoints"
 

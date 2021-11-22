@@ -46,12 +46,12 @@ async function writeToLearnerRecord(ip: string, repo: string, triples: string): 
         commitTransaction(location).then(() => {
             return
         }).catch((e: Error) => {
-            rollback(location).catch(() => {})
+            rollback(location)
             throw Error(`Failed to commit transaction: ${e.message}`)
         })
 
     }).catch((e) => {
-        rollback(location).catch(() => {})
+        rollback(location)
         throw Error(`Could not write to triple store: ${e.message}`)
     })
 }

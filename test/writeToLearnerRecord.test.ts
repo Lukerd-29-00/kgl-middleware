@@ -21,8 +21,8 @@ async function expectContent(userID: string, contentIRI: string, timestamp: numb
     queryString += `cco:is_tokenized_by "${correct}"^^xsd:boolean .`
     let output = ""
     while(output.match(/Person/) === null){
-      const transaction: Transaction = {subj: null, pred: null, obj: null, action: "QUERY", body: SparqlQueryGenerator({query: queryString, targets: ["?p"]},[["cco","http://www.ontologyrepository.com/CommonCoreOntologies/"],["xsd","http://www.w3.org/2001/XMLSchema#"],["rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#"]]), location: location}
-      output = await ExecTransaction(transaction)
+        const transaction: Transaction = {subj: null, pred: null, obj: null, action: "QUERY", body: SparqlQueryGenerator({query: queryString, targets: ["?p"]},[["cco","http://www.ontologyrepository.com/CommonCoreOntologies/"],["xsd","http://www.w3.org/2001/XMLSchema#"],["rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#"]]), location: location}
+        output = await ExecTransaction(transaction)
     }
     await commitTransaction(location)
 }
