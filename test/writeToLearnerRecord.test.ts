@@ -8,6 +8,7 @@ import ExecTransaction from "../src/util/transaction/ExecTransaction"
 import commitTransaction from "../src/util/transaction/commitTransaction"
 import SparqlQueryGenerator from "../src/util/QueryGenerators/SparqlQueryGenerator"
 import {Transaction} from "../src/util/transaction/Transaction"
+import fetch from "node-fetch"
 
 async function expectContent(userID: string, contentIRI: string, timestamp: number, correct: boolean): Promise<void>{
     const location = await startTransaction(ip, "test")
@@ -39,5 +40,11 @@ describe("writeToLearnerRecord", () => {
         const test = supertest(app)
         await test.put(writeToLearnerRecord.route).send(body)
         await expectContent(userID,content,timestamp,correct)
+    })
+
+    afterEach(async () => {
+        await fetch(`${ip}/repositories/test/statements`,{
+            method: "DELETE",
+        })
     })
 })
