@@ -123,6 +123,10 @@ export default {
   "<rootDir>"
   ],
 
+  globalSetup: "<rootDir>/test/setupTests.ts",
+
+  globalTeardown: "<rootDir>/test/teardownTests.ts",
+  
   // Allows you to use a custom runner instead of Jest's default test runner
   // runner: "jest-runner",
 

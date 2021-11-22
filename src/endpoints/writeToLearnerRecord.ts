@@ -8,10 +8,10 @@ import Joi from "joi"
 import { Endpoint } from "../server"
 
 const schema = Joi.object({
-    userID: Joi.string(),
-    standardLearnedContent: Joi.string(),
-    timestamp: Joi.number(),
-    correct: Joi.boolean()
+    userID: Joi.string().required(),
+    standardLearnedContent: Joi.string().required(),
+    timestamp: Joi.number().required(),
+    correct: Joi.boolean().required()
 })
 
 const route = "/writeToLearnerRecord"
