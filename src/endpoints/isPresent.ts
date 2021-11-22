@@ -35,7 +35,7 @@ async function isPresent(userID: string, ip: string, repo: string, location?: st
     } else{
         location = `${ip}/repositories/${repo}/transactions/${location}`
     }
-    const query = await SparqlQueryGenerator({query: `cco:Person_${userID} rdf:type ?c.`, targets: ["?c"]})
+    const query = SparqlQueryGenerator({query: `cco:Person_${userID} rdf:type ?c.`, targets: ["?c"]},[["cco","http://www.ontologyrepository.com/CommonCoreOntologies/"]])
     const exec: Transaction = {action: "QUERY", subj: null, pred: null, obj: null, location: location, body: query}
     return ExecTransaction(exec).then((value: string) => {
         const output = value.split(/\n/)

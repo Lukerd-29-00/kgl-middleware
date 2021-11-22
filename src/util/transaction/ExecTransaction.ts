@@ -34,6 +34,9 @@ async function ExecTransaction(transaction: Transaction): Promise<string>{
         break
     }
     }
+    console.log(body)
+    console.log(url.toString())
+    console.log(headers)
     const res = await fetch(url.toString(), {
         method: "PUT",
         headers: headers,

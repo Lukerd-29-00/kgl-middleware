@@ -4,7 +4,6 @@ import ExecTransaction from "../util/transaction/ExecTransaction"
 import {Transaction} from "../util/transaction/Transaction"
 import rollback from "../util/transaction/Rollback"
 import commitTransaction from "../util/transaction/commitTransaction"
-import {ParamsDictionary} from "express-serve-static-core"
 import Joi from "joi"
 import { Endpoint } from "../server"
 
@@ -25,14 +24,16 @@ async function processWriteToLearnerRecord(request: Request, response: Response,
     const contentIRI = request.body.standardLearnedContent
     const correct = request.body.correct
 
-    let rawTriples = `cco:Person_${userID} rdf:type cco:Person ;\n`
-    rawTriples += `\tcco:agent_in cco:Act_Learning_${content}_${timestamp}_Person_${userID} .\n\n`
-    rawTriples += `cco:Act_Learning_${content}_${timestamp}_Person_${userID} rdf:type cco:ActOfEducationalTrainingAcquisition ;\n`
-    rawTriples += `\tcco:has_object <${contentIRI}> ;\n `
-    rawTriples += `\tcco:is_measured_by_nominal ${content}_${timestamp}_Nominal_cco:Person_${userID} .\n\n`
-    rawTriples += `\t${content}_${timestamp}_Nominal_cco:Person_${userID} rdf:type cco:NominalMeasurementInformationContentEntity ;\n `
-    rawTriples += `\tcco:is_tokenized_by "${correct}"^^xsd:string .\n `
-    await writeToLearnerRecord(ip, repo, rawTriples).catch((e: Error) => {
+    let rawTriples = `cco:Person_${userID} rdf:type cco:Person ;`
+    rawTriples += `cco:agent_in cco:Act_Learning_${content}_${timestamp}_Person_${userID} .`
+    rawTriples += `cco:Act_Learning_${content}_${timestamp}_Person_${userID} rdf:type cco:ActOfEducationalTrainingAcquisition ;`
+    rawTriples += `cco:has_object <${contentIRI}> ;`
+    rawTriples += `cco:is_measured_by_nominal cco:${content}_${timestamp}_Nominal_Person_${userID} .`
+    rawTriples += `cco:${content}_${timestamp}_Nominal_Person_${userID} rdf:type cco:NominalMeasurementInformationContentEntity ;`
+    rawTriples += `cco:is_tokenized_by "${correct}"^^xsd:boolean .`
+    await writeToLearnerRecord(ip, repo, rawTriples).then(() => {
+        response.send("Successfully wrote triples!")
+    }).catch((e: Error) => {
         response.status(500)
         response.send(e.message)
     })
