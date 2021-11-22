@@ -1,6 +1,7 @@
 import SparqlQueryGenerator from "../src/QueryGenerators/SparqlQueryGenerator"
-import getApp from "../src/server"
+import endpoints from "../src/endpoints/endpoints"
 import supertest from "supertest"
+import getApp from "../src/server"
 import express, {Request, Response} from "express"
 import { Server } from "http"
 
@@ -18,19 +19,19 @@ describe(SparqlQueryGenerator, () => {
     })
 
     it("Should get a 200 status code if the server is running", async () => {
-        const request = supertest(getApp("http://localhost:7200","test",[]))
+        const request = supertest(getApp("http://localhost:7200","test",[],endpoints))
         const req = request.get("/active")
         await req.expect(200)
     })
 
     it("Should give a 502 error if the graphdb server returns an error.", async () => {
-        const request = supertest(getApp("http://localhost:7201","test",[]))
+        const request = supertest(getApp("http://localhost:7201","test",[],endpoints))
         const req = request.get("/active")
         await req.expect(502)
     })
 
     it("Should get a 500 status error if the graphdb server is not found", async () => {
-        const request = supertest(getApp("http://1","test",[]))
+        const request = supertest(getApp("http://1","test",[],endpoints))
         const req = request.get("/active")
         await req.expect(500)
     })
