@@ -10,7 +10,7 @@ export default async function setup(): Promise<void>{
     const data = new formData()
     const readStream = fs.createReadStream("./test/testRepository.ttl")
     data.append("config",readStream)
-    const r = await fetch(`${ip}/rest/repositories`, {
+    await fetch(`${ip}/rest/repositories`, {
         method: "POST",
         body: data,
         
