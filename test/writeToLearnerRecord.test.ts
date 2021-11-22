@@ -42,7 +42,9 @@ describe("writeToLearnerRecord", () => {
         const body = {userID: userID, standardLearnedContent: content, timestamp: timestamp, correct: correct}
         const test = supertest(app)
         await test.put(writeToLearnerRecord.route).send(body)
-        await expectContent(userID,content,timestamp,correct)
+        await expectContent(userID,content,timestamp,correct).catch((e: Error) => {
+            fail(e.message)
+        })
     })
 
     it("Should allow you to say that a person got something wrong", async () => {
@@ -53,7 +55,10 @@ describe("writeToLearnerRecord", () => {
         const body = {userID: userID, standardLearnedContent: content, timestamp: timestamp, correct: correct}
         const test = supertest(app)
         await test.put(writeToLearnerRecord.route).send(body)
-        await expectContent(userID,content,timestamp,correct)
+        await expectContent(userID,content,timestamp,correct).catch((e: Error) => {
+            fail(e.message)
+            
+        })
     })
     it("Should reject the request with a 400 error if any of the parameters is missing", async () => {
         const test = supertest(app)
