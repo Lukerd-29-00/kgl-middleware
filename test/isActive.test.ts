@@ -37,7 +37,7 @@ describe("active", () => {
 
     afterAll(async () => {
         if(server){
-            server.close()
+            await server.close()
         }
     })
 })
