@@ -21,9 +21,13 @@ async function expectContent(userID: string, contentIRI: string, timestamp: numb
     queryString += `cco:${content}_${timestamp}_Nominal_Person_${userID} rdf:type ?n ;`
     queryString += `cco:is_tokenized_by "${correct}"^^xsd:boolean .`
     let output = ""
+    const start = new Date().getTime()
     while(output.match(/Person/) === null){
         const transaction: Transaction = {subj: null, pred: null, obj: null, action: "QUERY", body: SparqlQueryGenerator({query: queryString, targets: ["?p"]},[["cco","http://www.ontologyrepository.com/CommonCoreOntologies/"],["xsd","http://www.w3.org/2001/XMLSchema#"],["rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#"]]), location: location}
         output = await ExecTransaction(transaction)
+        if(new Date().getTime() - start >= 120000){
+            throw Error(`Could not find the request for ${userID} to add ${correct ? "a successful" : "a failed"} ${contentIRI} event at ${timestamp}. Make sure graphdb is responding!`)
+        }
     }
     await commitTransaction(location)
 }
