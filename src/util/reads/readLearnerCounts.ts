@@ -22,17 +22,21 @@ function readLearnerCounts(TotalCountIRI: string, TotalCorrectIRI: string, callb
         method: 'GET',
         headers: {
             'Content-Type': 'application/rdf+xml',
+            'Accept': 'application/sparql-results+json'
         },
     }).then(response => response.text())
         .then(data => {
-            let newData = data.replace("\r", "")
-            let newDataArray = newData.split("\n")
-            newDataArray = newData[1].split(",")
-            let totalCount = data[0]
-            let totalCorrect = data[1]
-            if (totalCount != "" && totalCorrect != "") {
-                totalCount = totalCount.replace("\r", "")
-                totalCorrect = data[1].replace("\r", "")
+            let dataObj = JSON.parse(data)
+            let totalCount
+            let totalCorrect
+            if (dataObj.results.bindings[0].TotalCount != undefined) {
+                totalCount = dataObj.results.bindings[0].TotalCount.value
+                totalCorrect = dataObj.results.bindings[0].TotalCorrect.value
+            } else {
+                totalCount = 0
+                totalCorrect = 0
+            }
+            if (totalCount.toString() != "" && totalCorrect.toString() != "") {
                 callback(
                     {
                         "success": true,
@@ -40,6 +44,7 @@ function readLearnerCounts(TotalCountIRI: string, TotalCorrectIRI: string, callb
                         "totalCount": totalCount
                     })
             } else {
+                console.log("got here 1")
                 callback(
                     {
                         "success": false,

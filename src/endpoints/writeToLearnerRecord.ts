@@ -17,7 +17,7 @@ const schema = Joi.object({
 
 const route = "/writeToLearnerRecord"
 
-function createLearnerRecordTriples(userID: string, content: string, timestamp: number, contentIRI: string, correct: Boolean, totalCountValue: string, totalCorrectValue: string, masteryRation: number): string {
+function createLearnerRecordTriples(userID: string, content: string, timestamp: number, contentIRI: string, correct: Boolean, totalCountValue: number, totalCorrectValue: number, masteryRation: number): string {
     let rawTriples = `prefix cco: <http://www.ontologyrepository.com/CommonCoreOntologies/>\n`
     rawTriples += `cco:Person_${userID} rdf:type cco:Person ; \n`
     rawTriples += `\tcco:agent_in cco:Act_Learning_${content}_${timestamp}_Person_${userID} . \n\n`
@@ -65,11 +65,30 @@ async function processWriteToLearnerRecord(request: Request, response: Response,
     const timestamp = request.body.timestamp
     const contentIRI = request.body.standardLearnedContent
     const correct = request.body.correct
-    readLearnerCounts("", "", (result) => {
+    let totalCountIRI = `cco:Act_Learning_${content}_TotalCount_Measurment_Person_${userID}`
+    let totalCorrectIRI = `cco:Act_Learning_${content}_CountCorrect_Measurment_Person_${userID}`
+    readLearnerCounts(totalCountIRI, totalCorrectIRI, (result) => {
         if (result.success) {
+            let totalCorrectValue
+            let totalCountValue
+
+            if (result.success) {
+                if (correct)
+                    totalCorrectValue = parseInt(result.totalCorrect) + 1
+                else
+                    totalCorrectValue = parseInt(result.totalCorrect)
+
+                totalCountValue = parseInt(result.totalCount) + 1
+            } else {
+                if (correct)
+                    totalCorrectValue = 1
+                else
+                    totalCorrectValue = 0
+
+                totalCountValue = 1
+            }
             let masteryRation = parseInt(result.totalCorrect) / parseInt(result.totalCount)
-            let rawTriples = createLearnerRecordTriples(userID, content, timestamp, contentIRI, correct, result.totalCount, result.totalCorrect, masteryRation)
-            // console.log(rawTriples)
+            let rawTriples = createLearnerRecordTriples(userID, content, timestamp, contentIRI, correct, totalCountValue, totalCorrectValue, masteryRation)
             writeToLearnerRecord(ip, repo, rawTriples).then(() => {
                 response.send("Successfully wrote triples!")
             }).catch((e: Error) => {
