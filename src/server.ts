@@ -5,15 +5,35 @@
  *  Casey Rock 
  *  July 30, 2021
  */
-import isActive from "./request-processing/isActive"
-import processCommit from "./request-processing/processCommit"
-import processIsPresent from "./request-processing/processIsPresent"
-import processRollback from "./request-processing/processRollback"
-import processWriteToLearnerRecord from "./request-processing/processWriteToLearnerRecord"
 import express, {Express, Request, Response} from "express"
 import morgan from "morgan"
+import Joi from "joi"
 
-export default function getApp(ip: string, repo: string, prefixes: Array<[string ,string]>, log?: boolean): Express{
+export interface Endpoint{
+    schema: Joi.Schema,
+    route: string,
+    method: "put" | "post" | "delete" | "get",
+    process: ((request: Request, response: Response, ip: string, repo: string, prefixes?: Array<[string, string]>) => void)
+}
+
+/**
+ * Sends the user an error depending on what required fields they missed or what fields they added that weren't needed, and lists the optional fields.
+ * @param requiredFields The fields that the calling function needs a request to have.
+ * @param optionalFields The fields that can be present in the calling function, but are not required.
+ * @param response The Express response object used to reply to the user.
+ * @param endpoint The endpoint that triggered the error.
+ */
+function checkRequestBody(request: Request, response: Response, next: () => void, schema: Joi.Schema): void{
+    const {error} = schema.validate(request.body)
+    if(error === undefined){
+        next()
+    }else{
+        response.status(400)
+        response.send(error.message)
+    }
+}
+
+export default function getApp(ip: string, repo: string, prefixes: Array<[string ,string]>, endpoints: Array<Endpoint>, log?: boolean): Express{
     const app = express()
     if(log){
         app.use(morgan("combined"))
@@ -22,29 +42,19 @@ export default function getApp(ip: string, repo: string, prefixes: Array<[string
 
     app.use(express.urlencoded({ extended: true }))
 
-    app.put("/writeToLearnerRecord", (req: Request, res: Response) => {
-        processWriteToLearnerRecord(req, res, ip, repo)
-    })
-
-    app.post("/commit", (req: Request, res: Response) => {
-        processCommit(req, res, ip, repo)
-    })
-
-    app.delete("/rollback", (req: Request, res: Response) => {
-        processRollback(req,res,ip,repo)
-    })
-
-    app.get("/active", (req: Request, res: Response) => {
-        isActive(req, res, ip, repo)
-    })
-
-    app.put("/isPresent", (req: Request, res: Response) => {
-        processIsPresent(req,res,ip,repo)
-    })
+    for(const endpoint of endpoints){
+        app.use(endpoint.route, (request: Request, response: Response, next: () => void) => {
+            checkRequestBody(request,response,next,endpoint.schema)
+        })
+        
+        app[endpoint.method](endpoint.route, (request: Request, response: Response) => {
+            endpoint.process(request, response, ip, repo, prefixes)
+        })
+        
+    }
 
     return app
 }
-
 
 
 

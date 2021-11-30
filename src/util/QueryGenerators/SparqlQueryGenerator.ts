@@ -1,5 +1,3 @@
-import {prefixes} from "../config"
-
 interface Query {
     query: string
     targets: Array<string> | null
@@ -21,7 +19,7 @@ function getTargets(targets: Array<string>): string{
     return output
 }
 
-async function SparqlQueryGenerator(query: Query): Promise<string> {   
+function SparqlQueryGenerator(query: Query, prefixes: Array<[string, string]>): string {   
     let targets: null | string = null
     if(query.targets !== null){
         targets = getTargets(query.targets)
