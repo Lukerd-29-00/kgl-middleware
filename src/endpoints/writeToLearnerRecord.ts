@@ -7,6 +7,7 @@ import readLearnerCounts from "../util/reads/readLearnerCounts"
 import commitTransaction from "../util/transaction/commitTransaction"
 import Joi from "joi"
 import { Endpoint } from "../server"
+import { isConstructorDeclaration } from "typescript"
 
 const schema = Joi.object({
     userID: Joi.string().required(),
@@ -116,7 +117,8 @@ async function writeToLearnerRecord(ip: string, repo: string, triples: string): 
 
     }).catch((e) => {
         rollback(location)
-        throw Error(`Could not write to triple store: ${e.message}`)
+        console.log(e)
+        throw Error(`Could not write to triple store: ${e}`)
     })
 }
 

@@ -5,11 +5,11 @@
  *  Casey Rock 
  *  July 30, 2021
  */
-import express, {Express, Request, Response} from "express"
+import express, { Express, Request, Response } from "express"
 import morgan from "morgan"
 import Joi from "joi"
 
-export interface Endpoint{
+export interface Endpoint {
     schema: Joi.Schema,
     route: string,
     method: "put" | "post" | "delete" | "get",
@@ -23,34 +23,34 @@ export interface Endpoint{
  * @param response The Express response object used to reply to the user.
  * @param endpoint The endpoint that triggered the error.
  */
-function checkRequestBody(request: Request, response: Response, next: () => void, schema: Joi.Schema): void{
-    const {error} = schema.validate(request.body)
-    if(error === undefined){
+function checkRequestBody(request: Request, response: Response, next: () => void, schema: Joi.Schema): void {
+    const { error } = schema.validate(request.body)
+    if (error === undefined) {
         next()
-    }else{
+    } else {
         response.status(400)
         response.send(error.message)
     }
 }
 
-export default function getApp(ip: string, repo: string, prefixes: Array<[string ,string]>, endpoints: Array<Endpoint>, log?: boolean): Express{
+export default function getApp(ip: string, repo: string, prefixes: Array<[string, string]>, endpoints: Array<Endpoint>, log?: boolean): Express {
     const app = express()
-    if(log){
+    if (log) {
         app.use(morgan("combined"))
     }
     app.use(express.json())
 
     app.use(express.urlencoded({ extended: true }))
 
-    for(const endpoint of endpoints){
+    for (const endpoint of endpoints) {
         app.use(endpoint.route, (request: Request, response: Response, next: () => void) => {
-            checkRequestBody(request,response,next,endpoint.schema)
+            checkRequestBody(request, response, next, endpoint.schema)
         })
-        
+
         app[endpoint.method](endpoint.route, (request: Request, response: Response) => {
             endpoint.process(request, response, ip, repo, prefixes)
         })
-        
+
     }
 
     return app
