@@ -3,3 +3,5 @@ node_modules
 .DS_Store
 src/node
 coverage
+setup/input
+config.ttl

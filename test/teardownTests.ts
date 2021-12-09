@@ -1,18 +1,19 @@
 import fetch from "node-fetch"
 import {ip} from "../src/config"
+import { getFiles, spin} from "./setupTests"
 
 export default async function teardown(): Promise<void>{
-    await fetch(`${ip}/rest/repositories/test`,{
-        method: "DELETE"
-    }).catch((e: Error) => {
-        throw Error(`Could remove the test repository after testing! exact error was: ${e.message}`)
-    })
-    const start = new Date().getTime()
-    let reply = await fetch(`${ip}/rest/repositories/test`)
-    while(reply.ok){
-        reply = await fetch(`${ip}/rest/repositories/test`)
-        if(new Date().getTime() - start >= 60000){
-            throw Error("Could not delete test repository! did graphdb close during testing? If not, check to make sure it is responding.")
-        }
+    const files = await getFiles()
+    for(const file of files){
+        fetch(`${ip}/rest/repositories/${file}Test`,{
+            method: "DELETE"
+        }).catch((e: Error) => {
+            throw Error(`Could remove the test repository after testing! exact error was: ${e.message}`)
+        })
     }
+    const spins = new Array<Promise<void>>()
+    for(const file of files){
+        spins.push(spin(file, false))
+    }
+    await Promise.all(spins)
 }

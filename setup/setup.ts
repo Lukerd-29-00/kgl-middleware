@@ -19,7 +19,7 @@ export async function spin(server: string, repositoryId: string, present: boolea
         }
     }
     if(present){
-        await fs.rm(`./${configFile}`,(err) => {
+        await fs.rm(`./config.ttl`,(err) => {
             if(err){
                 console.log(`Warning: failed to delete file ${configFile} because of error: ${err.message}`)
             }
@@ -32,11 +32,11 @@ export async function spin(server: string, repositoryId: string, present: boolea
 const program = new Command()
 
 const args = program.version("1.0.0")
-.requiredOption("-c, --content", "The named individuals of the specific concepts being mastered")
-.requiredOption("-r, --repository", "The repository that should contain the data")
-.requiredOption("-o, --ontology", "The file containing the ontology of all the things being learned")
-.requiredOption("-s, --server", "The address of the server")
-.requiredOption("-c, --config", "The ttl file pointing to the configuration of the new repository", "./test/testRepository.ttl")
+.requiredOption("-c, --content <file>", "The named individuals of the specific concepts being mastered")
+.requiredOption("-r, --repository <id>", "The repository that should contain the data")
+.requiredOption("-o, --ontology <file>", "The file containing the ontology of all the things being learned")
+.requiredOption("-s, --server <string>", "The address of the server")
+.requiredOption("-f, --config <file>", "The ttl file pointing to the configuration of the new repository", "./test/testRepository.ttl")
 .parse()
 .opts()
 
@@ -52,7 +52,8 @@ const argsSchema = Joi.object({
     content: Joi.string().required().regex(/.*\.ttl$/),
     repository: Joi.string().required(),
     ontology: Joi.string().required().regex(/.*\.ttl$/),
-    server: Joi.string().required()
+    server: Joi.string().required(),
+    config: Joi.string().required().regex(/.*\.ttl$/)
 })
 
 const valid = argsSchema.validate(verifiedArgs)
@@ -75,9 +76,9 @@ async function createRepository(name: string, configFileName: string, server: st
             throw Error(`Interrupted after reading ${data.length} bytes by error: ${err.message}`)
         }
         const config = data.toString()
-        .replace(/rep:repositoryID ".*"/,`rep:repositoryID "${configFileName}"`)
-        .replace(/rdfs:label ".*"/, `rdfs:label "${configFileName}"`)
-        fs.writeFileSync(`./$config.ttl`,config)
+        .replace(/rep:repositoryID ".*"/,`rep:repositoryID "${name}"`)
+        .replace(/rdfs:label ".*"/, `rdfs:label "${name}}"`)
+        fs.writeFileSync(`./config.ttl`,config)
         let form = new formData()
             const readStream = fs.createReadStream(`./config.ttl`)
             form.append("config",readStream)
@@ -110,17 +111,42 @@ async function uploadKibibyteOfFile(block: string, server: string, repository: s
 }
 
 async function uploadTriplesFromFile(file: string, server: string, repository: string): Promise<void>{
-    const size = fs.statSync(file).size
-    const numBlocks = Math.floor(size/1024)
+    
     const promises = new Array<Promise<void>>()
-    let start = 0
-    for(let i = 0; i < numBlocks; i++){
-        constraw.match(/(^.*) \.(?:(?!.* \.))/)
-        promises.push(uploadKibibyteOfFile(fs.createReadStream(file,{start: start, end: 1024+i*1024}).read(),server,repository))
-
-    }
-
+    let leftOverData: string = ""
+    const re = /^((?:[^"]|"(?:[^"\\]|\\.)*")*) \.(?:(?!.* \.))/
+    let currentData = ""
+    return new Promise<void>((resolve, reject) => {
+        const stream = fs.createReadStream(file)
+        stream.on("data", (chunk: string) => {
+            currentData += chunk
+            while(currentData.length >= 1024){
+                let split = currentData.split(re)
+                if(currentData == split[1]){
+                    promises.push(uploadKibibyteOfFile(currentData,server,repository))
+                    leftOverData = ""
+                    currentData = ""
+                    break
+                }
+                currentData = split[1]
+                leftOverData = split[2]
+                promises.push(uploadKibibyteOfFile(currentData,server,repository))
+                currentData = leftOverData
+                leftOverData = ""
+            }
+        })
+        stream.on("end", async () => {
+            promises.push(uploadKibibyteOfFile(currentData,server,repository))
+            await Promise.all(promises)
+            resolve()
+        })
+        stream.on("error", (e: Error) => {
+            reject(e.message)
+        })
+        }
+    )
 }
+    
 
 async function setup(args: Args): Promise<void>{
     await fetch(`${args.server}/rest/repositories`).catch((e: Error) => {
@@ -131,7 +157,13 @@ async function setup(args: Args): Promise<void>{
 
     await spin(args.server, args.repository, true, args.config)
 
-    fs.statSync(args.content)
+    const [p1, p2] = [
+        uploadTriplesFromFile(args.content, args.server, args.repository),
+        uploadTriplesFromFile(args.ontology, args.server, args.repository)
+    ]
 
+    await Promise.all([p1, p2])
 }
+
+setup(verifiedArgs)
 
