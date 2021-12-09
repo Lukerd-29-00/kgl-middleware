@@ -24,6 +24,12 @@ async function ExecTransaction(transaction: Transaction): Promise<string>{
         }
         const prefs = new Map<string,string>()
         prefs.set("cco","http://www.ontologyrepository.com/CommonCoreOntologies/")
+        prefs.set("obo","http://purl.obolibrary.org/obo/")
+        prefs.set("owl","http://www.w3.org/2002/07/owl#")
+        prefs.set("rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+        prefs.set("xml","http://www.w3.org/XML/1998/namespace")
+        prefs.set("xsd","http://www.w3.org/2001/XMLSchema#")
+        prefs.set("rdfs","http://www.w3.org/2000/01/rdf-schema#")
         body = insertQuery(body, prefs)
         break
     }
