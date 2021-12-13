@@ -14,7 +14,7 @@ const schema = Joi.object({
 
 const route = "/isPresent"
 
-async function processIsPresent(request: Request, response: Response, ip: string, repo: string): Promise<void>{
+async function processIsPresent(request: Request, response: Response, ip: string, repo: string, prefixes: Array<[string, string]>): Promise<void>{
     isPresent(request.body.userID,ip, repo, request.body.transactionID,).then((output: boolean) => {
         if(output){
             response.send("")
@@ -29,15 +29,15 @@ async function processIsPresent(request: Request, response: Response, ip: string
     })
 }
 
-async function isPresent(userID: string, ip: string, repo: string, location?: string): Promise<boolean> {
+async function isPresent(userID: string, ip: string, repo: string, prefixes: Array<[string, string]>, location?: string): Promise<boolean> {
     if(location === undefined){
         location = await startTransaction(ip, repo)
     } else{
         location = `${ip}/repositories/${repo}/transactions/${location}`
     }
-    const query = SparqlQueryGenerator({query: `cco:Person_${userID} rdf:type ?c.`, targets: ["?c"]},[["cco","http://www.ontologyrepository.com/CommonCoreOntologies/"]])
+    const query = SparqlQueryGenerator({query: `cco:Person_${userID} rdf:type ?c.`, targets: ["?c"]},prefixes)
     const exec: Transaction = {action: "QUERY", subj: null, pred: null, obj: null, location: location, body: query}
-    return ExecTransaction(exec).then((value: string) => {
+    return ExecTransaction(exec,prefixes).then((value: string) => {
         const output = value.split(/\n/)
         return output.length === 3
     }).catch((e: Error) => {
@@ -46,5 +46,5 @@ async function isPresent(userID: string, ip: string, repo: string, location?: st
     })
 }
 
-const endpoint: Endpoint = {route: route, schema: schema, process: processIsPresent, method: "put"}
+const endpoint: Endpoint = {route, schema, process: processIsPresent, method: "put"}
 export default endpoint

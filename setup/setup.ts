@@ -1,13 +1,23 @@
 import fetch from "node-fetch"
 import Joi from "joi"
 import {Command} from "commander"
-import fs, { ReadStream } from "fs"
+import fs from "fs"
 import startTransaction from "../src/util/transaction/startTransaction"
 import ExecTransaction from "../src/util/transaction/ExecTransaction"
 import commitTransaction from "../src/util/transaction/commitTransaction"
 import rollback from "../src/util/transaction/Rollback"
 import formData from "form-data"
 import { Transaction } from "../src/util/transaction/Transaction"
+
+function getPrefixes(triples: string): Array<[string, string]>{
+    const prefs = new Array<[string, string]>()
+    const re = /(?:@prefix | PREFIX )(.*:) <([^>]*)> \./g
+    let matches = triples.matchAll(re)
+    for(let entry = matches.next(); !entry.done; entry = matches.next()){
+        prefs.push([entry.value[1],entry.value[2]])
+    }
+    return prefs
+}
 
 /**
  * Spin waits until the repository is or is not present, depending on the present argument.
@@ -118,7 +128,7 @@ async function createRepository(name: string, configFileName: string, server: st
  * @param server The ip and port of the server.
  * @param repository The ID of the repository the statements will be uploaded to
  */
-async function uploadBlock(block: string, server: string, repository: string): Promise<void>{
+async function uploadBlock(block: string, server: string, repository: string, prefs: Array<[string, string]>): Promise<void>{
     if(/^(?:#[^\n#]*\n*)*$/.exec(block)){
         return
     }
@@ -131,7 +141,7 @@ async function uploadBlock(block: string, server: string, repository: string): P
         body: block,
         location: location
     }
-    await ExecTransaction(transaction).catch((e: Error) => {
+    await ExecTransaction(transaction,prefs).catch((e: Error) => {
         rollback(location)
         throw Error(e.message)
     })
@@ -154,16 +164,18 @@ async function uploadTriplesFromFile(file: string, server: string, repository: s
     let leftOverData: string = ""
     const re = /^(?<body>(?:[^"]|"(?:[^"\\]|\\.)*")*) \.(?:(?!.* \.))/
     let currentData = ""
+    let prefixes = new Array<[string, string]>()
     return new Promise<void>((resolve, reject) => {
         const stream = fs.createReadStream(file)
         stream.on("data", (chunk: string) => {
             currentData += chunk
+            prefixes = prefixes.concat(getPrefixes(chunk.toString()))
             while(currentData.length >= 10240){
                 let match = currentData.slice(0,10240).match(re)
                 if(match && match.groups){
                     leftOverData = currentData.slice(match.groups["body"].length+3)
                     currentData = currentData.slice(0,match.groups["body"].length+3)
-                    promises.push(uploadBlock(currentData,server,repository))
+                    promises.push(uploadBlock(currentData,server,repository,prefixes))
                     currentData = leftOverData
                     leftOverData = ""
                 }else{
@@ -171,7 +183,7 @@ async function uploadTriplesFromFile(file: string, server: string, repository: s
                     if(match && match.groups){
                         leftOverData = currentData.slice(match.groups["body"].length+3)
                         currentData = currentData.slice(0,match.groups["body"].length+3)
-                        promises.push(uploadBlock(currentData,server,repository))
+                        promises.push(uploadBlock(currentData,server,repository,prefixes))
                         currentData = leftOverData
                         leftOverData = ""
                     }else{
@@ -181,7 +193,7 @@ async function uploadTriplesFromFile(file: string, server: string, repository: s
             }
         })
         stream.on("end", async () => {
-            promises.push(uploadBlock(currentData,server,repository))
+            promises.push(uploadBlock(currentData,server,repository,prefixes))
             await Promise.all(promises)
             resolve()
         })

@@ -1,6 +1,6 @@
 import endpoints from "../src/endpoints/endpoints"
 import getApp from "../src/server"
-import {ip} from "../src/config"
+import {ip, prefixes} from "../src/config"
 import supertest from "supertest"
 import writeToLearnerRecord from "../src/endpoints/writeToLearnerRecord"
 import startTransaction from "../src/util/transaction/startTransaction"
@@ -19,9 +19,11 @@ async function expectContent(userID: string, contentIRI: string, timestamp: numb
     queryString += `cco:agent_in cco:Act_Learning_${content}_${timestamp}_Person_${userID} .`
     queryString += `cco:Act_Learning_${content}_${timestamp}_Person_${userID} rdf:type cco:ActOfEducationalTrainingAcquisition ;`
     queryString += `cco:has_object <${contentIRI}> ;`
+    queryString += `cco:has_agent cco:Person_${userID} ;`
+    queryString += `cco:occurs_on cco:ReferenceTime_Act_Learning_${content}_${timestamp}_Person_${userID} ;`
     queryString += `cco:is_measured_by_nominal cco:${content}_${timestamp}_Nominal_Person_${userID} .`
-    queryString += `cco:${content}_${timestamp}_Nominal_Person_${userID} rdf:type ?n ;`
-    queryString += `cco:is_tokenized_by "${correct}"^^xsd:boolean .`
+    queryString += `cco:${content}_${timestamp}_Nominal_Person_${userID} rdf:type cco:NominalMeasurementInformationContentEntity ;`
+    queryString += `cco:is_tokenized_by "${correct}"^^xsd:String .`
     let output = ""
     const start = new Date().getTime()
     while(output.match(/Person/) === null){
@@ -35,15 +37,15 @@ async function expectContent(userID: string, contentIRI: string, timestamp: numb
 }
 
 describe("writeToLearnerRecord", () => {
-    const app = getApp(ip,repo,[],endpoints)
+    const app = getApp(ip,repo,prefixes,endpoints)
     it("Should allow you to say that a person got something right", async () => {
         const userID = "1234"
         const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent"
         const timestamp = new Date().getTime()
         const correct = true
-        const body = {userID: userID, standardLearnedContent: content, timestamp: timestamp, correct: correct}
+        const body = {userID, standardLearnedContent: content, timestamp, correct}
         const test = supertest(app)
-        await test.put(writeToLearnerRecord.route).send(body)
+        await test.put(writeToLearnerRecord.route).set("Content-Type", "application/json").send(body)
         await expectContent(userID,content,timestamp,correct).catch((e: Error) => {
             fail(e.message)
         })

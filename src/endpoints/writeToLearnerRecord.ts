@@ -3,7 +3,7 @@ import startTransaction from "../util/transaction/startTransaction"
 import ExecTransaction from "../util/transaction/ExecTransaction"
 import { Transaction } from "../util/transaction/Transaction"
 import rollback from "../util/transaction/Rollback"
-import readLearnerCounts from "../util/reads/readLearnerCounts"
+import readLearnerCounts, { Result } from "../util/reads/readLearnerCounts"
 import commitTransaction from "../util/transaction/commitTransaction"
 import Joi from "joi"
 import { Endpoint } from "../server"
@@ -17,9 +17,8 @@ const schema = Joi.object({
 
 const route = "/writeToLearnerRecord"
 
-function createLearnerRecordTriples(userID: string, content: string, timestamp: number, contentIRI: string, correct: Boolean, totalCountValue: number, totalCorrectValue: number, masteryRation: number): string {
-    let rawTriples = `prefix cco: <http://www.ontologyrepository.com/CommonCoreOntologies/>\n`
-    rawTriples += `cco:Person_${userID} rdf:type cco:Person ; \n`
+function createLearnerRecordTriples(userID: string, content: string, timestamp: number, contentIRI: string, correct: Boolean, totalCountValue: number, totalCorrectValue: number): string {
+    let rawTriples = `cco:Person_${userID} rdf:type cco:Person ; \n`
     rawTriples += `\tcco:agent_in cco:Act_Learning_${content}_${timestamp}_Person_${userID} . \n\n`
     // Act of Learning
     rawTriples += `cco:Act_Learning_${content}_${timestamp}_Person_${userID} rdf:type cco:ActOfEducationalTrainingAcquisition ; \n`
@@ -52,13 +51,13 @@ function createLearnerRecordTriples(userID: string, content: string, timestamp: 
     rawTriples += `\tcco:occurs_on cco:ReferenceTime_Act_Learning_Phoneme_d_Grapheme-d-ICE_1634819280_Person_12NSNF_2IEHJFUEHA_21345SDG.\n\n`
     //Ratio Mastery
     rawTriples += `cco:MasteryLevel_${content}_ProportionalRatioMeasurementICE_Person_${userID} rdf:type cco:ProportionalRatioMeasurementInformationContentEntity; \n `
-    rawTriples += `\tcco:is_tokenized_by "${masteryRation}"^^xsd:Decimal.\n\n`
+    rawTriples += `\tcco:is_tokenized_by "${totalCorrectValue/totalCountValue}"^^xsd:Decimal.\n\n`
     return rawTriples
 }
 
 
 
-async function processWriteToLearnerRecord(request: Request, response: Response, ip: string, repo: string) {
+async function processWriteToLearnerRecord(request: Request, response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
 
     const userID = request.body.userID
     const content = request.body.standardLearnedContent.replace("http://www.ontologyrepository.com/CommonCoreOntologies/", "")
@@ -67,46 +66,30 @@ async function processWriteToLearnerRecord(request: Request, response: Response,
     const correct = request.body.correct
     let totalCountIRI = `cco:Act_Learning_${content}_TotalCount_Measurment_Person_${userID}`
     let totalCorrectIRI = `cco:Act_Learning_${content}_CountCorrect_Measurment_Person_${userID}`
-    readLearnerCounts(totalCountIRI, totalCorrectIRI, (result) => {
-        if (result.success) {
-            let totalCorrectValue
-            let totalCountValue
-
-            if (result.success) {
-                if (correct)
-                    totalCorrectValue = parseInt(result.totalCorrect) + 1
-                else
-                    totalCorrectValue = parseInt(result.totalCorrect)
-
-                totalCountValue = parseInt(result.totalCount) + 1
-            } else {
-                if (correct)
-                    totalCorrectValue = 1
-                else
-                    totalCorrectValue = 0
-
-                totalCountValue = 1
-            }
-            let masteryRation = parseInt(result.totalCorrect) / parseInt(result.totalCount)
-            let rawTriples = createLearnerRecordTriples(userID, content, timestamp, contentIRI, correct, totalCountValue, totalCorrectValue, masteryRation)
-            writeToLearnerRecord(ip, repo, rawTriples).then(() => {
-                response.send("Successfully wrote triples!")
-            }).catch((e: Error) => {
-                response.status(500)
-                response.send(e.message)
-            })
-        } else {
-            response.status(500).send("Could not write to the Learner Model")
-        }
-
+    readLearnerCounts(ip, repo, totalCountIRI, totalCorrectIRI, prefixes)
+    .then((result: Result) => {
+        const triples = createLearnerRecordTriples(userID,content,timestamp,contentIRI,correct,result.totalCount + 1, correct ? result.totalCorrect + 1 : result.totalCorrect)
+        writeToLearnerRecord(ip, repo, prefixes, triples)
+        .then(() => {
+            response.status(200)
+            response.send("")
+        })
+        .catch((e: Error) => {
+            response.status(500)
+            response.send(e.message)
+        })
     })
-
+    .catch((e: Error) => {
+        response.status(500)
+        response.send(e.message)
+    })
+    
 }
 
-async function writeToLearnerRecord(ip: string, repo: string, triples: string): Promise<void> {
+async function writeToLearnerRecord(ip: string, repo: string, prefixes: Array<[string, string]>, triples: string): Promise<void> {
     const location = await startTransaction(ip, repo)
     const transaction: Transaction = { action: "UPDATE", location: location, subj: null, pred: null, obj: null, body: triples }
-    return await ExecTransaction(transaction).then(() => {
+    return await ExecTransaction(transaction, prefixes).then(() => {
         commitTransaction(location).then(() => {
             return
         }).catch((e: Error) => {
@@ -120,5 +103,5 @@ async function writeToLearnerRecord(ip: string, repo: string, triples: string): 
     })
 }
 
-const endpoint: Endpoint = { method: "put", schema: schema, route: route, process: processWriteToLearnerRecord }
+const endpoint: Endpoint = { method: "put", schema, route, process: processWriteToLearnerRecord }
 export default endpoint
