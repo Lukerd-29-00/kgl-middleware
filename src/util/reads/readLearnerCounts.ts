@@ -30,7 +30,7 @@ export default async function readLearnerCounts(ip: string, repo: string, TotalC
         location: location
     }
     const res = await ExecTransaction(transaction,prefixes)
-    const match = res.match(/^TotalCount,correctCount\n([0-9]+),([0-9]+)$/)
+    const match = res.match(/^([0-9]+),([0-9]+)$/m)
     if(match === null){
         return {
             totalCount: 0,

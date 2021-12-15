@@ -2,6 +2,7 @@ import fetch from "node-fetch"
 import { insertQuery } from "./insertQuery"
 import { Transaction } from "./Transaction"
 import { URL } from "url"
+import { deleteQuery } from "./deleteQuery"
 
 async function ExecTransaction(transaction: Transaction, prefixes?: Array<[string, string]>): Promise<string>{
     const url = new URL(transaction.location)
@@ -16,7 +17,7 @@ async function ExecTransaction(transaction: Transaction, prefixes?: Array<[strin
     if(transaction.obj !== null){
         url.searchParams.set("obj",transaction.obj)
     }
-    url.searchParams.set("action",transaction.action)
+    
     switch(transaction.action){
     case "UPDATE": {
         headers = {
@@ -32,7 +33,16 @@ async function ExecTransaction(transaction: Transaction, prefixes?: Array<[strin
         }
         break
     }
+    case "DELETE": {
+        transaction.action="UPDATE"
+        headers= {
+            "Content-Type": "application/sparql-update",
+            "Accept": "text/plain"
+        }
+        body = deleteQuery(body, prefixes !== undefined ? prefixes : [])
     }
+    }
+    url.searchParams.set("action",transaction.action)
     const res = await fetch(url.toString(), {
         method: "PUT",
         headers: headers,

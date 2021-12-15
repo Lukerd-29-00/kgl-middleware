@@ -39,10 +39,12 @@ function createLearnerRecordTriples(userID: string, content: string, timestamp: 
     rawTriples += `\tcco:is_measured cco:Act_Learning_${content}_CountCorrect_Measurment_Person_${userID} ;\n`
     rawTriples += `\tcco:has_member cco:Act_Learning_${content}_${timestamp}_Person_${userID}.\n\n`
     //Total Count 
-    rawTriples += `cco:Act_Learning_${content}_TotalCount_Measurment_Person_${userID} rdf:type cco:CountMeasurementInformationContentEntity; \n `
+    rawTriples += `cco:Act_Learning_${content}_TotalCount_Measurment_Person_${userID} rdf:type cco:CountMeasurementInformationContentEntity ;\n `
+    rawTriples += `cco:is_a_measurement_of cco:Act_Learning_${content}_Aggregate_Person_${userID} ;\n`
     rawTriples += `\tcco:is_tokenized_by "${totalCountValue}"^^xsd:Integer .\n\n`
     //Count Correct 
-    rawTriples += `cco:Act_Learning_${content}_CountCorrect_Measurment_Person_${userID} rdf:type cco:CountMeasurementInformationContentEntity; \n `
+    rawTriples += `cco:Act_Learning_${content}_CountCorrect_Measurment_Person_${userID} rdf:type cco:CountMeasurementInformationContentEntity ;\n `
+    rawTriples += `\tcco:is_a_measurement_of cco:Act_Learning_${content}_Aggregate_Person_${userID} ;\n`
     rawTriples += `\tcco:is_tokenized_by "${totalCorrectValue}"^^xsd:Integer .\n\n`
     //Learned Content Stasis
     rawTriples += `cco:Learned_Content_${content}_Stasis_Person_${userID} rdf:type cco:Stasis; \n `
@@ -69,7 +71,7 @@ async function processWriteToLearnerRecord(request: Request, response: Response,
     readLearnerCounts(ip, repo, totalCountIRI, totalCorrectIRI, prefixes)
     .then((result: Result) => {
         const triples = createLearnerRecordTriples(userID,content,timestamp,contentIRI,correct,result.totalCount + 1, correct ? result.totalCorrect + 1 : result.totalCorrect)
-        writeToLearnerRecord(ip, repo, prefixes, triples)
+        writeToLearnerRecord(userID, content, ip, repo, prefixes, triples, result.totalCount, correct ? result.totalCorrect : -1)
         .then(() => {
             response.status(200)
             response.send("")
@@ -86,21 +88,30 @@ async function processWriteToLearnerRecord(request: Request, response: Response,
     
 }
 
-async function writeToLearnerRecord(ip: string, repo: string, prefixes: Array<[string, string]>, triples: string): Promise<void> {
+async function writeToLearnerRecord(userID: string, content: string, ip: string, repo: string, prefixes: Array<[string, string]>, triples: string, totalCount: number, correctCount: number): Promise<void> {
     const location = await startTransaction(ip, repo)
-    const transaction: Transaction = { action: "UPDATE", location: location, subj: null, pred: null, obj: null, body: triples }
-    return await ExecTransaction(transaction, prefixes).then(() => {
+    const updateTransaction: Transaction = { action: "UPDATE", location: location, subj: null, pred: null, obj: null, body: triples }
+    const deleteTransaction: Transaction = {action: "DELETE", location: location, subj: null, pred: null, obj: null, body: `
+        cco:Act_Learning_${content}_CountCorrect_Measurment_Person_${userID} cco:is_tokenized_by "${correctCount}"^^xsd:Integer .
+        cco:Act_Learning_${content}_CountCorrect_Measurment_Person_${userID} cco:is_tokenized_by "${totalCount}"^^xsd:Integer .`
+    }
+    await ExecTransaction(updateTransaction, prefixes).catch((e) => {
+        rollback(location)
+        throw Error(`Could not write to triple store: ${e.message}`)
+    })
+
+    ExecTransaction(deleteTransaction, prefixes).then(() => {
         commitTransaction(location).then(() => {
             return
         }).catch((e: Error) => {
             rollback(location)
             throw Error(`Failed to commit transaction: ${e.message}`)
         })
-
     }).catch((e) => {
         rollback(location)
         throw Error(`Could not write to triple store: ${e.message}`)
     })
+    
 }
 
 const endpoint: Endpoint = { method: "put", schema, route, process: processWriteToLearnerRecord }
