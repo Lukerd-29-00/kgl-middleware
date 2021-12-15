@@ -93,7 +93,7 @@ async function writeToLearnerRecord(userID: string, content: string, ip: string,
     const updateTransaction: Transaction = { action: "UPDATE", location: location, subj: null, pred: null, obj: null, body: triples }
     const deleteTransaction: Transaction = {action: "DELETE", location: location, subj: null, pred: null, obj: null, body: `
         cco:Act_Learning_${content}_CountCorrect_Measurment_Person_${userID} cco:is_tokenized_by "${correctCount}"^^xsd:Integer .
-        cco:Act_Learning_${content}_CountCorrect_Measurment_Person_${userID} cco:is_tokenized_by "${totalCount}"^^xsd:Integer .`
+        cco:Act_Learning_${content}_TotalCount_Measurment_Person_${userID} cco:is_tokenized_by "${totalCount}"^^xsd:Integer .`
     }
     await ExecTransaction(updateTransaction, prefixes).catch((e) => {
         rollback(location)

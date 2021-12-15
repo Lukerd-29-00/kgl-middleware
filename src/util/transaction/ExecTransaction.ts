@@ -34,9 +34,8 @@ async function ExecTransaction(transaction: Transaction, prefixes?: Array<[strin
         break
     }
     case "DELETE": {
-        transaction.action="UPDATE"
         headers= {
-            "Content-Type": "application/sparql-update",
+            "Content-Type": "text/turtle",
             "Accept": "text/plain"
         }
         body = deleteQuery(body, prefixes !== undefined ? prefixes : [])
