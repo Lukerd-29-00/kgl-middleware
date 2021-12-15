@@ -40,6 +40,7 @@ async function ExecTransaction(transaction: Transaction, prefixes?: Array<[strin
             "Accept": "text/plain"
         }
         body = deleteQuery(body, prefixes !== undefined ? prefixes : [])
+        break
     }
     }
     url.searchParams.set("action",transaction.action)
