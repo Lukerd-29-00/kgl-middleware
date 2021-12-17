@@ -1,7 +1,7 @@
-import SparqlQueryGenerator from '../QueryGenerators/SparqlQueryGenerator';
-import ExecTransaction from "../transaction/ExecTransaction";
-import startTransaction from '../transaction/startTransaction';
-import { Transaction } from "../transaction/Transaction";
+import SparqlQueryGenerator from "../QueryGenerators/SparqlQueryGenerator"
+import ExecTransaction from "../transaction/ExecTransaction"
+import startTransaction from "../transaction/startTransaction"
+import { Transaction } from "../transaction/Transaction"
 
 
 export interface Result{

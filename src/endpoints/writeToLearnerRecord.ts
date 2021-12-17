@@ -17,7 +17,7 @@ const schema = Joi.object({
 
 const route = "/writeToLearnerRecord"
 
-export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, contentIRI: string, correct: Boolean, totalCountValue: number, totalCorrectValue: number): string {
+export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, contentIRI: string, correct: boolean, totalCountValue: number, totalCorrectValue: number): string {
     let rawTriples = `cco:Person_${userID} rdf:type cco:Person ; \n`
     rawTriples += `\tcco:agent_in cco:Act_Learning_${content}_${timestamp}_Person_${userID} . \n\n`
     // Act of Learning
@@ -50,7 +50,7 @@ export function createLearnerRecordTriples(userID: string, content: string, time
     rawTriples += `cco:Learned_Content_${content}_Stasis_Person_${userID} rdf:type cco:Stasis; \n `
     rawTriples += `\tcco:has_object cco:Act_Learning_${content}_Aggregate_Person_${userID} ;\n`
     rawTriples += `\tcco:is_measured cco:MasteryLevel_${content}_ProportionalRatioMeasurementICE_Person_${userID}  ;\n`
-    rawTriples += `\tcco:occurs_on cco:ReferenceTime_Act_Learning_Phoneme_d_Grapheme-d-ICE_1634819280_Person_12NSNF_2IEHJFUEHA_21345SDG.\n\n`
+    rawTriples += "\tcco:occurs_on cco:ReferenceTime_Act_Learning_Phoneme_d_Grapheme-d-ICE_1634819280_Person_12NSNF_2IEHJFUEHA_21345SDG.\n\n"
     //Ratio Mastery
     rawTriples += `cco:MasteryLevel_${content}_ProportionalRatioMeasurementICE_Person_${userID} rdf:type cco:ProportionalRatioMeasurementInformationContentEntity; \n `
     rawTriples += `\tcco:is_tokenized_by "${totalCorrectValue/totalCountValue}"^^xsd:Decimal.\n\n`
@@ -66,25 +66,25 @@ async function processWriteToLearnerRecord(request: Request, response: Response,
     const timestamp = request.body.timestamp
     const contentIRI = request.body.standardLearnedContent
     const correct = request.body.correct
-    let totalCountIRI = `cco:Act_Learning_${content}_TotalCount_Measurment_Person_${userID}`
-    let totalCorrectIRI = `cco:Act_Learning_${content}_CountCorrect_Measurment_Person_${userID}`
+    const totalCountIRI = `cco:Act_Learning_${content}_TotalCount_Measurment_Person_${userID}`
+    const totalCorrectIRI = `cco:Act_Learning_${content}_CountCorrect_Measurment_Person_${userID}`
     readLearnerCounts(ip, repo, totalCountIRI, totalCorrectIRI, prefixes)
-    .then((result: Result) => {
-        const triples = createLearnerRecordTriples(userID,content,timestamp,contentIRI,correct,result.totalCount + 1, correct ? result.totalCorrect + 1 : result.totalCorrect)
-        writeToLearnerRecord(userID, content, ip, repo, prefixes, triples, result.totalCount, correct ? result.totalCorrect : -1)
-        .then(() => {
-            response.status(200)
-            response.send("")
+        .then((result: Result) => {
+            const triples = createLearnerRecordTriples(userID,content,timestamp,contentIRI,correct,result.totalCount + 1, correct ? result.totalCorrect + 1 : result.totalCorrect)
+            writeToLearnerRecord(userID, content, ip, repo, prefixes, triples, result.totalCount, correct ? result.totalCorrect : -1)
+                .then(() => {
+                    response.status(200)
+                    response.send("")
+                })
+                .catch((e: Error) => {
+                    response.status(500)
+                    response.send(e.message)
+                })
         })
         .catch((e: Error) => {
             response.status(500)
             response.send(e.message)
         })
-    })
-    .catch((e: Error) => {
-        response.status(500)
-        response.send(e.message)
-    })
     
 }
 
@@ -95,10 +95,10 @@ async function writeToLearnerRecord(userID: string, content: string, ip: string,
         cco:Act_Learning_${content}_CountCorrect_Measurment_Person_${userID} cco:is_tokenized_by "${correctCount}"^^xsd:Integer .
         cco:Act_Learning_${content}_TotalCount_Measurment_Person_${userID} cco:is_tokenized_by "${totalCount}"^^xsd:Integer .`
     }
-    await (ExecTransaction(updateTransaction, prefixes).catch((e) => {
+    await ExecTransaction(updateTransaction, prefixes).catch((e) => {
         rollback(location)
         throw Error(`Could not write to triple store: ${e.message}`)
-    }))
+    })
     
     return new Promise<void>((resolve, reject) => {
         ExecTransaction(deleteTransaction, prefixes).then(() => {

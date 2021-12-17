@@ -8,14 +8,14 @@ async function ExecTransaction(transaction: Transaction, prefixes?: Array<[strin
     const url = new URL(transaction.location)
     let body = transaction.body
     let headers = {}
-    if(transaction.subj !== null){
-        url.searchParams.set("subj",transaction.subj)
+    if (transaction.subj !== null) {
+        url.searchParams.set("subj", transaction.subj)
     }
-    if(transaction.pred !== null){
-        url.searchParams.set("pred",transaction.pred)
+    if (transaction.pred !== null) {
+        url.searchParams.set("pred", transaction.pred)
     }
-    if(transaction.obj !== null){
-        url.searchParams.set("obj",transaction.obj)
+    if (transaction.obj !== null) {
+        url.searchParams.set("obj", transaction.obj)
     }
     
     switch(transaction.action){

@@ -15,7 +15,7 @@ const repo = "writeToLearnerRecordTest"
 async function expectContent(userID: string, contentIRI: string, timestamp: number, correct: boolean, expectedTotal: number, expectedCorrect: number, prefixes: [string, string][]): Promise<void>{
     const location = await startTransaction(ip, repo)
     const content = contentIRI.replace("http://www.ontologyrepository.com/CommonCoreOntologies/","")
-    let queryString = createLearnerRecordTriples(userID,content.replace("http://www.ontologyrepository.com/CommonCoreOntologies/", ""),timestamp,contentIRI,correct,expectedTotal,expectedCorrect).replace("cco:Person ;","?p ;")
+    const queryString = createLearnerRecordTriples(userID,content.replace("http://www.ontologyrepository.com/CommonCoreOntologies/", ""),timestamp,contentIRI,correct,expectedTotal,expectedCorrect).replace("cco:Person ;","?p ;")
     let output = ""
     while(output.match(/Person/) === null){
         const transaction: Transaction = {subj: null, pred: null, obj: null, action: "QUERY", body: SparqlQueryGenerator({query: queryString, targets: ["?p"]},prefixes), location: location}

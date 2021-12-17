@@ -16,15 +16,15 @@ export default async function setup(): Promise<void>{
         }
 
         for(const file of files){
-            let config = data.toString().replace(/rep:repositoryID "test" ;/,`rep:repositoryID "${file}Test" ;`)
+            const config = data.toString().replace(/rep:repositoryID "test" ;/,`rep:repositoryID "${file}Test" ;`)
             fs.writeFileSync(`./${file}Config.ttl`,config)
-            let form = new formData()
-                const readStream = fs.createReadStream(`./${file}Config.ttl`)
-                form.append("config",readStream)
-                fetch(`${ip}/rest/repositories`, {
-                    method: "POST",
-                    body: form
-                })
+            const form = new formData()
+            const readStream = fs.createReadStream(`./${file}Config.ttl`)
+            form.append("config",readStream)
+            fetch(`${ip}/rest/repositories`, {
+                method: "POST",
+                body: form
+            })
         }
     })
     const spins = new Array<Promise<void>>()
@@ -38,7 +38,7 @@ export async function getFiles(): Promise<string[]>{
     const files = await readdir("./test")
     const output = new Array<string>()
     for(const file of files){
-        let match = /(.*)\.test\.ts$/.exec(file)
+        const match = /(.*)\.test\.ts$/.exec(file)
         if(match !== null){
             output.push(match[1])
         }

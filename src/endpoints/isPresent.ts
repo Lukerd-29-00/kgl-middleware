@@ -14,7 +14,7 @@ const schema = Joi.object({
 
 const route = "/isPresent"
 
-async function processIsPresent(request: Request, response: Response, ip: string, repo: string, prefixes: Array<[string, string]>): Promise<void>{
+async function processIsPresent(request: Request, response: Response, ip: string, repo: string): Promise<void>{
     isPresent(request.body.userID,ip, repo, request.body.transactionID,).then((output: boolean) => {
         if(output){
             response.send("")
