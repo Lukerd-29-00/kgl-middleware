@@ -9,6 +9,8 @@
         "@types/node",
         "@types/express",
         "@types/node-fetch"
-      ]
-    }
+      ],
+      "lib": ["es2020.string"]
+    },
+    "target": "es2020"
   }

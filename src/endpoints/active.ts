@@ -23,5 +23,5 @@ async function processActive(request: Request, response: Response, ip: string, d
     }
 }
 
-const endpoint: Endpoint = {schema: schema, route: route, process: processActive, method: "get"}
+const endpoint: Endpoint = {schema, route, process: processActive, method: "get"}
 export default endpoint

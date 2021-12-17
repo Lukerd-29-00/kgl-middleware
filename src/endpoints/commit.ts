@@ -18,5 +18,5 @@ async function processCommit(request: Request,response: Response, ip: string, de
     })   
 }
 
-const endpoint: Endpoint = {route: route, schema: schema, process: processCommit, method: "post"}
+const endpoint: Endpoint = {route, schema, process: processCommit, method: "post"}
 export default endpoint
