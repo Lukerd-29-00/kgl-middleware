@@ -3,7 +3,6 @@ import startTransaction from "../util/transaction/startTransaction"
 import ExecTransaction from "../util/transaction/ExecTransaction"
 import { Transaction } from "../util/transaction/Transaction"
 import rollback from "../util/transaction/Rollback"
-import readLearnerCounts, { Result } from "../util/reads/readLearnerCounts"
 import commitTransaction from "../util/transaction/commitTransaction"
 import Joi from "joi"
 import { Endpoint } from "../server"
@@ -43,14 +42,14 @@ async function processWriteToLearnerRecord(request: Request, response: Response,
     const correct = request.body.correct
     const triples = createLearnerRecordTriples(userID,content,timestamp,contentIRI,correct)
     writeToLearnerRecord(ip, repo, prefixes, triples)
-    .then(() => {
-        response.status(200)
-        response.send("")
-    })
-    .catch((e: Error) => {
-        response.status(500)
-        response.send(e.message)
-    })
+        .then(() => {
+            response.status(200)
+            response.send("")
+        })
+        .catch((e: Error) => {
+            response.status(500)
+            response.send(e.message)
+        })
 }
 
 async function writeToLearnerRecord(ip: string, repo: string, prefixes: Array<[string, string]>, triples: string): Promise<void> {

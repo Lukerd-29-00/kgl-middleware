@@ -30,11 +30,19 @@ async function expectContent(userID: string, contentIRI: string, timestamp: numb
 }
 
 async function expectAttempts(attempts: number, userID: string, content: string, prefixes: [string, string][]): Promise<void>{
-    while(await getNumberAttempts(ip,repo,userID,content,prefixes) !== (attempts)){}
+    while(await getNumberAttempts(ip,repo,userID,content,prefixes) !== attempts){
+        await new Promise((resolve) => {
+            setTimeout(resolve,100)
+        })
+    }
 }
 
 async function expectCorrect(attempts: number, userID: string, content: string, prefixes: [string, string][]): Promise<void>{
-    while(await getNumberCorrectAttempts(ip,repo,userID,content,prefixes) !== attempts){}
+    while(await getNumberCorrectAttempts(ip,repo,userID,content,prefixes) !== attempts){
+        await new Promise((resolve) => {
+            setTimeout(resolve,100)
+        })
+    }
 }
 
 async function expectAnswers(correct: number, attempts: number, userID: string, content: string, prefixes: [string, string][]): Promise<void[]>{
@@ -150,7 +158,7 @@ describe("writeToLearnerRecord", () => {
         })
         server = mockDB.listen(7202, () => {
             const test = supertest(getApp("http://localhost:7202",repo,prefixes,endpoints))
-            test.put(writeToLearnerRecord.route).send(body).expect(500).end((res) => {
+            test.put(writeToLearnerRecord.route).send(body).expect(500).end(() => {
                 expect(mockStart).toHaveBeenCalled()
                 expect(mockRollback).toHaveBeenCalled()
                 done()
