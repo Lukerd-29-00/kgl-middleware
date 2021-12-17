@@ -1,4 +1,3 @@
-import fetch from "node-fetch";
 import SparqlQueryGenerator from '../QueryGenerators/SparqlQueryGenerator';
 import ExecTransaction from "../transaction/ExecTransaction";
 import startTransaction from '../transaction/startTransaction';

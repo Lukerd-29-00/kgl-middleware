@@ -17,7 +17,7 @@ const schema = Joi.object({
 
 const route = "/writeToLearnerRecord"
 
-function createLearnerRecordTriples(userID: string, content: string, timestamp: number, contentIRI: string, correct: Boolean, totalCountValue: number, totalCorrectValue: number): string {
+export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, contentIRI: string, correct: Boolean, totalCountValue: number, totalCorrectValue: number): string {
     let rawTriples = `cco:Person_${userID} rdf:type cco:Person ; \n`
     rawTriples += `\tcco:agent_in cco:Act_Learning_${content}_${timestamp}_Person_${userID} . \n\n`
     // Act of Learning
@@ -95,22 +95,24 @@ async function writeToLearnerRecord(userID: string, content: string, ip: string,
         cco:Act_Learning_${content}_CountCorrect_Measurment_Person_${userID} cco:is_tokenized_by "${correctCount}"^^xsd:Integer .
         cco:Act_Learning_${content}_TotalCount_Measurment_Person_${userID} cco:is_tokenized_by "${totalCount}"^^xsd:Integer .`
     }
-    await ExecTransaction(updateTransaction, prefixes).catch((e) => {
+    await (ExecTransaction(updateTransaction, prefixes).catch((e) => {
         rollback(location)
         throw Error(`Could not write to triple store: ${e.message}`)
-    })
-
-    ExecTransaction(deleteTransaction, prefixes).then(() => {
-        commitTransaction(location).then(() => {
-            return
-        }).catch((e: Error) => {
+    }))
+    
+    return new Promise<void>((resolve, reject) => {
+        ExecTransaction(deleteTransaction, prefixes).then(() => {
+            commitTransaction(location).then(() => {
+                resolve()
+            }).catch((e: Error) => {
+                rollback(location)
+                reject(`Failed to commit transaction: ${e.message}`)
+            })
+        }).catch((e) => {
             rollback(location)
-            throw Error(`Failed to commit transaction: ${e.message}`)
+            reject(`Could not write to triple store: ${e.message}`)
         })
-    }).catch((e) => {
-        rollback(location)
-        throw Error(`Could not write to triple store: ${e.message}`)
-    })
+    }) 
     
 }
 
