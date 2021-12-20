@@ -1,20 +1,35 @@
-import { getNumberAttemptsQuery } from "./attempts"
+import { getNumberAttemptsQuery, processRead } from "./attempts"
 import startTransaction from "../util/transaction/startTransaction"
 import {Transaction} from "../util/transaction/Transaction"
 import ExecTransaction from "../util/transaction/ExecTransaction"
+import Joi from "joi"
+import { Endpoint } from "../server"
+import {Request, Response} from "express"
 
 export function getNumberCorrectQuery(userID: string, contentIRI: string, prefixes: [string, string][]): string{
     return getNumberAttemptsQuery(userID,contentIRI,prefixes).replace("}","FILTER(?c=\"true\"^^xsd:boolean)\n}")
 }
 
-export async function getNumberCorrectAttempts(ip: string, repo: string, userID: string, contentIRI: string, prefixes: [string, string][]): Promise<number>{
+const route = "/correct"
+
+const schema = Joi.object({
+    userID: Joi.string().required(),
+    content: Joi.string().required()
+})
+
+type ReqBody = {
+    userID: string,
+    content: string
+}
+
+export async function getNumberCorrectAttempts(ip: string, repo: string, prefixes: [string, string][], req: ReqBody): Promise<number>{
     const location = await startTransaction(ip, repo)
     const transaction: Transaction = {
         subj: null,
         pred: null,
         obj: null,
         location,
-        body: getNumberCorrectQuery(userID,contentIRI,prefixes),
+        body: getNumberCorrectQuery(req.userID,req.content,prefixes),
         action: "QUERY"
     }
 
@@ -31,3 +46,13 @@ export async function getNumberCorrectAttempts(ip: string, repo: string, userID:
         })
     })
 }
+
+const endpoint: Endpoint = {
+    process: (request: Request, response: Response, ip: string, repo: string, prefixes: [string, string][]) => {
+        processRead(request,response,ip,repo,prefixes,getNumberCorrectAttempts)
+    },
+    route,
+    schema,
+    method: "put"
+}
+export default endpoint

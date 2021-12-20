@@ -30,7 +30,7 @@ async function expectContent(userID: string, contentIRI: string, timestamp: numb
 }
 
 async function expectAttempts(attempts: number, userID: string, content: string, prefixes: [string, string][]): Promise<void>{
-    while(await getNumberAttempts(ip,repo,userID,content,prefixes) !== attempts){
+    while(await getNumberAttempts(ip,repo,prefixes,{userID, content}) !== attempts){
         await new Promise((resolve) => {
             setTimeout(resolve,100)
         })
@@ -38,7 +38,7 @@ async function expectAttempts(attempts: number, userID: string, content: string,
 }
 
 async function expectCorrect(attempts: number, userID: string, content: string, prefixes: [string, string][]): Promise<void>{
-    while(await getNumberCorrectAttempts(ip,repo,userID,content,prefixes) !== attempts){
+    while(await getNumberCorrectAttempts(ip,repo,prefixes,{userID, content}) !== attempts){
         await new Promise((resolve) => {
             setTimeout(resolve,100)
         })

@@ -30,7 +30,7 @@ export function createLearnerRecordTriples(userID: string, content: string, time
     rawTriples += `\tcco:is_tokenized_by "${correct}"^^xsd:boolean .\n\n`
     //Time Stamp
     rawTriples += `cco:ReferenceTime_Act_Learning_${content}_${timestamp}_Person_${userID} rdf:type cco:ReferenceTime; \n `
-    rawTriples += `\tcco:is_tokenized_by "${timestamp}"^^xsd:dateTime.\n\n`
+    rawTriples += `\tcco:is_tokenized_by "${timestamp}"^^xsd:integer.\n\n`
     return rawTriples
 }
 
