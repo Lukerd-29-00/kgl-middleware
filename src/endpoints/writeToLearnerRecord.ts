@@ -59,13 +59,16 @@ function createLearnerRecordTriples(userID: string, content: string, timestamp: 
 
 
 
-async function processWriteToLearnerRecord(request: Request, response: Response, ip: string, repo: string) {
+function processWriteToLearnerRecord(request: Request, response: Response, ip: string, repo: string) {
 
     const userID = request.body.userID
     const content = request.body.standardLearnedContent.replace("http://www.ontologyrepository.com/CommonCoreOntologies/", "")
     const timestamp = request.body.timestamp
     const contentIRI = request.body.standardLearnedContent
     const correct = request.body.correct
+
+    console.log(request.body)
+
     let totalCountIRI = `cco:Act_Learning_${content}_TotalCount_Measurment_Person_${userID}`
     let totalCorrectIRI = `cco:Act_Learning_${content}_CountCorrect_Measurment_Person_${userID}`
     readLearnerCounts(totalCountIRI, totalCorrectIRI, (result) => {
@@ -91,13 +94,13 @@ async function processWriteToLearnerRecord(request: Request, response: Response,
             let masteryRation = parseInt(result.totalCorrect) / parseInt(result.totalCount)
             let rawTriples = createLearnerRecordTriples(userID, content, timestamp, contentIRI, correct, totalCountValue, totalCorrectValue, masteryRation)
             writeToLearnerRecord(ip, repo, rawTriples).then(() => {
-                response.send("Successfully wrote triples!")
+                response.status(200).send({ data: "Successfully wrote triples!" })
             }).catch((e: Error) => {
                 response.status(500)
-                response.send(e.message)
+                response.send({ data: e.message })
             })
         } else {
-            response.status(500).send("Could not write to the Learner Model")
+            response.status(500).send({ data: "Could not write to the Learner Model" })
         }
 
     })

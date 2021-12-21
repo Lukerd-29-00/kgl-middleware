@@ -30,7 +30,7 @@ function processReadFromLearnerRecord(request: Request, response: Response) {
     }).then(response => response.text())
         .then(data => {
             let dataObj = JSON.parse(data)
-            response.status(200).send(dataObj.results.bindings)
+            response.status(200).send({ "data": dataObj.results.bindings })
         }).catch((error) => {
             response.status(404).send(error)
             console.log(error)
