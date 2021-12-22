@@ -1,9 +1,10 @@
 import fetch from "node-fetch"
 import { insertQuery } from "./insertQuery"
 import { Transaction } from "./Transaction"
+import { URL } from "url"
+import { deleteQuery } from "./deleteQuery"
 
-
-async function ExecTransaction(transaction: Transaction): Promise<string> {
+async function ExecTransaction(transaction: Transaction, prefixes?: Array<[string, string]>): Promise<string>{
     const url = new URL(transaction.location)
     let body = transaction.body
     let headers = {}
@@ -16,32 +17,39 @@ async function ExecTransaction(transaction: Transaction): Promise<string> {
     if (transaction.obj !== null) {
         url.searchParams.set("obj", transaction.obj)
     }
-    url.searchParams.set("action", transaction.action)
-    switch (transaction.action) {
-        case "UPDATE": {
-            headers = {
-                "Content-Type": "application/sparql-update",
-                "Accept": "text/plain"
-            }
-            const prefs = new Map<string, string>()
-            prefs.set("cco", "http://www.ontologyrepository.com/CommonCoreOntologies/")
-            body = insertQuery(body, prefs)
-            break
+    
+    switch(transaction.action){
+    case "UPDATE": {
+        headers = {
+            "Content-Type": "application/sparql-update",
+            "Accept": "text/plain"
         }
-        case "QUERY": {
-            headers = {
-                "Content-Type": "application/sparql-query",
-            }
-            break
-        }
+        body = insertQuery(body, prefixes !== undefined ? prefixes : [])
+        break
     }
+    case "QUERY": {
+        headers = {
+            "Content-Type": "application/sparql-query",
+        }
+        break
+    }
+    case "DELETE": {
+        headers= {
+            "Content-Type": "text/turtle",
+            "Accept": "text/plain"
+        }
+        body = deleteQuery(body, prefixes !== undefined ? prefixes : [])
+        break
+    }
+    }
+    url.searchParams.set("action",transaction.action)
     const res = await fetch(url.toString(), {
         method: "PUT",
         headers: headers,
         body: body
     })
-    if (!res.ok) {
-        throw Error(`Something went wrong executing ${transaction.body} at ${transaction.location}: ${await res.text()}\n`)
+    if(!res.ok){
+        throw Error(`Something went wrong executing ${body} at ${transaction.location}: ${await res.text()}\n`)
     }
     return await res.text()
 }

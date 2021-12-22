@@ -9,11 +9,15 @@ import express, { Express, Request, Response } from "express"
 import morgan from "morgan"
 import Joi from "joi"
 
-export interface Endpoint {
+type processor = 
+((request: Request, response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) => void) 
+| ((request: Request, response: Response, ip: string, repo: string) => void)
+
+export interface Endpoint{
     schema: Joi.Schema,
     route: string,
     method: "put" | "post" | "delete" | "get",
-    process: ((request: Request, response: Response, ip: string, repo: string, prefixes?: Array<[string, string]>) => void)
+    process: processor
 }
 
 /**

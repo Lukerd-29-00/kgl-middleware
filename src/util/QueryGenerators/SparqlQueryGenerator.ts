@@ -19,14 +19,14 @@ function getTargets(targets: Array<string>): string{
     return output
 }
 
-function SparqlQueryGenerator(query: Query, prefixes: Array<[string, string]>): string {   
+function SparqlQueryGenerator(query: Query, prefixes: Array<[string, string]>, limit?: number): string {   
     let targets: null | string = null
     if(query.targets !== null){
         targets = getTargets(query.targets)
     }
     return  `${getPrefixes(prefixes)}select ${targets === null ? "* " : targets}where {
         ${query.query}
-    }`
+    }${limit !== undefined ? " limit "+limit.toString() : ""}`
 }
 
 export default SparqlQueryGenerator

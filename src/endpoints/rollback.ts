@@ -19,5 +19,5 @@ async function processRollback(request: Request, response: Response, ip: string,
     })
 }
 
-const endpoint: Endpoint = {schema: schema, route: route, process: processRollback, method: "post"}
+const endpoint: Endpoint = {schema, route, process: processRollback, method: "post"}
 export default endpoint

@@ -1,8 +1,8 @@
 import { Request, Response } from "express"
 import Joi from "joi"
 import { Endpoint } from "../server"
-import { ip, defaultRepo } from '../config'
-import fetch from "node-fetch";
+import { ip, defaultRepo } from "../config"
+import fetch from "node-fetch"
 
 
 const schema = Joi.object({
@@ -12,7 +12,7 @@ const schema = Joi.object({
 function processReadFromLearnerRecord(request: Request, response: Response) {
     const userID = request.body.userID
     console.log(request.body)
-    let query = `PREFIX cco: <http://www.ontologyrepository.com/CommonCoreOntologies/>
+    const query = `PREFIX cco: <http://www.ontologyrepository.com/CommonCoreOntologies/>
     select ?StandardContent where { 
 
         cco:Person_${userID} rdf:type cco:Person ;
@@ -20,12 +20,12 @@ function processReadFromLearnerRecord(request: Request, response: Response) {
 
         ?ActOfLearning cco:has_object ?StandardContent . 
         } `
-    let endcodedTriples = encodeURI(query)
+    const endcodedTriples = encodeURI(query)
     fetch(`${ip}/repositories/${defaultRepo}?query= ` + endcodedTriples, {
-        method: 'GET',
+        method: "GET",
         headers: {
-            'Content-Type': 'application/rdf+xml',
-            'Accept': 'application/sparql-results+json'
+            "Content-Type": "application/rdf+xml",
+            "Accept": "application/sparql-results+json"
         },
     }).then(response => response.text())
         .then(data => {
@@ -34,7 +34,7 @@ function processReadFromLearnerRecord(request: Request, response: Response) {
         }).catch((error) => {
             response.status(404).send(error)
             console.log(error)
-        });
+        })
 }
 
 const route = "/readFromLearnerRecord"

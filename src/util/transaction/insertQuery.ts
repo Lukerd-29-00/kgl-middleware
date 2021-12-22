@@ -1,9 +1,8 @@
-export function insertQuery(triples: string, prefixes: Map<string,string>): string{
+export function insertQuery(triples: string, prefixes: Array<[string, string]>): string{
     let query = ""
-    const entries = prefixes.entries()
-    for(let entry = entries.next(); !entry.done;entry = entries.next()){
-        query += `PREFIX ${entry.value[0]}: <${entry.value[1]}>\n`
+    for(const prefix of prefixes){
+        query += `PREFIX ${prefix[0]}: <${prefix[1]}>\n`
     }
-    query += `INSERT DATA { ${triples} }`
+    query += `INSERT DATA {\n ${triples} \n}`
     return query
 }
