@@ -6,7 +6,7 @@ import { Result } from "./readLearnerCounts"
 
 
 export interface LearnerRecord {
-    response: { person: string; standardContent: string; totalCounts: string; countsCorrect: string; }[]
+    response: { [x: string]: { person: string; standardContent: string; totalCounts: string; countsCorrect: string; }; }
 }
 
 /**
@@ -61,22 +61,23 @@ export default async function readLearnerRecord(ip: string, repo: string, userID
         location: location
     }
     const res = await ExecTransaction(transaction, prefixes)
-    console.log({ mess: res })
     let data = res.split("\r\n")
     data.shift()
     data.pop()
 
-    let queryResult = []
+    let queryResult = {}
     for (let node of data) {
         let parseNode = node.split(',')
+        let content = parseNode[1]
         let obj = {
-            person: parseNode[0],
-            standardContent: parseNode[1],
-            totalCounts: parseNode[2],
-            countsCorrect: parseNode[3]
-
+            [content]: {
+                person: parseNode[0],
+                standardContent: parseNode[1],
+                totalCounts: parseNode[2],
+                countsCorrect: parseNode[3]
+            }
         }
-        queryResult.push(obj)
+        Object.assign(queryResult, obj)
     }
 
     return { response: queryResult }
