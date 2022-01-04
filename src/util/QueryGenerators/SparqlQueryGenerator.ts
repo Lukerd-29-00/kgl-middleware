@@ -3,7 +3,7 @@ interface Query {
     targets: Array<string> | null
 }
 
-function getPrefixes(prefixes: Array<[string, string]>): string{
+export function getPrefixes(prefixes: Array<[string, string]>): string{
     let output = ""
     for(const prefix of prefixes){
         output += `PREFIX ${prefix[0]}: <${prefix[1]}>\n`

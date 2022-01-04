@@ -2,6 +2,7 @@ import getApp, {Endpoint} from "../src/server"
 import {Request, Response} from "express"
 import Joi from "joi"
 import supertest from "supertest"
+
 describe("server", () => {
     it("Should verify each request to make sure it fits the endpoint's schema", async () => {
         const route = "/test"
@@ -13,7 +14,7 @@ describe("server", () => {
             route,
             schema,
             method: "put",
-            process: (request: Request, response: Response, ip: string, repo: string) => {
+            process: (request: Request, response: Response) => {
                 response.send("")
             }
         }
