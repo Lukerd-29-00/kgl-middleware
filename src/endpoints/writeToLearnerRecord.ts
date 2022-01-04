@@ -16,31 +16,31 @@ const schema = Joi.object({
 
 const route = "/writeToLearnerRecord"
 
-export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, contentIRI: string, correct: boolean): string {
+export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, correct: boolean): string {
+    const contentTerm = content.replace(/.*\/(?!\/)/,"")
     let rawTriples = `cco:Person_${userID} rdf:type cco:Person ; \n`
-    rawTriples += `\tcco:agent_in cco:Act_Learning_${content}_${timestamp}_Person_${userID} . \n\n`
+    rawTriples += `\tcco:agent_in cco:Act_Learning_${contentTerm}_${timestamp}_Person_${userID} . \n\n`
     // Act of Learning
-    rawTriples += `cco:Act_Learning_${content}_${timestamp}_Person_${userID} rdf:type cco:ActOfEducationalTrainingAcquisition ; \n`
-    rawTriples += `\tcco:occurs_on cco:ReferenceTime_Act_Learning_${content}_${timestamp}_Person_${userID}; \n ` ///
+    rawTriples += `cco:Act_Learning_${contentTerm}_${timestamp}_Person_${userID} rdf:type cco:ActOfEducationalTrainingAcquisition ; \n`
+    rawTriples += `\tcco:occurs_on cco:ReferenceTime_Act_Learning_${contentTerm}_${timestamp}_Person_${userID}; \n ` ///
     rawTriples += `\tcco:has_agent cco:Person_${userID}; \n `
-    rawTriples += `\tcco:has_object <${contentIRI}>; \n `
-    rawTriples += `\tcco:is_measured_by_nominal cco:${content}_${timestamp}_Nominal_Person_${userID} . \n\n`
+    rawTriples += `\tcco:has_object <${content}>; \n `
+    rawTriples += `\tcco:is_measured_by_nominal cco:${contentTerm}_${timestamp}_Nominal_Person_${userID} . \n\n`
     //Nominal 
-    rawTriples += `cco:${content}_${timestamp}_Nominal_Person_${userID} rdf:type cco:NominalMeasurementInformationContentEntity ; \n `
+    rawTriples += `cco:${contentTerm}_${timestamp}_Nominal_Person_${userID} rdf:type cco:NominalMeasurementInformationContentEntity ; \n `
     rawTriples += `\tcco:is_tokenized_by "${correct}"^^xsd:boolean .\n\n`
     //Time Stamp
-    rawTriples += `cco:ReferenceTime_Act_Learning_${content}_${timestamp}_Person_${userID} rdf:type cco:ReferenceTime; \n `
+    rawTriples += `cco:ReferenceTime_Act_Learning_${contentTerm}_${timestamp}_Person_${userID} rdf:type cco:ReferenceTime; \n `
     rawTriples += `\tcco:is_tokenized_by "${timestamp}"^^xsd:integer.\n\n`
     return rawTriples
 }
 
 async function processWriteToLearnerRecord(request: Request, response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
     const userID = request.body.userID
-    const content = request.body.standardLearnedContent.replace("http://www.ontologyrepository.com/CommonCoreOntologies/", "")
     const timestamp = request.body.timestamp
-    const contentIRI = request.body.standardLearnedContent
+    const content = request.body.standardLearnedContent
     const correct = request.body.correct
-    const triples = createLearnerRecordTriples(userID,content,timestamp,contentIRI,correct)
+    const triples = createLearnerRecordTriples(userID,content,timestamp,correct)
     writeToLearnerRecord(ip, repo, prefixes, triples)
         .then(() => {
             response.status(200)

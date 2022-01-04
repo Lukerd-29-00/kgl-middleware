@@ -17,10 +17,9 @@ import { insertQuery} from "../src/util/transaction/insertQuery"
 
 const repo = "writeToLearnerRecordTest"
 
-async function expectContent(userID: string, contentIRI: string, timestamp: number, correct: boolean, prefixes: [string, string][]): Promise<void>{
+async function expectContent(userID: string, content: string, timestamp: number, correct: boolean, prefixes: [string, string][]): Promise<void>{
     const location = await startTransaction(ip, repo)
-    const content = contentIRI.replace("http://www.ontologyrepository.com/CommonCoreOntologies/","")
-    const queryString = createLearnerRecordTriples(userID,content.replace("http://www.ontologyrepository.com/CommonCoreOntologies/", ""),timestamp,contentIRI,correct).replace("cco:Person ;","?p ;")
+    const queryString = createLearnerRecordTriples(userID,content,timestamp,correct).replace("cco:Person ;","?p ;")
     let output = ""
     while(output.match(/Person/) === null){
         const transaction: Transaction = {subj: null, pred: null, obj: null, action: "QUERY", body: SparqlQueryGenerator({query: queryString, targets: ["?p"]},prefixes), location: location}
@@ -203,7 +202,7 @@ describe("writeToLearnerRecord", () => {
             mockRollback()
             response.send("")
         })
-        mockDB.put(`${location}`, (request, response) => {
+        mockDB.put(location, (request, response) => {
             if(request.query.action === "UPDATE"){
                 mockExec(request.body.toString())
                 response.send("")
@@ -218,7 +217,7 @@ describe("writeToLearnerRecord", () => {
                 expect(mockStart).toHaveBeenCalled()
                 expect(mockRollback).toHaveBeenCalled()
                 expect(mockExec).toHaveBeenCalled()
-                expect(mockExec).toHaveBeenLastCalledWith(insertQuery(createLearnerRecordTriples(userID,content.replace(/.*\/(?!\/)/,""),timestamp,content,correct),prefixes))
+                expect(mockExec).toHaveBeenLastCalledWith(insertQuery(createLearnerRecordTriples(userID,content,timestamp,correct),prefixes))
                 done()
             })
         })
@@ -239,7 +238,7 @@ describe("writeToLearnerRecord", () => {
             response.status(500)
             response.send("")
         })
-        mockDB.put(`${location}`, (request, response) => {
+        mockDB.put(location, (request, response) => {
             if(request.query.action === "UPDATE"){
                 mockExec(request.body.toString())
                 response.send("")
@@ -254,7 +253,7 @@ describe("writeToLearnerRecord", () => {
                 expect(mockStart).toHaveBeenCalled()
                 expect(mockRollback).toHaveBeenCalled()
                 expect(mockExec).toHaveBeenCalled()
-                expect(mockExec).toHaveBeenLastCalledWith(insertQuery(createLearnerRecordTriples(userID,content.replace(/.*\/(?!\/)/,""),timestamp,content,correct),prefixes))
+                expect(mockExec).toHaveBeenLastCalledWith(insertQuery(createLearnerRecordTriples(userID,content,timestamp,correct),prefixes))
                 done()
             })
         })

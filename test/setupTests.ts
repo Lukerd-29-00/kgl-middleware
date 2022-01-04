@@ -51,9 +51,12 @@ export async function spin(file: string, present: boolean): Promise<void>{
     let reply = await fetch(`${ip}/rest/repositories/${file}Test`)
     while(!present ? reply.ok : !reply.ok){
         reply = await fetch(`${ip}/rest/repositories/${file}Test`)
-        if(new Date().getTime() - start >= 60000){
+        if(new Date().getTime() - start >= 240000){
             throw Error("Could not create test repository! did graphdb close during testing? If not, check to make sure it is responding.")
         }
+        await new Promise((resolve) => {
+            setTimeout(resolve,100)
+        })
     }
     if(present){
         await fs.rm(`./${file}Config.ttl`,(err) => {
