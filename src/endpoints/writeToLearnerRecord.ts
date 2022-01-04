@@ -16,7 +16,8 @@ const schema = Joi.object({
 
 const route = "/writeToLearnerRecord"
 
-export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, contentIRI: string, correct: boolean): string {
+export function createLearnerRecordTriples(userID: string, timestamp: number, contentIRI: string, correct: boolean): string {
+    const content = contentIRI.replace(/.*\/(?!\/)/, "")
     let rawTriples = `cco:Person_${userID} rdf:type cco:Person ; \n`
     rawTriples += `\tcco:agent_in cco:Act_Learning_${content}_${timestamp}_Person_${userID} . \n\n`
     // Act of Learning
@@ -36,11 +37,10 @@ export function createLearnerRecordTriples(userID: string, content: string, time
 
 async function processWriteToLearnerRecord(request: Request, response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
     const userID = request.body.userID
-    const content = request.body.standardLearnedContent.replace("http://www.ontologyrepository.com/CommonCoreOntologies/", "")
     const timestamp = request.body.timestamp
     const contentIRI = request.body.standardLearnedContent
     const correct = request.body.correct
-    const triples = createLearnerRecordTriples(userID,content,timestamp,contentIRI,correct)
+    const triples = createLearnerRecordTriples(userID, timestamp, contentIRI, correct)
     writeToLearnerRecord(ip, repo, prefixes, triples)
         .then(() => {
             response.status(200)
@@ -54,7 +54,7 @@ async function processWriteToLearnerRecord(request: Request, response: Response,
 
 async function writeToLearnerRecord(ip: string, repo: string, prefixes: Array<[string, string]>, triples: string): Promise<void> {
     const location = await startTransaction(ip, repo)
-    const transaction: Transaction = {subj: null, pred: null, obj: null, body: triples, action: "UPDATE", location}
+    const transaction: Transaction = { subj: null, pred: null, obj: null, body: triples, action: "UPDATE", location }
     return new Promise<void>((resolve, reject) => {
         ExecTransaction(transaction, prefixes).then(() => {
             commitTransaction(location).then(() => {
@@ -73,7 +73,7 @@ async function writeToLearnerRecord(ip: string, repo: string, prefixes: Array<[s
                 reject(`Could not roll back: ${err.message}\n\nAfter error: ${e.message}`)
             })
         })
-    }) 
+    })
 }
 
 const endpoint: Endpoint = { method: "put", schema, route, process: processWriteToLearnerRecord }
