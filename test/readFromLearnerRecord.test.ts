@@ -11,6 +11,10 @@ import fetch from "node-fetch"
 
 const repo = "readFromLearnerRecordTest"
 
+interface ResBody{
+    correct: number,
+    attempts: number
+}
 async function writeAttempt(userID: string, content: string, correct: boolean, count: number = 1): Promise<void>{
     const location = await startTransaction(ip, repo)
     const promises = []
@@ -42,18 +46,22 @@ async function waitFor(callback: () => Promise<void> | void): Promise<void>{
     } 
 }
 
-async function queryEndpoint(test: supertest.SuperTest<supertest.Test>, userID: string, content?: string): Promise<Record<string,number>>{
+async function queryEndpoint(test: supertest.SuperTest<supertest.Test>, userID: string, content?: string): Promise<Record<string, number | ResBody>>{
     return (await test.post(readFromLearnerRecord.route).set("Content-Type","application/json").send({userID, content}).expect(200)).body
 }
 
 describe("readFromLearnerRecord", () => {
     const userID = "1234"
     const content = "http://aribtrarywebsite/TestContent"
+    const content2 = "http://aribtrarywebsite/TestContent2"
     const getTest = () => {
         return supertest(getApp(ip, repo, prefixes,[readFromLearnerRecord]))
     }
     const query = async (test: supertest.SuperTest<supertest.Test>) => {
         return await queryEndpoint(test,userID,content)
+    }
+    const broadQuery = async (test: supertest.SuperTest<supertest.Test>) => {
+        return await queryEndpoint(test,userID)
     }
     it("Should return zero attempts if no attempts at the desired content have been made", async () => {
         expect(await query(getTest())).toHaveProperty("attempts",0)
@@ -87,6 +95,48 @@ describe("readFromLearnerRecord", () => {
             expect(await query(test)).toHaveProperty("attempts", 5)
         })
         expect(await query(test)).toHaveProperty("correct", 3)
+    })
+    it("Should return an empty object if no content field is specified and no questions have been answered by the user", async () => {
+        expect(Object.entries(await broadQuery(getTest()))).toHaveLength(0)
+    })
+    it("Should return an object for each subject the user has answered a question for if no content is supplied", async () => {
+        await writeAttempt(userID,content,true)
+        await writeAttempt(userID,content2,false)
+        const test = getTest()
+        await waitFor(async () => {
+            expect(await broadQuery(test)).toHaveProperty(content)
+            expect(await broadQuery(test)).toHaveProperty(content2)
+        })
+    })
+    it("Should count the number of attempts in each object correctly", async () => {
+        await writeAttempt(userID,content,true,2)
+        const test = getTest()
+        await waitFor(async () => {
+            expect(((await broadQuery(test))[content])).toHaveProperty("attempts",2)
+        })
+        await writeAttempt(userID,content2,false,3)
+        await waitFor(async () => {
+            expect(((await broadQuery(test))[content2])).toHaveProperty("attempts",3)
+        })
+        expect(((await broadQuery(test))[content])).toHaveProperty("attempts",2)
+    })
+    it("Should track the number of correct answers in each object correctly", async () => {
+        const test = getTest()
+        await writeAttempt(userID,content,false)
+        expect(((await broadQuery(test))[content])).toHaveProperty("correct",0)
+        await writeAttempt(userID,content,true)
+        await writeAttempt(userID,content,false)
+        await waitFor(async () => {
+            expect(((await broadQuery(test))[content])).toHaveProperty("attempts",3)
+            expect(((await broadQuery(test))[content])).toHaveProperty("correct",1)
+        })
+        await writeAttempt(userID,content2,true)
+        await writeAttempt(userID,content2,false)
+        await waitFor(async () => {
+            expect(((await broadQuery(test))[content2])).toHaveProperty("attempts",2)
+        })
+        expect(((await broadQuery(test))[content2])).toHaveProperty("correct",1)
+        expect(((await broadQuery(test))[content])).toHaveProperty("correct",1)
     })
     afterEach(async () => {
         await fetch(`${ip}/repositories/${repo}/statements`, {
