@@ -1,8 +1,6 @@
-import SparqlQueryGenerator from "../QueryGenerators/SparqlQueryGenerator"
 import ExecTransaction from "../transaction/ExecTransaction"
 import startTransaction from "../transaction/startTransaction"
 import { Transaction } from "../transaction/Transaction"
-import { Result } from "./readLearnerCounts"
 
 
 export interface LearnerRecord {
@@ -17,7 +15,7 @@ export interface LearnerRecord {
  * @param {Response} response: The HTTP response
  */
 export default async function readLearnerRecord(ip: string, repo: string, userID: string, prefixes: Array<[string, string]>): Promise<LearnerRecord> {
-    let query = `PREFIX cco: <http://www.ontologyrepository.com/CommonCoreOntologies/>
+    const query = `PREFIX cco: <http://www.ontologyrepository.com/CommonCoreOntologies/>
     select ?Person ?standardContent (max(?TotalCounts) as ?TotalCounts) (max(?CorrectCounts) as ?CorrectCounts) 
     where { 
         BIND(cco:Person_${userID} as ?Person)
@@ -61,15 +59,15 @@ export default async function readLearnerRecord(ip: string, repo: string, userID
         location: location
     }
     const res = await ExecTransaction(transaction, prefixes)
-    let data = res.split("\r\n")
+    const data = res.split("\r\n")
     data.shift()
     data.pop()
 
-    let queryResult = {}
-    for (let node of data) {
-        let parseNode = node.split(',')
-        let content = parseNode[1]
-        let obj = {
+    const queryResult = {}
+    for (const node of data) {
+        const parseNode = node.split(",")
+        const content = parseNode[1]
+        const obj = {
             [content]: {
                 person: parseNode[0],
                 standardContent: parseNode[1],
