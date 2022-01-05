@@ -44,7 +44,7 @@ async function processWriteToLearnerRecord(request: Request, response: Response,
     writeToLearnerRecord(ip, repo, prefixes, triples)
         .then(() => {
             response.status(200)
-            response.send("")
+            response.send("Update Learner Record: " + userID)
         })
         .catch((e: Error) => {
             response.status(500)
