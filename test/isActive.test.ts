@@ -4,7 +4,6 @@ import getApp from "../src/server"
 import express, {Response} from "express"
 import { Server } from "http"
 
-
 describe("active", () => {
     const mockDB = express()
     let server: null | Server = null
@@ -20,7 +19,7 @@ describe("active", () => {
     it("Should get a 200 status code if the server is running", async () => {
         const request = supertest(getApp("http://localhost:7200","isActiveTest",[],endpoints))
         const req = request.get("/active")
-        await req.expect(200)
+        await req.expect(204)
     })
 
     it("Should give a 502 error if the graphdb server returns an error.", async () => {

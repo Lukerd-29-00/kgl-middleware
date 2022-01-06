@@ -6,7 +6,7 @@ import startTransaction from "../util/transaction/startTransaction"
 import ExecTransaction from "../util/transaction/ExecTransaction"
 import { Transaction } from "../util/transaction/Transaction"
 import commitTransaction from "../util/transaction/commitTransaction"
-import {ParamsDictionary} from "express-serve-static-core"
+import {ParamsDictionary, Query} from "express-serve-static-core"
 
 
 const schema = Joi.object({
@@ -28,14 +28,16 @@ interface ResBody{
     attempts: number
 }
 
-export function getNumberAttemptsQuery(userID: string, prefixes: [string, string][], contentIRI?: string): string{
+export function getNumberAttemptsQuery(userID: string, prefixes: [string, string][], since: number, before: number, contentIRI?: string): string{
     let output = getPrefixes(prefixes)
     if(contentIRI !== undefined){    
         output += 
         `select (count(?p) as ?attempts) (sum(?corr) as ?correct) where{
             cco:Person_${userID} cco:agent_in ?p .
             ?p cco:has_object <${contentIRI}> ;
-                cco:is_measured_by_nominal / cco:is_tokenized_by ?c .
+                cco:is_measured_by_nominal / cco:is_tokenized_by ?c ;
+                cco:occurs_on / cco:is_tokenized_by ?t .
+            FILTER(?t > ${since} && ?t < ${before})
             BIND ( IF ( ?c = "true"^^xsd:boolean, 1, IF ( ?c = "false"^^xsd:boolean, 0, 0 ) ) AS ?corr )
         }`
     }else{
@@ -43,7 +45,9 @@ export function getNumberAttemptsQuery(userID: string, prefixes: [string, string
         `select ?content (count(?p) as ?attempts) (sum(?corr) as ?correct) where {
             cco:Person_${userID} cco:agent_in ?p .
             ?p cco:has_object ?content ;
-                cco:is_measured_by_nominal / cco:is_tokenized_by ?c .
+                cco:is_measured_by_nominal / cco:is_tokenized_by ?c ;
+                cco:occurs_on / cco:is_tokenized_by ?t .
+            FILTER(?t > ${since} && ?t < ${before})
             BIND ( IF ( ?c = "true"^^xsd:boolean, 1, IF ( ?c = "false"^^xsd:boolean, 0, 0 ) ) AS ?corr )
         }GROUP BY ?content`
     }
@@ -65,9 +69,28 @@ function parseQueryOutput<T extends string | undefined>(response: string, conten
     }
 }
 
-async function processReadFromLearnerRecord(request: Request<ParamsDictionary,string,ReqBody> , response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
+interface Qargs extends Query {
+    before?: string,
+    since?: string
+}
+
+async function processReadFromLearnerRecord(request: Request<ParamsDictionary,string,ReqBody,Qargs> , response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
     const userID = request.body.userID
-    const query = getNumberAttemptsQuery(userID,prefixes,request.body.content)
+    let before = new Date().getTime()
+    if(request.query.before !== undefined){
+        before = parseInt(request.query.before,10)
+    }else if(request.headers.date !== undefined){
+        try{
+            before = new Date(request.headers.date).getTime()
+        }catch(e){
+            response.status(400)
+            response.send("Malformed Date header")
+        }
+    }else{
+        before = new Date().getTime()
+    }
+
+    const query = getNumberAttemptsQuery(userID,prefixes,request.query.since === undefined ? 0 : parseInt(request.query.since,10),before,request.body.content)
     startTransaction(ip, repo).then((location) => {
         const transaction: Transaction = {
             subj: null,

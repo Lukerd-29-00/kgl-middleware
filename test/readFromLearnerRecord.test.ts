@@ -171,12 +171,13 @@ describe("readFromLearnerRecord", () => {
         mockServer.use(express.raw({type: "application/sparql-query"}))
         const mockDB = getMockDB(mockIp,mockServer,repo,true,false,true)
         server = mockDB.server.listen(7203,() => {
-            test.post(readFromLearnerRecord.route).set("Content-Type","application/json").send({userID}).expect(200)
+            const timestamp = new Date()
+            test.post(readFromLearnerRecord.route).set("Content-Type","application/json").set("Date",timestamp.toUTCString()).send({userID}).expect(200)
             .then(() => {
                 try{
                     expect(mockDB.start).toHaveBeenCalled()
                     expect(mockDB.exec).toHaveBeenCalled()
-                    expect(mockDB.exec).toHaveBeenCalledWith(getNumberAttemptsQuery(userID,prefixes),"QUERY")
+                    expect(mockDB.exec).toHaveBeenCalledWith(getNumberAttemptsQuery(userID,prefixes,0,new Date(timestamp.toUTCString()).getTime()),"QUERY")
                     done()
                 }catch(e){
                     done(e)

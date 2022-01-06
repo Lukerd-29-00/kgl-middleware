@@ -19,6 +19,7 @@ async function processActive(request: Request, response: Response, ip: string, d
         response.status(502)
         response.send(`Got error "${await probe.text()}" while trying to reach "${ip}".\n"`)
     } else{
+        response.status(204)
         response.send("")
     }
 }

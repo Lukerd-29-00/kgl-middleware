@@ -125,7 +125,7 @@ describe("writeToLearnerRecord", () => {
         const correct = true
         const body = { userID, standardLearnedContent: content, timestamp, correct }
         const test = supertest(app)
-        await test.put(writeToLearnerRecord.route).set("Content-Type", "application/json").send(body).expect(200)
+        await test.put(writeToLearnerRecord.route).set("Content-Type", "application/json").send(body).expect(202)
         await Promise.all([
             expectAnswers(1, 1, userID, content, prefixes),
             expectContent(userID, content, timestamp, correct, prefixes)
@@ -138,7 +138,7 @@ describe("writeToLearnerRecord", () => {
         const correct = false
         const body = { userID: userID, standardLearnedContent: content, timestamp: timestamp, correct: correct }
         const test = supertest(app)
-        await test.put(writeToLearnerRecord.route).send(body).expect(200)
+        await test.put(writeToLearnerRecord.route).send(body).expect(202)
         await Promise.all([
             expectContent(userID, content, timestamp, correct, prefixes),
             expectAnswers(0, 1, userID, content, prefixes)
@@ -154,32 +154,14 @@ describe("writeToLearnerRecord", () => {
         const body2 = { userID, standardLearnedContent: content, timestamp: timestamp2, correct }
         const test = supertest(app)
         await Promise.all([
-            test.put(writeToLearnerRecord.route).send(body1).expect(200),
-            test.put(writeToLearnerRecord.route).send(body2).expect(200)
+            test.put(writeToLearnerRecord.route).send(body1).expect(202),
+            test.put(writeToLearnerRecord.route).send(body2).expect(202)
         ])
         await Promise.all([
             expectContent(userID, content, timestamp1, correct, prefixes),
             expectContent(userID, content, timestamp2, correct, prefixes),
             expectAnswers(2, 2, userID, content, prefixes)
         ])
-    })
-    it("Should reject the request with a 400 error if any of the parameters is missing", async () => {
-        const test = supertest(app)
-        const promises = [test.put(writeToLearnerRecord.route).send({ userID: "1234", standardLearnedContent: "http://www.ontologyrepository.com/CommonCoreOntologies/testContent", timestamp: "1234" }).expect(400)]
-        promises.push(test.put(writeToLearnerRecord.route).send({ userID: "1234", standardLearnedContent: "http://www.ontologyrepository.com/CommonCoreOntologies/testContent", correct: true }).expect(400))
-        promises.push(test.put(writeToLearnerRecord.route).send({ userID: "1234", correct: true, timestamp: "1234" }).expect(400))
-        promises.push(test.put(writeToLearnerRecord.route).send({ correct: true, standardLearnedContent: "http://www.ontologyrepository.com/CommonCoreOntologies/testContent", timestamp: "1234" }).expect(400))
-        await Promise.all(promises)
-    })
-    it("Should reject the request with a 400 error if any extra parameters are detected", async () => {
-        const test = supertest(app)
-        await test.put(writeToLearnerRecord.route).send({ userID: "1234", standardLearnedContent: "http://www.ontologyrepository.com/CommonCoreOntologies/testContent", timestamp: "1234", correct: true, extra: false }).expect(400)
-    })
-    it("Should reject the request with a 400 error if the wrong data type is provided for a parameter", async () => {
-        const test = supertest(app)
-        const promises = [test.put(writeToLearnerRecord.route).send({ userID: "1234", standardLearnedContent: "http://www.ontologyrepository.com/CommonCoreOntologies/testContent", timestamp: "time", correct: true }).expect(400)]
-        promises.push(test.put(writeToLearnerRecord.route).send({ userID: "1234", standardLearnedContent: "http://www.ontologyrepository.com/CommonCoreOntologies/testContent", timestamp: "1234", correct: "yup" }).expect(400))
-        await Promise.all(promises)
     })
     afterEach(async () => {
         await fetch(`${ip}/repositories/${repo}/statements`, {

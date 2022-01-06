@@ -43,7 +43,7 @@ async function processWriteToLearnerRecord(request: Request, response: Response,
     const triples = createLearnerRecordTriples(userID, content, timestamp, correct)
     writeToLearnerRecord(ip, repo, prefixes, triples)
         .then(() => {
-            response.status(200)
+            response.status(202)
             response.send("")
         })
         .catch((e: Error) => {
