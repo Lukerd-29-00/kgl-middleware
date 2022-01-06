@@ -12,6 +12,7 @@ import fetch from "node-fetch"
 import express from "express"
 import { Server } from "http"
 import { insertQuery } from "../src/util/transaction/insertQuery"
+import getMockDB from "./mockDB"
 
 const repo = "writeToLearnerRecordTest"
 
@@ -189,6 +190,7 @@ describe("writeToLearnerRecord", () => {
 
 describe("writeToLearnerRecord", () => {
     let server: null | Server = null
+    const mockIp="http://localhost:7202"
     const userID = "1234"
     const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent2"
     const timestamp = new Date().getTime()
@@ -199,126 +201,89 @@ describe("writeToLearnerRecord", () => {
         correct,
         timestamp
     }
-    const mockTransaction = "ab642438bc4aacdvq"
-    const transactions = `/repositories/${repo}/transactions`
-    const location = `${transactions}/${mockTransaction}`
     it("Should send a server error if it cannot start a transaction", async () => {
         const test = supertest(getApp("http://localhost:7202", "blah", prefixes, endpoints))
         await test.put(writeToLearnerRecord.route).send(body).expect(500)
     })
     it("Should send a server error and attempt a rollback if it cannot execute a transaction", done => {
-        const mockStart = jest.fn<void, [void]>()
-        const mockRollback = jest.fn<void, [void]>()
-        const mockDB = express()
-        mockDB.post(transactions, (request, response) => {
-            mockStart()
-            response.header({ location: `http://localhost:7202${location}` })
-            response.send("")
-        })
-        mockDB.delete(location, (request, response) => {
-            mockRollback()
-            response.send("")
-        })
-        server = mockDB.listen(7202, () => {
+        const mockDB = getMockDB(mockIp,express(),repo,true,true,false)
+        server = mockDB.server.listen(7202, () => {
             const test = supertest(getApp("http://localhost:7202", repo, prefixes, endpoints))
-            test.put(writeToLearnerRecord.route).send(body).expect(500).end(() => {
-                expect(mockStart).toHaveBeenCalled()
-                expect(mockRollback).toHaveBeenCalled()
+            test.put(writeToLearnerRecord.route).send(body).expect(500)
+            .then(() => {
+                expect(mockDB.start).toHaveBeenCalled()
+                expect(mockDB.rollback).toHaveBeenCalled()
                 done()
+            }).catch((e) => {
+                done(e)
             })
         })
     })
     it("Should still send a server error if it fails the rollback", done => {
-        const mockStart = jest.fn<void, [void]>()
-        const mockRollback = jest.fn<void, [void]>()
-        const mockDB = express()
-        mockDB.post(transactions, (request, response) => {
-            mockStart()
-            response.header({ location: `http://localhost:7202${location}` })
-            response.send("")
-        })
-        mockDB.delete(location, (request, response) => {
-            mockRollback()
+        const mockDB = getMockDB(mockIp,express(),repo,true,true,false,undefined,(request, response) => {
             response.status(500)
-            response.send("")
+            response.send()
         })
-        server = mockDB.listen(7202, () => {
+        server = mockDB.server.listen(7202, () => {
             const test = supertest(getApp("http://localhost:7202", repo, prefixes, endpoints))
-            test.put(writeToLearnerRecord.route).send(body).expect(500).end(() => {
-                expect(mockStart).toHaveBeenCalled()
-                expect(mockRollback).toHaveBeenCalled()
-                done()
+            test.put(writeToLearnerRecord.route).send(body).expect(500)
+            .then(() => {
+                try{
+                    expect(mockDB.start).toHaveBeenCalled()
+                    expect(mockDB.rollback).toHaveBeenCalled()
+                    done()
+                }catch(e){
+                    done(e)
+                }
+            }).catch((e) => {
+                done(e)
             })
         })
     })
     it("Should send a server error and attempt a rollback if commiting the transaction fails", done => {
-        const mockStart = jest.fn<void, [void]>()
-        const mockRollback = jest.fn<void, [void]>()
-        const mockExec = jest.fn<void, [string]>()
-        const mockDB = express()
-        mockDB.use(express.raw({ type: "application/sparql-update" }))
-        mockDB.post(transactions, (request, response) => {
-            mockStart()
-            response.header({ location: `http://localhost:7202${location}` })
-            response.send("")
-        })
-        mockDB.delete(location, (request, response) => {
-            mockRollback()
-            response.send("")
-        })
-        mockDB.put(location, (request, response) => {
-            if (request.query.action === "UPDATE") {
-                mockExec(request.body.toString())
-                response.send("")
-            } else {
-                response.status(500)
-                response.send("")
-            }
-        })
-        server = mockDB.listen(7202, () => {
+        const mockServer = express()
+        mockServer.use(express.raw({type: "application/sparql-update"}))
+        const mockDB = getMockDB(mockIp,mockServer,repo,true,true,true)
+        server = mockDB.server.listen(7202, () => {
             const test = supertest(getApp("http://localhost:7202", repo, prefixes, endpoints))
-            test.put(writeToLearnerRecord.route).send(body).expect(500).end(() => {
-                expect(mockStart).toHaveBeenCalled()
-                expect(mockRollback).toHaveBeenCalled()
-                expect(mockExec).toHaveBeenCalled()
-                expect(mockExec).toHaveBeenLastCalledWith(insertQuery(createLearnerRecordTriples(userID, content, timestamp, correct), prefixes))
-                done()
+            test.put(writeToLearnerRecord.route).send(body).expect(500)
+            .then(() => {
+                try{
+                    expect(mockDB.start).toHaveBeenCalled()
+                    expect(mockDB.rollback).toHaveBeenCalled()
+                    expect(mockDB.exec).toHaveBeenCalled()
+                    expect(mockDB.exec).toHaveBeenCalledWith(insertQuery(createLearnerRecordTriples(userID, content, timestamp, correct), prefixes),"UPDATE")
+                    done()
+                }catch(e){
+                    done(e)
+                }    
+            }).catch((e) => {
+                done(e)
             })
         })
     })
     it("Should still return the same error if the rollback fails after failing to commit", done => {
-        const mockStart = jest.fn<void, [void]>()
-        const mockRollback = jest.fn<void, [void]>()
-        const mockExec = jest.fn<void, [string]>()
-        const mockDB = express()
-        mockDB.use(express.raw({ type: "application/sparql-update" }))
-        mockDB.post(transactions, (request, response) => {
-            mockStart()
-            response.header({ location: `http://localhost:7202${location}` })
-            response.send("")
-        })
-        mockDB.delete(location, (request, response) => {
-            mockRollback()
+        const mockServer = express()
+        mockServer.use(express.raw({ type: "application/sparql-update" }))
+        const mockDB = getMockDB(mockIp,mockServer,repo,true,true,true,undefined,(request, response) => {
             response.status(500)
-            response.send("")
+            response.send()
         })
-        mockDB.put(location, (request, response) => {
-            if (request.query.action === "UPDATE") {
-                mockExec(request.body.toString())
-                response.send("")
-            } else {
-                response.status(500)
-                response.send("")
-            }
-        })
-        server = mockDB.listen(7202, () => {
+        server = mockDB.server.listen(7202, () => {
             const test = supertest(getApp("http://localhost:7202", repo, prefixes, endpoints))
-            test.put(writeToLearnerRecord.route).send(body).expect(500).end(() => {
-                expect(mockStart).toHaveBeenCalled()
-                expect(mockRollback).toHaveBeenCalled()
-                expect(mockExec).toHaveBeenCalled()
-                expect(mockExec).toHaveBeenLastCalledWith(insertQuery(createLearnerRecordTriples(userID, content, timestamp, correct), prefixes))
-                done()
+            test.put(writeToLearnerRecord.route).send(body).expect(500)
+            .then(() => {
+                try{
+                    expect(mockDB.start).toHaveBeenCalled()
+                    expect(mockDB.rollback).toHaveBeenCalled()
+                    expect(mockDB.exec).toHaveBeenCalled()
+                    expect(mockDB.exec).toHaveBeenCalledWith(insertQuery(createLearnerRecordTriples(userID, content, timestamp, correct), prefixes),"UPDATE")
+                    done()
+                }catch(e){
+                    done(e)
+                }
+            }).catch((e) => {
+                done(e)
             })
         })
     })

@@ -4,10 +4,13 @@ import {ip, prefixes} from "../src/config"
 import { Transaction } from "../src/util/transaction/Transaction"
 import ExecTransaction from "../src/util/transaction/ExecTransaction"
 import commitTransaction from "../src/util/transaction/commitTransaction"
-import readFromLearnerRecord from "../src/endpoints/readFromLearnerRecord"
+import readFromLearnerRecord, { getNumberAttemptsQuery } from "../src/endpoints/readFromLearnerRecord"
 import supertest from "supertest"
 import getApp from "../src/server"
 import fetch from "node-fetch"
+import getMockDB from "./mockDB"
+import express from "express"
+import {Server} from "http"
 
 const repo = "readFromLearnerRecordTest"
 
@@ -51,6 +54,7 @@ async function queryEndpoint(test: supertest.SuperTest<supertest.Test>, userID: 
 }
 
 describe("readFromLearnerRecord", () => {
+    let server: Server | null = null
     const userID = "1234"
     const content = "http://aribtrarywebsite/TestContent"
     const content2 = "http://aribtrarywebsite/TestContent2"
@@ -63,6 +67,8 @@ describe("readFromLearnerRecord", () => {
     const broadQuery = async (test: supertest.SuperTest<supertest.Test>) => {
         return await queryEndpoint(test,userID)
     }
+    const mockIp = "http://localhost:7203"
+
     it("Should return zero attempts if no attempts at the desired content have been made", async () => {
         expect(await query(getTest())).toHaveProperty("attempts",0)
     })
@@ -138,6 +144,48 @@ describe("readFromLearnerRecord", () => {
         expect(((await broadQuery(test))[content2])).toHaveProperty("correct",1)
         expect(((await broadQuery(test))[content])).toHaveProperty("correct",1)
     })
+    it("Should send back a server error if starting a transaction fails", async () => {
+        const test = supertest(getApp(mockIp,repo,prefixes,[readFromLearnerRecord]))
+        await test.post(readFromLearnerRecord.route).set("Content-Type","application/json").send({userID}).expect(500)
+    })
+    it("Should send back a server error and attempt a rollback if executing the transaction fails", done => {
+        const mockDB = getMockDB(mockIp,express(),repo,true,false,false)
+        server = mockDB.server.listen(7203,() => {
+            const test = supertest(getApp(mockIp,repo,prefixes,[readFromLearnerRecord]))
+            test.post(readFromLearnerRecord.route).set("Content-Type","application/json").send({userID}).expect(500)
+            .then(() => {
+                try{
+                    expect(mockDB.start).toHaveBeenCalled()
+                    done()
+                }catch(e){
+                    done(e)
+                }
+            }).catch((e) => {
+                done(e)
+            })
+        })
+    })
+    it("Should not send a server error if committing the transaction fails", done => {
+        const test = supertest(getApp(mockIp,repo,prefixes,[readFromLearnerRecord]))
+        const mockServer = express()
+        mockServer.use(express.raw({type: "application/sparql-query"}))
+        const mockDB = getMockDB(mockIp,mockServer,repo,true,false,true)
+        server = mockDB.server.listen(7203,() => {
+            test.post(readFromLearnerRecord.route).set("Content-Type","application/json").send({userID}).expect(200)
+            .then(() => {
+                try{
+                    expect(mockDB.start).toHaveBeenCalled()
+                    expect(mockDB.exec).toHaveBeenCalled()
+                    expect(mockDB.exec).toHaveBeenCalledWith(getNumberAttemptsQuery(userID,prefixes),"QUERY")
+                    done()
+                }catch(e){
+                    done(e)
+                }
+            }).catch((e) => {
+                done(e)
+            })
+        })
+    })
     afterEach(async () => {
         await fetch(`${ip}/repositories/${repo}/statements`, {
             method: "DELETE",
@@ -146,5 +194,8 @@ describe("readFromLearnerRecord", () => {
         await waitFor(async () => {
             expect(await query(test)).toHaveProperty("attempts",0)
         })
+        if(server !== null){
+            await server.close()
+        }
     })
 })

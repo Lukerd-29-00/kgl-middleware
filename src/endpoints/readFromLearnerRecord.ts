@@ -28,7 +28,7 @@ interface ResBody{
     attempts: number
 }
 
-function getNumberAttemptsQuery(userID: string, prefixes: [string, string][], contentIRI?: string): string{
+export function getNumberAttemptsQuery(userID: string, prefixes: [string, string][], contentIRI?: string): string{
     let output = getPrefixes(prefixes)
     if(contentIRI !== undefined){    
         output += 
