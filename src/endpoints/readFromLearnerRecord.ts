@@ -24,6 +24,7 @@ interface ReqBody {
 }
 
 interface ResBody {
+    literal: string,
     countsCorrect: number,
     totalCounts: number
 }
@@ -40,12 +41,15 @@ function getNumberAttemptsQuery(userID: string, prefixes: [string, string][], co
         }`
     } else {
         output +=
-            `select ?content (count(?p) as ?attempts) (sum(?corr) as ?correct) where {
-            cco:Person_${userID} cco:agent_in ?p .
-            ?p cco:has_object ?content ;
-                cco:is_measured_by_nominal / cco:is_tokenized_by ?c .
-            BIND ( IF ( ?c = "true"^^xsd:boolean, 1, IF ( ?c = "false"^^xsd:boolean, 0, 0 ) ) AS ?corr )
-        }GROUP BY ?content`
+            `select ?content ?Literal (count(?ActOfLearning ) as ?totalCounts) (sum(?corr) as ?countsCorrect) where {
+                cco:Person_${userID} cco:agent_in ?ActOfLearning .
+                ?ActOfLearning cco:has_object ?content ;
+                    cco:is_measured_by_nominal / cco:is_tokenized_by ?c .
+        
+                ?content cco:is_measured_by_nominal ?glyph . 
+                ?glyph cco:has_text_value ?Literal
+                BIND ( IF ( ?c = "true"^^xsd:boolean, 1, IF ( ?c = "false"^^xsd:boolean, 0, 0 ) ) AS ?corr )
+            }GROUP BY ?content ?Literal`
     }
     return output
 }
@@ -55,11 +59,11 @@ function parseQueryOutput<T extends string | undefined>(response: string, conten
         const line = response.split("\n")[1].split(",")
         return [parseInt(line[0], 10), parseInt(line[1], 10)] as T extends string ? [number, number] : Map<string, ResBody>
     } else {
-        const matches = response.matchAll(/^(.+),(.+),(.+)$/gm)
+        const matches = response.matchAll(/^(.+),(.+),(.+),(.+)$/gm)
         matches.next()
         const output = new Map<string, ResBody>()
         for (const match of matches) {
-            output.set(match[1], { totalCounts: parseInt(match[2], 10), countsCorrect: parseInt(match[3], 10) })
+            output.set(match[1], { literal: match[2], totalCounts: parseInt(match[3], 10), countsCorrect: parseInt(match[4], 10) })
         }
         return output as T extends string ? [number, number] : Map<string, ResBody>
     }
