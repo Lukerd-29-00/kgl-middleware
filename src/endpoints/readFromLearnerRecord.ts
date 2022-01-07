@@ -78,7 +78,7 @@ async function processReadFromLearnerRecord(request: Request<ParamsDictionary,st
     const userID = request.body.userID
     let before = new Date().getTime()
     if(request.query.before !== undefined){
-        before = parseInt(request.query.before,10)
+        before = new Date(request.query.before).getTime()
     }else if(request.headers.date !== undefined){
         before = new Date(request.headers.date).getTime()
         if(isNaN(before)){
@@ -87,7 +87,7 @@ async function processReadFromLearnerRecord(request: Request<ParamsDictionary,st
             return
         }
     }
-    const query = getNumberAttemptsQuery(userID,prefixes,request.query.since === undefined ? 0 : parseInt(request.query.since,10),before,request.body.content)
+    const query = getNumberAttemptsQuery(userID,prefixes,request.query.since === undefined ? 0 : new Date(request.query.since).getTime(),before,request.body.content)
     startTransaction(ip, repo).then((location) => {
         const transaction: Transaction = {
             subj: null,

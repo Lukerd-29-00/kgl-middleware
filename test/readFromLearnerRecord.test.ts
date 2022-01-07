@@ -11,7 +11,6 @@ import fetch from "node-fetch"
 import getMockDB from "./mockDB"
 import express from "express"
 import {Server} from "http"
-import { StringLiteralLike } from "typescript"
 
 const repo = "readFromLearnerRecordTest"
 
@@ -33,6 +32,41 @@ async function writeAttemptTimed(userID: string, content: string, time: Date, co
     }
     await ExecTransaction(transaction,prefixes)
     await commitTransaction(location)
+}
+
+async function testWithinInterval(userID: string, content: string, interval: TimeInterval): Promise<void>{
+    let writes = new Array<Promise<void>>()
+    const content2 = `${content}2`
+    const content3 = `${content}3`
+    if(interval.since){
+        writes = writes.concat([
+            writeAttemptTimed(userID,content,new Date(interval.since.getTime()+1),true),
+            writeAttemptTimed(userID,content,new Date(interval.since.getTime()+2),false),
+            writeAttemptTimed(userID,content,new Date(interval.since.getTime()-1),true),
+            writeAttemptTimed(userID,content,new Date(interval.since.getTime()-2),false),
+            writeAttemptTimed(userID,content2,new Date(interval.since.getTime()+1),true),
+            writeAttemptTimed(userID,content2,new Date(interval.since.getTime()+2),false),
+            writeAttemptTimed(userID,content2,new Date(interval.since.getTime()-1),true),
+            writeAttemptTimed(userID,content2,new Date(interval.since.getTime()-2),false),
+            writeAttemptTimed(userID,content3,new Date(interval.since.getTime()-1),true),
+            writeAttemptTimed(userID,content3,new Date(interval.since.getTime()-2),false),
+        ])
+    }
+    if(interval.before){
+        writes = writes.concat([
+            writeAttemptTimed(userID,content,new Date(interval.before.getTime()-1),true),
+            writeAttemptTimed(userID,content,new Date(interval.before.getTime()-2),false),
+            writeAttemptTimed(userID,content,new Date(interval.before.getTime()+1),true),
+            writeAttemptTimed(userID,content,new Date(interval.before.getTime()+2),false),
+            writeAttemptTimed(userID,content2,new Date(interval.before.getTime()-1),true),
+            writeAttemptTimed(userID,content2,new Date(interval.before.getTime()-2),false),
+            writeAttemptTimed(userID,content2,new Date(interval.before.getTime()+1),true),
+            writeAttemptTimed(userID,content2,new Date(interval.before.getTime()+2),false),
+            writeAttemptTimed(userID,content3,new Date(interval.before.getTime()+1),true),
+            writeAttemptTimed(userID,content3,new Date(interval.before.getTime()+2),false),
+        ])
+    }
+    await Promise.all(writes)
 }
 
 async function writeAttempt(userID: string, content: string, correct: boolean, count: number = 1): Promise<void>{
@@ -190,10 +224,94 @@ describe("readFromLearnerRecord", () => {
         expect(((await broadQuery(test))[content2])).toHaveProperty("correct",1)
         expect(((await broadQuery(test))[content])).toHaveProperty("correct",1)
     })
+    it("Should be able to narrow down queries between timestamps", async () => {
+        const test = getTest()
+        const since = new Date("1/7/2021")
+        const before = new Date("1/12/2021")
+        const content3 = `${content}3`
+        await Promise.all([
+            [
+                writeAttemptTimed(userID,content,new Date(since.getTime()+1),true),
+                writeAttemptTimed(userID,content,new Date(since.getTime()+2),false),
+                writeAttemptTimed(userID,content,new Date(since.getTime()-1),true),
+                writeAttemptTimed(userID,content,new Date(since.getTime()-2),false),
+                writeAttemptTimed(userID,content2,new Date(since.getTime()+1),true),
+                writeAttemptTimed(userID,content2,new Date(since.getTime()+2),false),
+                writeAttemptTimed(userID,content2,new Date(since.getTime()-1),true),
+                writeAttemptTimed(userID,content2,new Date(since.getTime()-2),false),
+                writeAttemptTimed(userID,content3,new Date(since.getTime()-1),true),
+                writeAttemptTimed(userID,content3,new Date(since.getTime()-2),false),
+                writeAttemptTimed(userID,content,new Date(before.getTime()-1),true),
+                writeAttemptTimed(userID,content,new Date(before.getTime()-2),false),
+                writeAttemptTimed(userID,content,new Date(before.getTime()+1),true),
+                writeAttemptTimed(userID,content,new Date(before.getTime()+2),false),
+                writeAttemptTimed(userID,content2,new Date(before.getTime()-1),true),
+                writeAttemptTimed(userID,content2,new Date(before.getTime()-2),false),
+                writeAttemptTimed(userID,content2,new Date(before.getTime()+1),true),
+                writeAttemptTimed(userID,content2,new Date(before.getTime()+2),false),
+                writeAttemptTimed(userID,content3,new Date(before.getTime()+1),true),
+                writeAttemptTimed(userID,content3,new Date(before.getTime()+2),false),
+                writeAttemptTimed(userID,content3,new Date(before.getTime()+3),true)
+            ]
+        ])
+        await Promise.all([
+            waitFor(async () => {
+                const body = await query(test,{before})
+                expect(body).toHaveProperty("correct",3)
+                expect(body).toHaveProperty("attempts",6)
+                
+            }),
+            waitFor(async () => {
+                const body = await broadQuery(test,{before})
+                expect(body).toHaveProperty(content)
+                expect(body[content]).toHaveProperty("correct",3)
+                expect(body[content]).toHaveProperty("attempts",6)
+                expect(body).toHaveProperty(content2)
+                expect(body[content2]).toHaveProperty("correct", 3)
+                expect(body[content2]).toHaveProperty("attempts", 6)
+                expect(body).toHaveProperty(content3)
+                expect(body[content3]).toHaveProperty("correct",1)
+                expect(body[content3]).toHaveProperty("attempts",2)
+            }),
+            waitFor(async () => {
+                const body = await query(test,{since})
+                expect(body).toHaveProperty("correct",3)
+                expect(body).toHaveProperty("attempts",6)
+            }),
+            waitFor(async () => {
+                const body = await broadQuery(test,{since})
+                expect(body).toHaveProperty(content)
+                expect(body[content]).toHaveProperty("correct",3)
+                expect(body[content]).toHaveProperty("attempts",6)
+                expect(body).toHaveProperty(content2)
+                expect(body[content2]).toHaveProperty("correct", 3)
+                expect(body[content2]).toHaveProperty("attempts", 6)
+                expect(body).toHaveProperty(content3)
+                expect(body[content3]).toHaveProperty("attempts",3)
+                expect(body[content3]).toHaveProperty("correct",2)
+            }),
+            waitFor(async () => {
+                const body = await query(test,{since,before})
+                expect(body).toHaveProperty("correct",2)
+                expect(body).toHaveProperty("attempts",4)
+            }),
+            waitFor(async () => {
+                const body = await broadQuery(test,{since,before})
+                expect(body).toHaveProperty(content)
+                expect(body[content]).toHaveProperty("correct",2)
+                expect(body[content]).toHaveProperty("attempts",4)
+                expect(body).toHaveProperty(content2)
+                expect(body[content2]).toHaveProperty("correct", 2)
+                expect(body[content2]).toHaveProperty("attempts", 4)
+                expect(body).not.toHaveProperty(content3)
+            })
+        ])
+    },20000)
     
     it("Should send back a 400 error if the Date header is malformed and there is no before query parameter", async () => {
-        const test = supertest(getApp(ip,repo,prefixes,[readFromLearnerRecord]))
-        await query(test,)
+        const test = getTest()
+        await test.post(readFromLearnerRecord.route).set("Content-Type","application/json").set("Date",'Wed, 02 Mar 2022 05:00:00 GMTjunk').send({userID}).expect(400)
+        await test.post(readFromLearnerRecord.route).set("Content-Type","application/json").set("Date",'Wed, 02 Mar 2022 05:00:00 GMTjunk').send({userID, content}).expect(400)
     })
     afterEach(async () => {
         await fetch(`${ip}/repositories/${repo}/statements`, {
@@ -203,9 +321,9 @@ describe("readFromLearnerRecord", () => {
         await waitFor(async () => {
             expect(await query(test)).toHaveProperty("attempts",0)
         })
-        
     })
 })
+
 
 describe("readFromLearnerRecord", () => {
     let server: Server | null = null
