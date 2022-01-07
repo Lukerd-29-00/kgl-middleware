@@ -178,7 +178,9 @@ describe("readFromLearnerRecord", () => {
                     expect(mockDB.start).toHaveBeenCalled()
                     expect(mockDB.exec).toHaveBeenCalled()
                     expect(mockDB.exec).toHaveBeenCalledWith(getNumberAttemptsQuery(userID,prefixes,0,new Date(timestamp.toUTCString()).getTime()),"QUERY")
-                    done()
+                    waitFor(() => {
+                        expect(mockDB.exec).toHaveBeenCalledTimes(2)
+                    }).then(done)
                 }catch(e){
                     done(e)
                 }
