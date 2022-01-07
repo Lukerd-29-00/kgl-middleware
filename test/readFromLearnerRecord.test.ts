@@ -11,6 +11,7 @@ import fetch from "node-fetch"
 import getMockDB from "./mockDB"
 import express from "express"
 import {Server} from "http"
+import { StringLiteralLike } from "typescript"
 
 const repo = "readFromLearnerRecordTest"
 
@@ -18,9 +19,24 @@ interface ResBody{
     correct: number,
     attempts: number
 }
+
+async function writeAttemptTimed(userID: string, content: string, time: Date, correct: boolean){
+    const location = await startTransaction(ip, repo)
+    const triples = createLearnerRecordTriples(userID, content,time.getTime(),correct)
+    const transaction: Transaction = {
+        subj: null,
+        pred: null,
+        obj: null,
+        location: location,
+        body: triples,
+        action: "UPDATE"
+    }
+    await ExecTransaction(transaction,prefixes)
+    await commitTransaction(location)
+}
+
 async function writeAttempt(userID: string, content: string, correct: boolean, count: number = 1): Promise<void>{
     const location = await startTransaction(ip, repo)
-    const promises = []
     for(let i = 0; i < count; i++){
         const triples = createLearnerRecordTriples(userID,content,new Date().getTime(),correct)
         const transaction: Transaction = {
@@ -36,38 +52,68 @@ async function writeAttempt(userID: string, content: string, correct: boolean, c
     await commitTransaction(location)
 }
 
-async function waitFor(callback: () => Promise<void> | void): Promise<void>{
+async function waitFor(callback: () => Promise<void> | void, timeout: number = 5000, waitPeriod: number = 15): Promise<void>{
+    const timeoutId = setTimeout(() =>{
+        clearTimeout(timeoutId)
+        throw Error(`waitFor timed out after ${timeout}ms`)
+    },timeout)
     while(true){
         try{
             await callback()
             break
         }catch(e){
             await new Promise((resolve) => {
-                setTimeout(resolve,25)
+                setTimeout(resolve,waitPeriod)
             })
         }
-    } 
+    }
+    clearTimeout(timeoutId)
 }
 
-async function queryEndpoint(test: supertest.SuperTest<supertest.Test>, userID: string, content?: string): Promise<Record<string, number | ResBody>>{
-    return (await test.post(readFromLearnerRecord.route).set("Content-Type","application/json").send({userID, content}).expect(200)).body
+interface QueryEndpointKwargs{
+    content?: string,
+    since?: Date,
+    before?: Date
+}
+
+async function queryEndpoint(test: supertest.SuperTest<supertest.Test>, userID: string, kwargs?: QueryEndpointKwargs): Promise<Record<string, number | ResBody>>{
+    if(kwargs === undefined){
+        return (await test.post(readFromLearnerRecord.route).set("Content-Type","application/json").send({userID}).expect(200)).body
+    }else{
+        let url = readFromLearnerRecord.route
+        if(kwargs.since !== undefined && kwargs.before !== undefined){
+            url += `?since=${encodeURIComponent(kwargs.since.toUTCString())}&before=${encodeURIComponent(kwargs.before.toUTCString())}`
+        }
+        else if(kwargs.since !== undefined){
+            url += `?since=${encodeURIComponent(kwargs.since.toUTCString())}`
+        }else if(kwargs.before !== undefined){
+            url += `?before=${encodeURIComponent(kwargs.before.toUTCString())}`
+        }
+        return (await test.post(url).set("Content-Type","application/json").send({userID,content: kwargs.content}).expect(200)).body
+    }
+}
+
+interface TimeInterval{
+    since?: Date,
+    before?: Date
 }
 
 describe("readFromLearnerRecord", () => {
-    let server: Server | null = null
     const userID = "1234"
     const content = "http://aribtrarywebsite/TestContent"
     const content2 = "http://aribtrarywebsite/TestContent2"
     const getTest = () => {
         return supertest(getApp(ip, repo, prefixes,[readFromLearnerRecord]))
     }
-    const query = async (test: supertest.SuperTest<supertest.Test>) => {
-        return await queryEndpoint(test,userID,content)
+    const query = async (test: supertest.SuperTest<supertest.Test>, interval?: TimeInterval) => {
+        if(interval !== undefined){
+            return await queryEndpoint(test,userID,{content,since:interval.since,before:interval.before})
+        }
+        return await queryEndpoint(test,userID,{content})
     }
-    const broadQuery = async (test: supertest.SuperTest<supertest.Test>) => {
-        return await queryEndpoint(test,userID)
+    const broadQuery = async (test: supertest.SuperTest<supertest.Test>, interval?: TimeInterval) => {
+        return await queryEndpoint(test,userID,interval)
     }
-    const mockIp = "http://localhost:7203"
 
     it("Should return zero attempts if no attempts at the desired content have been made", async () => {
         expect(await query(getTest())).toHaveProperty("attempts",0)
@@ -144,14 +190,38 @@ describe("readFromLearnerRecord", () => {
         expect(((await broadQuery(test))[content2])).toHaveProperty("correct",1)
         expect(((await broadQuery(test))[content])).toHaveProperty("correct",1)
     })
+    
+    it("Should send back a 400 error if the Date header is malformed and there is no before query parameter", async () => {
+        const test = supertest(getApp(ip,repo,prefixes,[readFromLearnerRecord]))
+        await query(test,)
+    })
+    afterEach(async () => {
+        await fetch(`${ip}/repositories/${repo}/statements`, {
+            method: "DELETE",
+        })
+        const test = getTest()
+        await waitFor(async () => {
+            expect(await query(test)).toHaveProperty("attempts",0)
+        })
+        
+    })
+})
+
+describe("readFromLearnerRecord", () => {
+    let server: Server | null = null
+    const userID = "1234"
+    const mockIp = "http://localhost:7203"
+    const getTest = () => {
+        return supertest(getApp(mockIp, repo, prefixes,[readFromLearnerRecord]))
+    }
     it("Should send back a server error if starting a transaction fails", async () => {
-        const test = supertest(getApp(mockIp,repo,prefixes,[readFromLearnerRecord]))
+        const test = getTest()
         await test.post(readFromLearnerRecord.route).set("Content-Type","application/json").send({userID}).expect(500)
     })
     it("Should send back a server error and attempt a rollback if executing the transaction fails", done => {
         const mockDB = getMockDB(mockIp,express(),repo,true,false,false)
         server = mockDB.server.listen(7203,() => {
-            const test = supertest(getApp(mockIp,repo,prefixes,[readFromLearnerRecord]))
+            const test = getTest()
             test.post(readFromLearnerRecord.route).set("Content-Type","application/json").send({userID}).expect(500)
             .then(() => {
                 try{
@@ -166,7 +236,7 @@ describe("readFromLearnerRecord", () => {
         })
     })
     it("Should not send a server error if committing the transaction fails", done => {
-        const test = supertest(getApp(mockIp,repo,prefixes,[readFromLearnerRecord]))
+        const test = getTest()
         const mockServer = express()
         mockServer.use(express.raw({type: "application/sparql-query"}))
         const mockDB = getMockDB(mockIp,mockServer,repo,true,false,true)
@@ -189,18 +259,7 @@ describe("readFromLearnerRecord", () => {
             })
         })
     })
-    it("Should send back a 400 error if the Date header is malformed and there is no before query parameter", async () => {
-        const test = supertest(getApp(ip,repo,prefixes,[readFromLearnerRecord]))
-        await query(test,)
-    })
     afterEach(async () => {
-        await fetch(`${ip}/repositories/${repo}/statements`, {
-            method: "DELETE",
-        })
-        const test = getTest()
-        await waitFor(async () => {
-            expect(await query(test)).toHaveProperty("attempts",0)
-        })
         if(server !== null){
             await server.close()
         }
