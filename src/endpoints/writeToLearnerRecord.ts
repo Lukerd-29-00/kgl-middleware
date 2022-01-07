@@ -39,11 +39,10 @@ async function processWriteToLearnerRecord(request: Request, response: Response,
     const userID = request.body.userID
     let timestamp = new Date().getTime()
     if(request.headers.date !== undefined){
-        try{
-            timestamp = new Date(request.headers.date).getTime()
-        }catch(e){
+        timestamp = new Date(request.headers.date).getTime()
+        if(isNaN(timestamp)){
             response.status(400)
-            response.send("Malformed date header")
+            response.send("Malformed Date header")
             return
         }
     }else if(request.body.timestamp !== undefined){

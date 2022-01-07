@@ -80,9 +80,8 @@ async function processReadFromLearnerRecord(request: Request<ParamsDictionary,st
     if(request.query.before !== undefined){
         before = parseInt(request.query.before,10)
     }else if(request.headers.date !== undefined){
-        try{
-            before = new Date(request.headers.date).getTime()
-        }catch(e){
+        before = new Date(request.headers.date).getTime()
+        if(isNaN(before)){
             response.status(400)
             response.send("Malformed Date header")
             return

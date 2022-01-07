@@ -13,6 +13,7 @@ import express from "express"
 import { Server } from "http"
 import { insertQuery } from "../src/util/transaction/insertQuery"
 import getMockDB from "./mockDB"
+import e from "express"
 
 const repo = "writeToLearnerRecordTest"
 
@@ -161,6 +162,19 @@ describe("writeToLearnerRecord", () => {
             expectContent(userID, content, timestamp1, correct, prefixes),
             expectContent(userID, content, timestamp2, correct, prefixes),
             expectAnswers(2, 2, userID, content, prefixes)
+        ])
+    })
+    it("Should send back a 400 error if the date header is malformed", async () => {
+        const test = supertest(app)
+        const userID = "1234"
+        const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent"
+        const correct = true
+        const timestamp = new Date().getTime()
+        const body1 = {userID, content, correct, timestamp}
+        const body2 = {userID, content, correct}
+        await Promise.all([
+            test.put(writeToLearnerRecord.route).set("Date",new Date().toUTCString() + "junk").send(body1).expect(400),
+            test.put(writeToLearnerRecord.route).set("Date",new Date().toUTCString() + "junk").send(body2).expect(400)
         ])
     })
     afterEach(async () => {

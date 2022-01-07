@@ -189,6 +189,10 @@ describe("readFromLearnerRecord", () => {
             })
         })
     })
+    it("Should send back a 400 error if the Date header is malformed and there is no before query parameter", async () => {
+        const test = supertest(getApp(ip,repo,prefixes,[readFromLearnerRecord]))
+        await query(test,)
+    })
     afterEach(async () => {
         await fetch(`${ip}/repositories/${repo}/statements`, {
             method: "DELETE",
