@@ -85,11 +85,9 @@ async function processReadFromLearnerRecord(request: Request<ParamsDictionary,st
         }catch(e){
             response.status(400)
             response.send("Malformed Date header")
+            return
         }
-    }else{
-        before = new Date().getTime()
     }
-
     const query = getNumberAttemptsQuery(userID,prefixes,request.query.since === undefined ? 0 : parseInt(request.query.since,10),before,request.body.content)
     startTransaction(ip, repo).then((location) => {
         const transaction: Transaction = {

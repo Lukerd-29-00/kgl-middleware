@@ -10,7 +10,7 @@ import { Endpoint } from "../server"
 const schema = Joi.object({
     userID: Joi.string().required(),
     standardLearnedContent: Joi.string().required(),
-    timestamp: Joi.number().required(),
+    timestamp: Joi.number(),
     correct: Joi.boolean().required()
 })
 
@@ -37,7 +37,18 @@ export function createLearnerRecordTriples(userID: string, content: string, time
 
 async function processWriteToLearnerRecord(request: Request, response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
     const userID = request.body.userID
-    const timestamp = request.body.timestamp
+    let timestamp = new Date().getTime()
+    if(request.headers.date !== undefined){
+        try{
+            timestamp = new Date(request.headers.date).getTime()
+        }catch(e){
+            response.status(400)
+            response.send("Malformed date header")
+            return
+        }
+    }else if(request.body.timestamp !== undefined){
+        timestamp = request.body.timestamp
+    }    
     const content = request.body.standardLearnedContent
     const correct = request.body.correct
     const triples = createLearnerRecordTriples(userID, content, timestamp, correct)
