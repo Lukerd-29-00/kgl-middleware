@@ -101,9 +101,7 @@ async function processReadFromLearnerRecord(request: Request<ParamsDictionary,st
             location: location
         }
         ExecTransaction(transaction, prefixes).then((res) => {
-            commitTransaction(location).catch((e: Error) => {
-                console.log(e.message)
-            })
+            commitTransaction(location).catch(() => {})
             if(request.body.content !== undefined){
                 const parsed = parseQueryOutput(res, request.body.content)
                 response.header("Content-Type","application/json")
