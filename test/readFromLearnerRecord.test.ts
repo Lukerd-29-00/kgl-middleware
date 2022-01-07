@@ -34,41 +34,6 @@ async function writeAttemptTimed(userID: string, content: string, time: Date, co
     await commitTransaction(location)
 }
 
-async function testWithinInterval(userID: string, content: string, interval: TimeInterval): Promise<void>{
-    let writes = new Array<Promise<void>>()
-    const content2 = `${content}2`
-    const content3 = `${content}3`
-    if(interval.since){
-        writes = writes.concat([
-            writeAttemptTimed(userID,content,new Date(interval.since.getTime()+1),true),
-            writeAttemptTimed(userID,content,new Date(interval.since.getTime()+2),false),
-            writeAttemptTimed(userID,content,new Date(interval.since.getTime()-1),true),
-            writeAttemptTimed(userID,content,new Date(interval.since.getTime()-2),false),
-            writeAttemptTimed(userID,content2,new Date(interval.since.getTime()+1),true),
-            writeAttemptTimed(userID,content2,new Date(interval.since.getTime()+2),false),
-            writeAttemptTimed(userID,content2,new Date(interval.since.getTime()-1),true),
-            writeAttemptTimed(userID,content2,new Date(interval.since.getTime()-2),false),
-            writeAttemptTimed(userID,content3,new Date(interval.since.getTime()-1),true),
-            writeAttemptTimed(userID,content3,new Date(interval.since.getTime()-2),false),
-        ])
-    }
-    if(interval.before){
-        writes = writes.concat([
-            writeAttemptTimed(userID,content,new Date(interval.before.getTime()-1),true),
-            writeAttemptTimed(userID,content,new Date(interval.before.getTime()-2),false),
-            writeAttemptTimed(userID,content,new Date(interval.before.getTime()+1),true),
-            writeAttemptTimed(userID,content,new Date(interval.before.getTime()+2),false),
-            writeAttemptTimed(userID,content2,new Date(interval.before.getTime()-1),true),
-            writeAttemptTimed(userID,content2,new Date(interval.before.getTime()-2),false),
-            writeAttemptTimed(userID,content2,new Date(interval.before.getTime()+1),true),
-            writeAttemptTimed(userID,content2,new Date(interval.before.getTime()+2),false),
-            writeAttemptTimed(userID,content3,new Date(interval.before.getTime()+1),true),
-            writeAttemptTimed(userID,content3,new Date(interval.before.getTime()+2),false),
-        ])
-    }
-    await Promise.all(writes)
-}
-
 async function writeAttempt(userID: string, content: string, correct: boolean, count: number = 1): Promise<void>{
     const location = await startTransaction(ip, repo)
     for(let i = 0; i < count; i++){
