@@ -13,6 +13,7 @@ import express from "express"
 import {Server} from "http"
 
 const repo = "readFromLearnerRecordTest"
+const port = 7202
 
 interface ResBody{
     correct: number,
@@ -293,7 +294,7 @@ describe("readFromLearnerRecord", () => {
 describe("readFromLearnerRecord", () => {
     let server: Server | null = null
     const userID = "1234"
-    const mockIp = "http://localhost:7203"
+    const mockIp = `http://localhost:${port}`
     const getTest = () => {
         return supertest(getApp(mockIp, repo, prefixes,[readFromLearnerRecord]))
     }
@@ -303,7 +304,7 @@ describe("readFromLearnerRecord", () => {
     })
     it("Should send back a server error and attempt a rollback if executing the transaction fails", done => {
         const mockDB = getMockDB(mockIp,express(),repo,true,false,false)
-        server = mockDB.server.listen(7203,() => {
+        server = mockDB.server.listen(port,() => {
             const test = getTest()
             test.post(readFromLearnerRecord.route).set("Content-Type","application/json").send({userID}).expect(500)
             .then(() => {
@@ -323,7 +324,7 @@ describe("readFromLearnerRecord", () => {
         const mockServer = express()
         mockServer.use(express.raw({type: "application/sparql-query"}))
         const mockDB = getMockDB(mockIp,mockServer,repo,true,false,true)
-        server = mockDB.server.listen(7203,() => {
+        server = mockDB.server.listen(port,() => {
             const timestamp = new Date()
             test.post(readFromLearnerRecord.route).set("Content-Type","application/json").set("Date",timestamp.toUTCString()).send({userID}).expect(200)
             .then(() => {

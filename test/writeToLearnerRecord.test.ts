@@ -13,9 +13,9 @@ import express from "express"
 import { Server } from "http"
 import { insertQuery } from "../src/util/transaction/insertQuery"
 import getMockDB from "./mockDB"
-import e from "express"
 
 const repo = "writeToLearnerRecordTest"
+const port = 7203
 
 function getNumberAttemptsQuery(userID: string, contentIRI: string, prefixes: [string, string][]): string{
     return SparqlQueryGenerator({query: `
@@ -186,7 +186,7 @@ describe("writeToLearnerRecord", () => {
 
 describe("writeToLearnerRecord", () => {
     let server: null | Server = null
-    const mockIp="http://localhost:7202"
+    const mockIp=`http://localhost:${port}`
     const userID = "1234"
     const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent2"
     const timestamp = new Date().getTime()
@@ -198,13 +198,13 @@ describe("writeToLearnerRecord", () => {
         timestamp
     }
     it("Should send a server error if it cannot start a transaction", async () => {
-        const test = supertest(getApp("http://localhost:7202", "blah", prefixes, endpoints))
+        const test = supertest(getApp(mockIp, "blah", prefixes, endpoints))
         await test.put(writeToLearnerRecord.route).send(body).expect(500)
     })
     it("Should send a server error and attempt a rollback if it cannot execute a transaction", done => {
         const mockDB = getMockDB(mockIp,express(),repo,true,true,false)
-        server = mockDB.server.listen(7202, () => {
-            const test = supertest(getApp("http://localhost:7202", repo, prefixes, endpoints))
+        server = mockDB.server.listen(port, () => {
+            const test = supertest(getApp(mockIp, repo, prefixes, endpoints))
             test.put(writeToLearnerRecord.route).send(body).expect(500)
             .then(() => {
                 expect(mockDB.start).toHaveBeenCalled()
@@ -220,8 +220,8 @@ describe("writeToLearnerRecord", () => {
             response.status(500)
             response.send()
         })
-        server = mockDB.server.listen(7202, () => {
-            const test = supertest(getApp("http://localhost:7202", repo, prefixes, endpoints))
+        server = mockDB.server.listen(port, () => {
+            const test = supertest(getApp(mockIp, repo, prefixes, endpoints))
             test.put(writeToLearnerRecord.route).send(body).expect(500)
             .then(() => {
                 try{
@@ -240,8 +240,8 @@ describe("writeToLearnerRecord", () => {
         const mockServer = express()
         mockServer.use(express.raw({type: "application/sparql-update"}))
         const mockDB = getMockDB(mockIp,mockServer,repo,true,true,true)
-        server = mockDB.server.listen(7202, () => {
-            const test = supertest(getApp("http://localhost:7202", repo, prefixes, endpoints))
+        server = mockDB.server.listen(port, () => {
+            const test = supertest(getApp(mockIp, repo, prefixes, endpoints))
             test.put(writeToLearnerRecord.route).send(body).expect(500)
             .then(() => {
                 try{
@@ -265,8 +265,8 @@ describe("writeToLearnerRecord", () => {
             response.status(500)
             response.send()
         })
-        server = mockDB.server.listen(7202, () => {
-            const test = supertest(getApp("http://localhost:7202", repo, prefixes, endpoints))
+        server = mockDB.server.listen(port, () => {
+            const test = supertest(getApp(mockIp, repo, prefixes, endpoints))
             test.put(writeToLearnerRecord.route).send(body).expect(500)
             .then(() => {
                 try{
