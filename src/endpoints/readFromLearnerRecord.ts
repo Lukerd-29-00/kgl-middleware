@@ -8,24 +8,25 @@ import { Transaction } from "../util/transaction/Transaction"
 import commitTransaction from "../util/transaction/commitTransaction"
 import {ParamsDictionary, Query} from "express-serve-static-core"
 
-
-const schema = Joi.object({
-    userID: Joi.string().required(),
+const querySchema = Joi.object({
     content: Joi.string(),
     since: Joi.number(),
     before: Joi.number()
 })
 
-interface ReqBody{
-    userID: string,
+interface ReqQuery extends Query{
     content?: string,
-    since?: number,
-    before?: number
+    since?: string,
+    before?: string
 }
 
 interface ResBody{
     correct: number,
     attempts: number
+}
+
+interface ReqParams extends ParamsDictionary{
+    userID: string
 }
 
 export function getNumberAttemptsQuery(userID: string, prefixes: [string, string][], since: number, before: number, contentIRI?: string): string{
@@ -69,13 +70,8 @@ function parseQueryOutput<T extends string | undefined>(response: string, conten
     }
 }
 
-interface Qargs extends Query {
-    before?: string,
-    since?: string
-}
-
-async function processReadFromLearnerRecord(request: Request<ParamsDictionary,string,ReqBody,Qargs> , response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
-    const userID = request.body.userID
+async function processReadFromLearnerRecord(request: Request<ReqParams,string,Record<string,string>,ReqQuery> , response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
+    const userID = request.params.userID
     let before = new Date().getTime()
     if(request.query.before !== undefined){
         before = new Date(request.query.before).getTime()
@@ -118,7 +114,7 @@ async function processReadFromLearnerRecord(request: Request<ParamsDictionary,st
     })
 }
 
-const route = "/readFromLearnerRecord"
+const route = "/readFromLearnerRecord/:userID"
 
-const endpoint: Endpoint = { method: "post", schema: schema, route: route, process: processReadFromLearnerRecord }
+const endpoint: Endpoint<ReqParams,string,Record<string,string>,ReqQuery> = { method: "post", schema: {query: querySchema}, route: route, process: processReadFromLearnerRecord }
 export default endpoint

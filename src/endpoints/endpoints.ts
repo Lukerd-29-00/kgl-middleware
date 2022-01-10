@@ -1,8 +1,9 @@
 import active from "./active"
-import { Endpoint } from "../server"
 import writeToLearnerRecord from "./writeToLearnerRecord"
 import readFromLearnerRecord from "./readFromLearnerRecord"
 
-const endpoints: Array<Endpoint> = [active,  writeToLearnerRecord, readFromLearnerRecord]
+export type Endpoints = typeof active | typeof writeToLearnerRecord  | typeof readFromLearnerRecord
+
+const endpoints: Array<Endpoints> = [active,  writeToLearnerRecord, readFromLearnerRecord]
 
 export default endpoints

@@ -1,13 +1,11 @@
 import { Request, Response } from "express"
 import fetch from "node-fetch"
-import Joi from "joi"
 import { Endpoint } from "../server"
-
-const schema = Joi.object()
+import {ParamsDictionary, Query} from "express-serve-static-core"
 
 const route = "/active"
 
-async function processActive(request: Request, response: Response, ip: string, defaultRepo: string): Promise<void>{
+async function processActive(request: Request<ParamsDictionary,string,Record<string,string | number | boolean | undefined>,Query>, response: Response<string>, ip: string, defaultRepo: string): Promise<void>{
     const probe = await fetch(`${ip}/repositories/${defaultRepo}/size`).catch((e: Error) => {
         response.status(500)
         response.send(`Got error "${e.message}" while trying to reach "${ip}".\n"`)
@@ -24,5 +22,5 @@ async function processActive(request: Request, response: Response, ip: string, d
     }
 }
 
-const endpoint: Endpoint = {schema, route, process: processActive, method: "get"}
+const endpoint: Endpoint<ParamsDictionary,string,Record<string,string | number | boolean | undefined>,Query> = {schema: {}, route, process: processActive, method: "get"}
 export default endpoint

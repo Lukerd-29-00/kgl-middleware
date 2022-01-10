@@ -6,17 +6,20 @@ import rollback from "../util/transaction/Rollback"
 import commitTransaction from "../util/transaction/commitTransaction"
 import Joi from "joi"
 import { Endpoint } from "../server"
+import {ParamsDictionary, Query} from "express-serve-static-core"
 
-const schema = Joi.object({
-    userID: Joi.string().required(),
-    standardLearnedContent: Joi.string().required(),
-    timestamp: Joi.number(),
-    correct: Joi.boolean().required()
+const bodySchema = Joi.object({
+    correct: Joi.boolean().required(),
+    responseTime: Joi.number().required()
 })
 
-const route = "/writeToLearnerRecord"
+const querySchema = Joi.object({
+    content: Joi.string().required()
+})
 
-export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, correct: boolean): string {
+const route = "/writeToLearnerRecord/:userID"
+
+export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, correct: boolean, responseTime: number): string {
     const contentTerm = content.replace(/.*\/(?!\/)/, "")
     let rawTriples = `cco:Person_${userID} rdf:type cco:Person ; \n`
     rawTriples += `\tcco:agent_in cco:Act_Learning_${contentTerm}_${timestamp}_Person_${userID} . \n\n`
@@ -25,18 +28,35 @@ export function createLearnerRecordTriples(userID: string, content: string, time
     rawTriples += `\tcco:occurs_on cco:ReferenceTime_Act_Learning_${contentTerm}_${timestamp}_Person_${userID}; \n ` ///
     rawTriples += `\tcco:has_agent cco:Person_${userID}; \n `
     rawTriples += `\tcco:has_object <${content}>; \n `
+    rawTriples += `\tcco:is_measured_by_ordinal cco:${contentTerm}_${timestamp}_Response_Ordinal_Person_${userID} ; \n `
     rawTriples += `\tcco:is_measured_by_nominal cco:${contentTerm}_${timestamp}_Nominal_Person_${userID} . \n\n`
-    //Nominal 
+    //Correctness 
     rawTriples += `cco:${contentTerm}_${timestamp}_Nominal_Person_${userID} rdf:type cco:NominalMeasurementInformationContentEntity ; \n `
     rawTriples += `\tcco:is_tokenized_by "${correct}"^^xsd:boolean .\n\n`
     //Time Stamp
     rawTriples += `cco:ReferenceTime_Act_Learning_${contentTerm}_${timestamp}_Person_${userID} rdf:type cco:ReferenceTime; \n `
     rawTriples += `\tcco:is_tokenized_by "${timestamp}"^^xsd:integer.\n\n`
+    //Response time
+    rawTriples += `cco:${contentTerm}_${timestamp}_Response_Ordinal_Person_${userID} rdf:type cco:OrdinalInformationContentEntity ;\n`
+    rawTriples += `cco:is_tokenized_by "${responseTime}"^^xsd:decimal .`
     return rawTriples
 }
 
-async function processWriteToLearnerRecord(request: Request, response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
-    const userID = request.body.userID
+interface ReqBody extends Record<string, string | number | boolean | undefined>{
+    correct: boolean,
+    responseTime: number,
+}
+
+interface ReqParams extends ParamsDictionary{
+    userID: string
+}
+
+interface ReqQuery extends Query{
+    content: string
+}
+
+async function processWriteToLearnerRecord(request: Request<ReqParams,string,ReqBody,ReqQuery>, response: Response<string>, ip: string, repo: string, prefixes: Array<[string, string]>) {
+    const userID = request.params.userID
     let timestamp = new Date().getTime()
     if(request.headers.date !== undefined){
         timestamp = new Date(request.headers.date).getTime()
@@ -45,12 +65,11 @@ async function processWriteToLearnerRecord(request: Request, response: Response,
             response.send("Malformed Date header")
             return
         }
-    }else if(request.body.timestamp !== undefined){
-        timestamp = request.body.timestamp
-    }    
-    const content = request.body.standardLearnedContent
+    }
+    const content = request.query.content
     const correct = request.body.correct
-    const triples = createLearnerRecordTriples(userID, content, timestamp, correct)
+    const responseTime = request.body.responseTime
+    const triples = createLearnerRecordTriples(userID, content, timestamp, correct,responseTime)
     writeToLearnerRecord(ip, repo, prefixes, triples)
         .then(() => {
             response.status(202)
@@ -85,6 +104,5 @@ async function writeToLearnerRecord(ip: string, repo: string, prefixes: Array<[s
         })
     })
 }
-
-const endpoint: Endpoint = { method: "put", schema, route, process: processWriteToLearnerRecord }
+const endpoint: Endpoint<ReqParams,string,ReqBody,ReqQuery> = { method: "put",schema: {body: bodySchema, query: querySchema}, route, process: processWriteToLearnerRecord }
 export default endpoint
