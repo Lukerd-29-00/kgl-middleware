@@ -62,16 +62,17 @@ interface Responder{
 
 export default function getApp<E extends Endpoint<any,any,any,any>>(ip: string, repo: string, prefixes: Array<[string, string]>, endpoints: Array<E>, log?: boolean): Express {
     const app = express()
+    //Use the morgan logging library to log requests if desired
     if (log) {
         app.use(morgan("combined"))
     }
+
+    //Use the json body parser
     app.use(express.json())
-
     app.use(express.urlencoded({ extended: true }))
-
     
+    //Map the various routes to endpoints
     const routes = new Map<string, Responder[]>()
-
     for (const endpoint of endpoints) {
         const route = routes.get(endpoint.route)
         if(route !== undefined){
@@ -81,6 +82,7 @@ export default function getApp<E extends Endpoint<any,any,any,any>>(ip: string, 
         }
     }
 
+    //Use express.Router to set the possible methods at each route
     const router = express.Router()
     for(const entry of routes.entries()){
         const route = router.route(entry[0])

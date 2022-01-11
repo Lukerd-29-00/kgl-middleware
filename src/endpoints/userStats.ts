@@ -9,7 +9,7 @@ import commitTransaction from "../util/transaction/commitTransaction"
 import { Transaction } from "../util/transaction/Transaction"
 import { Endpoint } from "../server"
 
-const route = "/:userID/stats"
+const route = "/users/:userID/stats"
 
 interface ReqQuery extends Query{
     since?: string,

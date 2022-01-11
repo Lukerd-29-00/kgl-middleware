@@ -113,7 +113,7 @@ async function processReadFromLearnerRecord(request: Request<ReqParams,string,Re
     })
 }
 
-const route = "/:userID/:content/stats"
+const route = "/users/:userID/:content/stats"
 
 const endpoint: Endpoint<ReqParams,string,Record<string,string>,ReqQuery> = { method: "get", schema: {query: querySchema}, route: route, process: processReadFromLearnerRecord }
 export default endpoint

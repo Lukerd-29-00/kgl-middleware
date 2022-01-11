@@ -13,7 +13,7 @@ const bodySchema = Joi.object({
     responseTime: Joi.number().required()
 })
 
-const route = "/:userID/:content"
+const route = "/users/:userID/:content"
 
 export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, correct: boolean, responseTime: number): string {
     const contentTerm = content.replace(/.*\/(?!\/)/, "")
