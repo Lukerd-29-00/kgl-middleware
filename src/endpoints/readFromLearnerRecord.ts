@@ -10,19 +10,34 @@ import {ParamsDictionary, Query} from "express-serve-static-core"
 
 const querySchema = Joi.object({
     content: Joi.string(),
-    since: Joi.number(),
-    before: Joi.number()
+    since: Joi.string().custom((value: string, helper) => {
+        if(isNaN(new Date(value).getTime()) && !isNaN(new Date(parseInt(value,10)).getTime())){
+            return value
+        }else if(!isNaN(new Date(value).getTime())){
+            return value
+        }
+        return helper.message({custom: "Invalid date for since"})          
+    }),
+    before: Joi.string().custom((value: string, helper) => {
+        if(isNaN(new Date(value).getTime()) && !isNaN(new Date(parseInt(value,10)).getTime())){
+            return value
+        }else if(!isNaN(new Date(value).getTime())){
+            return value
+        }
+        return helper.message({custom: "Invalid date for before"})   
+    }),
+    stdev: Joi.string().equal("true","false"),
+    median: Joi.string().equal("true","false"),
+    mean: Joi.string().equal("true","false")
 })
 
 interface ReqQuery extends Query{
     content?: string,
     since?: string,
-    before?: string
-}
-
-interface ResBody{
-    correct: number,
-    attempts: number
+    before?: string,
+    stdev?: string,
+    mean?: string,
+    median?: string
 }
 
 interface ReqParams extends ParamsDictionary{
@@ -33,40 +48,131 @@ export function getNumberAttemptsQuery(userID: string, prefixes: [string, string
     let output = getPrefixes(prefixes)
     if(contentIRI !== undefined){    
         output += 
-        `select (count(?p) as ?attempts) (sum(?corr) as ?correct) where{
+        `select ?r ?c where{
             cco:Person_${userID} cco:agent_in ?p .
             ?p cco:has_object <${contentIRI}> ;
                 cco:is_measured_by_nominal / cco:is_tokenized_by ?c ;
-                cco:occurs_on / cco:is_tokenized_by ?t .
+                cco:occurs_on / cco:is_tokenized_by ?t ;
+                cco:is_measured_by_ordinal / cco:is_tokenized_by ?r .
             FILTER(?t > ${since} && ?t < ${before})
-            BIND ( IF ( ?c = "true"^^xsd:boolean, 1, IF ( ?c = "false"^^xsd:boolean, 0, 0 ) ) AS ?corr )
-        }`
+        } ORDER BY ?r`
     }else{
         output += 
-        `select ?content (count(?p) as ?attempts) (sum(?corr) as ?correct) where {
+        `select ?content ?r ?c where {
             cco:Person_${userID} cco:agent_in ?p .
             ?p cco:has_object ?content ;
                 cco:is_measured_by_nominal / cco:is_tokenized_by ?c ;
-                cco:occurs_on / cco:is_tokenized_by ?t .
+                cco:occurs_on / cco:is_tokenized_by ?t ;
+                cco:is_measured_by_ordinal / cco:is_tokenized_by ?r .
             FILTER(?t > ${since} && ?t < ${before})
-            BIND ( IF ( ?c = "true"^^xsd:boolean, 1, IF ( ?c = "false"^^xsd:boolean, 0, 0 ) ) AS ?corr )
-        }GROUP BY ?content`
+        }ORDER BY ?content ?r`
     }
     return output
 }
 
-function parseQueryOutput<T extends string | undefined>(response: string, content?: T): T extends string ? [number, number] : Map<string,ResBody>{
-    if(content !== undefined){
-        const line = response.split("\n")[1].split(",")
-        return [parseInt(line[0],10), parseInt(line[1],10)] as T extends string ? [number, number] : Map<string,ResBody>
+interface ResBody{
+    correct: number,
+    attempts: number,
+    mean?: number,
+    median?: number,
+    stdev?: number
+}
+
+interface ParseQueryOptions extends Record<string, boolean | undefined>{
+    mean?: boolean,
+    median?: boolean,
+    stdev?: boolean,
+}
+
+interface ParseQueryOptionsWithContent extends ParseQueryOptions{
+    content: boolean
+}
+
+function parseContent(response: [string, string][], options?: ParseQueryOptions ): ResBody{
+    if(options !== undefined){
+        const output: ResBody = {
+            correct: 0,
+            attempts: 0
+        }
+        let responseTimes
+        if(options.stdev || options.mean || options.median){
+            responseTimes = new Array<number>()
+        }
+        for(const match of response){
+            if(responseTimes){
+                responseTimes.push(parseInt(match[0],10))
+            }
+            if(match[1] === "true"){
+                output.correct++
+            }
+            output.attempts++
+        }
+        if(options.mean){
+            output.mean = (responseTimes as number[]).reduce((prev: number, current: number) => {
+                return current + prev
+            })/(responseTimes as number[]).length
+        }
+        if(options.stdev){
+            const mean = (responseTimes as number[]).reduce((prev: number, current: number) => {
+                return current + prev
+            })/(responseTimes as number[]).length
+            const variance = (responseTimes as number[]).reduce((prev: number, current: number) => {
+                return prev + (current - mean)
+            })/((responseTimes as number[]).length-1)
+            output.stdev = Math.sqrt(variance)
+        }
+        if(options.median && (responseTimes as number[]).length % 2){
+            output.median = (responseTimes as number[])[Math.floor((responseTimes as number[]).length/2)]
+        }else if(options.median){
+            output.median = ((responseTimes as number[])[Math.floor((responseTimes as number[]).length/2)] + (responseTimes as number[])[Math.ceil((responseTimes as number[]).length/2)])/2
+        }
+        return output
     }else{
+        const output: ResBody = {
+            correct: 0,
+            attempts: 0
+        }
+        for(const match of response){
+            if(match[1] === "true"){
+                output.correct++
+            }
+            output.attempts++
+        }
+        return output
+    }
+}
+
+function parseQueryOutput(response: string, options?: ParseQueryOptions): Map<string, ResBody>
+
+function parseQueryOutput(response: string, options?: ParseQueryOptionsWithContent): ResBody
+
+function parseQueryOutput(response: string, options?: ParseQueryOptionsWithContent | ParseQueryOptions): Map<string, ResBody> | ResBody{
+    if(options === undefined || !options.content){
+        const output = new Map<string,ResBody>()
         const matches = response.matchAll(/^(.+),(.+),(.+)$/gm)
         matches.next()
-        const output = new Map<string,ResBody>()
+        let currentContent = ""
+        let linesWithCurrentContent = new Array<[string, string]>()
         for(const match of matches){
-            output.set(match[1],{attempts: parseInt(match[2],10), correct: parseInt(match[3],10)})
+            if(match[1] === currentContent){
+                linesWithCurrentContent.push([match[2], match[3]])
+            }else{
+                if(currentContent !== ""){
+                    output.set(currentContent,parseContent(linesWithCurrentContent,options))
+                }
+                currentContent = match[1]
+                linesWithCurrentContent = new Array<[string, string]>()
+            }
         }
-        return output as T extends string ? [number, number] : Map<string,ResBody>
+        return output
+    }else{
+        const lines = new Array<[string, string]>()
+        const matches = response.matchAll(/^(.+),(.+)$/gm)
+        matches.next()
+        for(const match of matches){
+            lines.push([match[1],match[2]])
+        }
+        return parseContent(lines,options)
     }
 }
 
@@ -83,7 +189,7 @@ async function processReadFromLearnerRecord(request: Request<ReqParams,string,Re
             return
         }
     }
-    const query = getNumberAttemptsQuery(userID,prefixes,request.query.since === undefined ? 0 : new Date(request.query.since).getTime(),before,request.body.content)
+    const query = getNumberAttemptsQuery(userID,prefixes,request.query.since === undefined ? before - 8.64e+7 : new Date(request.query.since).getTime(),before,request.query.content)
     startTransaction(ip, repo).then((location) => {
         const transaction: Transaction = {
             subj: null,
@@ -95,12 +201,12 @@ async function processReadFromLearnerRecord(request: Request<ReqParams,string,Re
         }
         ExecTransaction(transaction, prefixes).then((res) => {
             commitTransaction(location).catch(() => {})
-            if(request.body.content !== undefined){
-                const parsed = parseQueryOutput(res, request.body.content)
+            if(request.query.content !== undefined){
+                const parsed = parseQueryOutput(res, {stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true", content: true})
                 response.header("Content-Type","application/json")
-                response.send({attempts: parsed[0], correct: parsed[1]})
+                response.send(parsed)
             }else{
-                const parsed = parseQueryOutput(res)
+                const parsed = parseQueryOutput(res,{stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true"})
                 response.header("Content-Type","application/json")
                 response.send(Object.fromEntries(parsed.entries()))
             }
@@ -114,7 +220,7 @@ async function processReadFromLearnerRecord(request: Request<ReqParams,string,Re
     })
 }
 
-const route = "/readFromLearnerRecord/:userID"
+const route = "/:userID"
 
-const endpoint: Endpoint<ReqParams,string,Record<string,string>,ReqQuery> = { method: "post", schema: {query: querySchema}, route: route, process: processReadFromLearnerRecord }
+const endpoint: Endpoint<ReqParams,string,Record<string,string>,ReqQuery> = { method: "get", schema: {query: querySchema}, route: route, process: processReadFromLearnerRecord }
 export default endpoint

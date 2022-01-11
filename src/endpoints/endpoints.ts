@@ -1,9 +1,11 @@
 import active from "./active"
 import writeToLearnerRecord from "./writeToLearnerRecord"
-import readFromLearnerRecord from "./readFromLearnerRecord"
+import userStats from "./userStats"
+import userContentStats from "./userContentStats"
+import getRawData from "./getRawData"
 
-export type Endpoints = typeof active | typeof writeToLearnerRecord  | typeof readFromLearnerRecord
+type Endpoints = typeof active | typeof writeToLearnerRecord  | typeof userStats | typeof userContentStats | typeof getRawData
 
-const endpoints: Array<Endpoints> = [active,  writeToLearnerRecord, readFromLearnerRecord]
+const endpoints: Array<Endpoints> = [active,  writeToLearnerRecord, userStats, userContentStats, getRawData]
 
 export default endpoints

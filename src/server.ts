@@ -9,11 +9,10 @@ import express, { Express, Request, Response } from "express"
 import morgan from "morgan"
 import Joi, { Schema } from "joi"
 import {ParamsDictionary, Query} from "express-serve-static-core"
-import { Endpoints } from "./endpoints/endpoints"
 
 type processor<P extends ParamsDictionary,S extends string | number | Object | undefined,R extends Record<string, string | number | boolean | undefined>,Q extends Query> = 
-((request: Request<P,S,R,Q>, response: Response<S>, ip: string, repo: string, prefixes: Array<[string, string]>) => void) 
-| ((request: Request, response: Response, ip: string, repo: string) => void)
+((request: Request<P,S,R,Q>, response: Response<S>, ip: string, repo: string, prefixes: Array<[string, string]>) => Promise<void>) 
+| ((request: Request, response: Response, ip: string, repo: string) => Promise<void>)
 
 export interface Endpoint<P extends ParamsDictionary,S extends string | number | Object | undefined,R extends Record<string, string | number | boolean | undefined>,Q extends Query>{
     schema: RequestSchema,
@@ -35,7 +34,7 @@ interface RequestSchema{
  * @param endpoint The endpoint that triggered the error.
  */
 function checkRequest(request: Request, response: Response, next: () => void, schema: RequestSchema): void {
-    schema = {body: schema.body === undefined ? Joi.object() : {...schema.body}, query: schema.query === undefined ? Joi.object() : {...schema.query}} //Copies the schemas to make sure we don't overwrite the original schema, in case it is re-used elsewhere
+    schema = {body: schema.body === undefined ? Joi.object({}) : schema.body, query: schema.query === undefined ? Joi.object({}) : schema.query}
     if(schema.body !== undefined){
         const { error } = schema.body.validate(request.body)
         if(error !== undefined){
@@ -55,6 +54,12 @@ function checkRequest(request: Request, response: Response, next: () => void, sc
     next()
 }
 
+interface Responder{
+    method: "get" | "put" | "post" | "delete"
+    process: processor<any,any,any,any>
+    schema: RequestSchema   
+}
+
 export default function getApp<E extends Endpoint<any,any,any,any>>(ip: string, repo: string, prefixes: Array<[string, string]>, endpoints: Array<E>, log?: boolean): Express {
     const app = express()
     if (log) {
@@ -64,16 +69,35 @@ export default function getApp<E extends Endpoint<any,any,any,any>>(ip: string, 
 
     app.use(express.urlencoded({ extended: true }))
 
+    
+    const routes = new Map<string, Responder[]>()
+
     for (const endpoint of endpoints) {
-        app.use(endpoint.route, (request: Request, response: Response, next: () => void) => {
-            checkRequest(request, response, next, endpoint.schema)
-        })
-
-        app[endpoint.method](endpoint.route, (request: Request, response: Response) => {
-            endpoint.process(request, response, ip, repo, prefixes)
-        })
-
+        const route = routes.get(endpoint.route)
+        if(route !== undefined){
+            route.push({...endpoint})
+        }else{
+            routes.set(endpoint.route,[{...endpoint}])
+        }
     }
+
+    const router = express.Router()
+    for(const entry of routes.entries()){
+        const route = router.route(entry[0])
+        for(const responder of entry[1]){
+            route[responder.method]((request: Request, response: Response, next: () => void) => {
+                checkRequest(request,response,next,responder.schema)
+            })
+            route[responder.method]((request: Request, response: Response) => {
+                responder.process(request,response,ip,repo,prefixes).catch((e: Error) => {
+                    if(log){
+                        console.log(e)
+                    }
+                })
+            })
+        }
+    }
+    app.use("/",router)
 
     return app
 }

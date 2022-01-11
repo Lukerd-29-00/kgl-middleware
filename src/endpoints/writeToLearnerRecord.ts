@@ -13,11 +13,7 @@ const bodySchema = Joi.object({
     responseTime: Joi.number().required()
 })
 
-const querySchema = Joi.object({
-    content: Joi.string().required()
-})
-
-const route = "/writeToLearnerRecord/:userID"
+const route = "/:userID/:content"
 
 export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, correct: boolean, responseTime: number): string {
     const contentTerm = content.replace(/.*\/(?!\/)/, "")
@@ -38,17 +34,18 @@ export function createLearnerRecordTriples(userID: string, content: string, time
     rawTriples += `\tcco:is_tokenized_by "${timestamp}"^^xsd:integer.\n\n`
     //Response time
     rawTriples += `cco:${contentTerm}_${timestamp}_Response_Ordinal_Person_${userID} rdf:type cco:OrdinalInformationContentEntity ;\n`
-    rawTriples += `cco:is_tokenized_by "${responseTime}"^^xsd:decimal .`
+    rawTriples += `cco:is_tokenized_by "${responseTime}"^^xsd:integer .`
     return rawTriples
 }
 
 interface ReqBody extends Record<string, string | number | boolean | undefined>{
-    correct: boolean,
     responseTime: number,
+    correct: boolean
 }
 
 interface ReqParams extends ParamsDictionary{
     userID: string
+    content: string
 }
 
 interface ReqQuery extends Query{
@@ -66,7 +63,7 @@ async function processWriteToLearnerRecord(request: Request<ReqParams,string,Req
             return
         }
     }
-    const content = request.query.content
+    const content = request.params.content
     const correct = request.body.correct
     const responseTime = request.body.responseTime
     const triples = createLearnerRecordTriples(userID, content, timestamp, correct,responseTime)
@@ -104,5 +101,5 @@ async function writeToLearnerRecord(ip: string, repo: string, prefixes: Array<[s
         })
     })
 }
-const endpoint: Endpoint<ReqParams,string,ReqBody,ReqQuery> = { method: "put",schema: {body: bodySchema, query: querySchema}, route, process: processWriteToLearnerRecord }
+const endpoint: Endpoint<ReqParams,string,ReqBody,ReqQuery> = { method: "put",schema: {body: bodySchema}, route, process: processWriteToLearnerRecord }
 export default endpoint
