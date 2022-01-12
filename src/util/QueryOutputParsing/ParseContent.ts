@@ -93,7 +93,9 @@ export function parseQueryOutput(response: string, options?: ParseQueryOptionsWi
                 linesWithCurrentContent = new Array<[string, string]>()
             }
         }
-        output.set(currentContent,parseContent(linesWithCurrentContent,options))
+        if(currentContent !== ""){
+            output.set(currentContent,parseContent(linesWithCurrentContent,options))
+        }
         return output
     }else{
         const lines = new Array<[string, string]>()

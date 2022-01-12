@@ -2,19 +2,20 @@ import getApp, {Endpoint} from "../src/server"
 import {Request, Response} from "express"
 import Joi from "joi"
 import supertest from "supertest"
+import {Query, ParamsDictionary} from "express-serve-static-core"
 
 describe("server", () => {
     it("Should verify each request to make sure it fits the endpoint's schema", async () => {
         const route = "/test"
-        const schema = Joi.object({
+        const bodySchema = Joi.object({
             key1: Joi.string().required(),
             key2: Joi.string().optional()
         }) 
-        const testEndoint: Endpoint = {
+        const testEndoint: Endpoint<ParamsDictionary,string,Record<string,string | number | boolean>,Query> = {
             route,
-            schema,
+            schema: {body: bodySchema},
             method: "put",
-            process: (request: Request, response: Response) => {
+            process: async (request: Request<ParamsDictionary,string,Record<string,string | number | boolean>,Query>, response: Response) => {
                 response.send("")
             }
         }

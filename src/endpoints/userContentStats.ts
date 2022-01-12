@@ -8,6 +8,7 @@ import { Transaction } from "../util/transaction/Transaction"
 import commitTransaction from "../util/transaction/commitTransaction"
 import {ParamsDictionary, Query} from "express-serve-static-core"
 import { parseQueryOutput } from "../util/QueryOutputParsing/ParseContent"
+import { requestStatus } from "rdf-namespaces/dist/cal"
 
 const querySchema = Joi.object({
     since: Joi.string().custom((value: string, helper) => {
@@ -44,45 +45,41 @@ interface ReqParams extends ParamsDictionary{
     content: string
 }
 
-export function getNumberAttemptsQuery(userID: string, prefixes: [string, string][], since: number, before: number, contentIRI?: string): string{
+export function getNumberAttemptsQuery(userID: string, prefixes: [string, string][], since: number, before: number, contentIRI: string): string{
     let output = getPrefixes(prefixes)
-    if(contentIRI !== undefined){    
-        output += 
-        `select ?r ?c where{
-            cco:Person_${userID} cco:agent_in ?p .
-            ?p cco:has_object <${contentIRI}> ;
-                cco:is_measured_by_nominal / cco:is_tokenized_by ?c ;
-                cco:occurs_on / cco:is_tokenized_by ?t ;
-                cco:is_measured_by_ordinal / cco:is_tokenized_by ?r .
-            FILTER(?t > ${since} && ?t < ${before})
-        } ORDER BY ?r`
-    }else{
-        output += 
-        `select ?content ?r ?c where {
-            cco:Person_${userID} cco:agent_in ?p .
-            ?p cco:has_object ?content ;
-                cco:is_measured_by_nominal / cco:is_tokenized_by ?c ;
-                cco:occurs_on / cco:is_tokenized_by ?t ;
-                cco:is_measured_by_ordinal / cco:is_tokenized_by ?r .
-            FILTER(?t > ${since} && ?t < ${before})
-        }ORDER BY ?content ?r`
-    }
+    output += 
+    `select ?r ?c where{
+        cco:Person_${userID} cco:agent_in ?p .
+        ?p cco:has_object <${contentIRI}> ;
+            cco:is_measured_by_nominal / cco:is_tokenized_by ?c ;
+            cco:occurs_on / cco:is_tokenized_by ?t ;
+            cco:is_measured_by_ordinal / cco:is_tokenized_by ?r .
+        FILTER(?t > ${since} && ?t < ${before})
+    } ORDER BY ?r`
+    
     return output
 }
 
 async function processReadFromLearnerRecord(request: Request<ReqParams,string,Record<string,string>,ReqQuery> , response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
     const userID = request.params.userID
-    let before = new Date().getTime()
-    if(request.query.before !== undefined){
-        before = new Date(request.query.before).getTime()
+    let tmp: undefined | number
+    if(request.query.before !== undefined && !isNaN(parseInt(request.query.before,10))){
+        tmp = new Date(parseInt(request.query.before,10)).getTime()
+    }else if(request.query.before !== undefined){
+        tmp = new Date(request.query.before).getTime()
     }else if(request.headers.date !== undefined){
-        before = new Date(request.headers.date).getTime()
-        if(isNaN(before)){
+        tmp = new Date(request.headers.date).getTime()
+        if(isNaN(tmp)){
             response.status(400)
             response.send("Malformed Date header")
             return
         }
+    }else{
+        response.status(400)
+        response.send("before query parameter is required if no Date header is supplied")
+        return
     }
+    const before = tmp as number
     let since = before - 8.64e+7
     if(request.query.since && !isNaN(parseInt(request.query.since))){
         since = new Date(parseInt(request.query.since,10)).getTime()

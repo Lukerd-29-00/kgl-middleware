@@ -62,7 +62,9 @@ function getNumberAttemptsQuery(userID: string, prefixes: [string, string][], si
 async function processUserStats(request: Request<ReqParams,string,Record<string,string>,ReqQuery> , response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
     const userID = request.params.userID
     let before = new Date().getTime()
-    if(request.query.before !== undefined){
+    if(request.query.before !== undefined && !isNaN(parseInt(request.query.before,10))){
+        before = new Date(parseInt(request.query.before,10)).getTime()
+    }else if(request.query.before !== undefined){
         before = new Date(request.query.before).getTime()
     }else if(request.headers.date !== undefined){
         before = new Date(request.headers.date).getTime()
@@ -78,7 +80,6 @@ async function processUserStats(request: Request<ReqParams,string,Record<string,
     }else if(request.query.since){
         since = new Date(request.query.since).getTime()
     }
-
     const query = getNumberAttemptsQuery(userID,prefixes,since,before)
     startTransaction(ip, repo).then((location) => {
         const transaction: Transaction = {

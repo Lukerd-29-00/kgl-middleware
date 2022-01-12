@@ -47,12 +47,7 @@ interface ReqParams extends ParamsDictionary{
     userID: string
     content: string
 }
-
-interface ReqQuery extends Query{
-    content: string
-}
-
-async function processWriteToLearnerRecord(request: Request<ReqParams,string,ReqBody,ReqQuery>, response: Response<string>, ip: string, repo: string, prefixes: Array<[string, string]>) {
+async function processWriteToLearnerRecord(request: Request<ReqParams,string,ReqBody,Query>, response: Response<string>, ip: string, repo: string, prefixes: Array<[string, string]>) {
     const userID = request.params.userID
     let timestamp = new Date().getTime()
     if(request.headers.date !== undefined){
@@ -101,5 +96,5 @@ async function writeToLearnerRecord(ip: string, repo: string, prefixes: Array<[s
         })
     })
 }
-const endpoint: Endpoint<ReqParams,string,ReqBody,ReqQuery> = { method: "put",schema: {body: bodySchema}, route, process: processWriteToLearnerRecord }
+const endpoint: Endpoint<ReqParams,string,ReqBody,Query> = { method: "put",schema: {body: bodySchema}, route, process: processWriteToLearnerRecord }
 export default endpoint

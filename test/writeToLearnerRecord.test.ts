@@ -15,7 +15,7 @@ import { insertQuery } from "../src/util/transaction/insertQuery"
 import getMockDB from "./mockDB"
 
 const repo = "writeToLearnerRecordTest"
-const port = 7203
+const port = 7204
 
 function getNumberAttemptsQuery(userID: string, contentIRI: string, prefixes: [string, string][]): string{
     return SparqlQueryGenerator({query: `
@@ -83,9 +83,9 @@ async function getNumberCorrectAttempts(ip: string, repo: string, prefixes: [str
     })
 }
 
-async function expectContent(userID: string, content: string, timestamp: number, correct: boolean, prefixes: [string, string][]): Promise<void> {
+async function expectContent(userID: string, content: string, timestamp: number, correct: boolean, responseTime: number, prefixes: [string, string][]): Promise<void> {
     const location = await startTransaction(ip, repo)
-    const queryString = createLearnerRecordTriples(userID, content, timestamp, correct).replace("cco:Person ;", "?p ;")
+    const queryString = createLearnerRecordTriples(userID, content, timestamp, correct, responseTime).replace("cco:Person ;", "?p ;")
     let output = ""
     while (output.match(/Person/) === null) {
         const transaction: Transaction = { subj: null, pred: null, obj: null, action: "QUERY", body: SparqlQueryGenerator({ query: queryString, targets: ["?p"] }, prefixes), location: location }
@@ -119,9 +119,10 @@ async function expectAnswers(correct: number, attempts: number, userID: string, 
 
 describe("writeToLearnerRecord", () => {
     const app = getApp(ip, repo, prefixes, endpoints)
+    const userID = "1234"
+    const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent"
     it("Should allow you to say that a person got something right", async () => {
-        const userID = "1234"
-        const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent"
+        
         const timestamp = new Date().getTime()
         const correct = true
         const body = { userID, standardLearnedContent: content, timestamp, correct }
