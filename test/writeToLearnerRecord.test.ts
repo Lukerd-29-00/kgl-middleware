@@ -6,177 +6,141 @@ import writeToLearnerRecord, { createLearnerRecordTriples } from "../src/endpoin
 import startTransaction from "../src/util/transaction/startTransaction"
 import ExecTransaction from "../src/util/transaction/ExecTransaction"
 import commitTransaction from "../src/util/transaction/commitTransaction"
-import SparqlQueryGenerator from "../src/util/QueryGenerators/SparqlQueryGenerator"
+import {getPrefixes} from "../src/util/QueryGenerators/SparqlQueryGenerator"
 import { Transaction } from "../src/util/transaction/Transaction"
 import fetch from "node-fetch"
-import express from "express"
+import express, { query } from "express"
 import { Server } from "http"
 import { insertQuery } from "../src/util/transaction/insertQuery"
 import getMockDB from "./mockDB"
+import { queryWrite, waitFor } from "./util"
 
 const repo = "writeToLearnerRecordTest"
 const port = 7204
 
-function getNumberAttemptsQuery(userID: string, contentIRI: string, prefixes: [string, string][]): string{
-    return SparqlQueryGenerator({query: `
-        cco:Person_${userID} cco:agent_in ?p .
-        ?p cco:has_object <${contentIRI}> ;
-    		cco:is_measured_by_nominal / cco:is_tokenized_by ?c .
-    `, targets: ["(count(?c) as ?x)"]},prefixes)
-}
-type ReqBody = {
+interface Resource{
     userID: string,
     content: string
 }
 
-async function getNumberAttempts(ip: string, repo: string, prefixes: [string, string][], request: ReqBody): Promise<number>{
-    const location = await startTransaction(ip, repo)
+interface Answer{
+    correct: boolean,
+    timestamp: number,
+    responseTime: number,
+}
+
+function findStatementQuery(location: Resource, statement: Answer): string{
+    let output = getPrefixes(prefixes)
+    output += `select ?a where {
+        cco:Person_${location.userID} cco:agent_in ?a .
+        ?a cco:has_object <${location.content}> ;
+           cco:occurs_on / cco:is_tokenized_by "${statement.timestamp}"^^xsd:integer ;
+           cco:is_measured_by_nominal / cco:is_tokenized_by "${statement.correct}"^^xsd:boolean ;
+           cco:is_measured_by_ordinal / cco:is_tokenized_by "${statement.responseTime}"^^xsd:integer .
+    }`
+    return output
+}
+
+function getFilter(statement: Answer): string{
+    return `FILTER NOT EXISTS {
+        ?a cco:occurs_on / cco:is_tokenized_by "${statement.timestamp}"^^xsd:integer ;
+        cco:is_measured_by_nominal / cco:is_tokenized_by "${statement.correct}"^^xsd:boolean ;
+        cco:is_measured_by_ordinal / cco:is_tokenized_by "${statement.responseTime}"^^xsd:integer .     
+    }`
+}
+
+async function findUnexpectedStatements(location: Resource, statements: Answer[]): Promise<void>{
+    let output = getPrefixes(prefixes)
+    output += `select ?a where {
+        cco:Person_${location.userID} cco:agent_in ?a .
+        ?a cco:has_object <${location.content}> .`
+
+    for(const answer of statements){
+        output += getFilter(answer)
+    }
+    output += "}"
+    const res = await makeQuery(output)
+    expect(res).not.toMatch(/http:[\/]\/www.ontologyrepository.com\/CommonCoreOntologies\/Act_Learning/)
+}
+
+async function makeQuery(body: string): Promise<string>{
+    const transactionLocation = await startTransaction(ip, repo)
     const transaction: Transaction = {
+        location: transactionLocation,
         subj: null,
         pred: null,
         obj: null,
-        location,
-        body: getNumberAttemptsQuery(request.userID,request.content,prefixes),
-        action: "QUERY"
+        action: "QUERY",
+        body
     }
-
-    return new Promise<number>((resolve, reject) => {
-        ExecTransaction(transaction,prefixes).then((response: string) => {
-            const match = response.match(/^(\d+)$/m)
-            if(match !== null){
-                resolve(parseInt(match[1],10))
-            }else{
-                reject()
-            }
-        }).catch((e: Error) => {
-            reject(e.message)
-        })
-    })
+    const res = await ExecTransaction(transaction,prefixes)
+    await commitTransaction(transactionLocation)
+    return res
 }
 
-function getNumberCorrectQuery(userID: string, contentIRI: string, prefixes: [string, string][]): string{
-    return getNumberAttemptsQuery(userID,contentIRI,prefixes).replace("}","FILTER(?c=\"true\"^^xsd:boolean)\n}")
+async function expectStatement(location: Resource, expected: Answer): Promise<void>{
+    const res = await makeQuery(findStatementQuery(location,expected))
+    expect(res).toMatch(/http:[\/]\/www.ontologyrepository.com\/CommonCoreOntologies\/Act_Learning/)
 }
 
-async function getNumberCorrectAttempts(ip: string, repo: string, prefixes: [string, string][], req: ReqBody): Promise<number>{
-    const location = await startTransaction(ip, repo)
-    const transaction: Transaction = {
-        subj: null,
-        pred: null,
-        obj: null,
-        location,
-        body: getNumberCorrectQuery(req.userID,req.content,prefixes),
-        action: "QUERY"
+async function expectStatements(expected: Map<Resource, Answer[]>): Promise<void>{
+    const promises = new Array<Promise<void>>()
+    for(const entry of expected.entries()){
+        promises.push(findUnexpectedStatements(entry[0],entry[1]))
+        for(const answer of entry[1]){
+            promises.push(expectStatement(entry[0],answer))
+        }
     }
-
-    return new Promise<number>((resolve, reject) => {
-        ExecTransaction(transaction,prefixes).then((response: string) => {
-            const match = response.match(/^(\d+)$/m)
-            if(match !== null){
-                resolve(parseInt(match[1],10))
-            }else{
-                reject()
-            }
-        }).catch((e: Error) => {
-            reject(e.message)
-        })
-    })
-}
-
-async function expectContent(userID: string, content: string, timestamp: number, correct: boolean, responseTime: number, prefixes: [string, string][]): Promise<void> {
-    const location = await startTransaction(ip, repo)
-    const queryString = createLearnerRecordTriples(userID, content, timestamp, correct, responseTime).replace("cco:Person ;", "?p ;")
-    let output = ""
-    while (output.match(/Person/) === null) {
-        const transaction: Transaction = { subj: null, pred: null, obj: null, action: "QUERY", body: SparqlQueryGenerator({ query: queryString, targets: ["?p"] }, prefixes), location: location }
-        output = await ExecTransaction(transaction, prefixes)
-    }
-    await commitTransaction(location)
-}
-
-async function expectAttempts(attempts: number, userID: string, content: string, prefixes: [string, string][]): Promise<void> {
-    while (await getNumberAttempts(ip, repo, prefixes, { userID, content }) !== attempts) {
-        await new Promise((resolve) => {
-            setTimeout(resolve, 100)
-        })
-    }
-}
-
-async function expectCorrect(attempts: number, userID: string, content: string, prefixes: [string, string][]): Promise<void> {
-    while (await getNumberCorrectAttempts(ip, repo, prefixes, { userID, content }) !== attempts) {
-        await new Promise((resolve) => {
-            setTimeout(resolve, 100)
-        })
-    }
-}
-
-async function expectAnswers(correct: number, attempts: number, userID: string, content: string, prefixes: [string, string][]): Promise<void[]> {
-    return Promise.all([
-        expectAttempts(attempts, userID, content, prefixes),
-        expectCorrect(correct, userID, content, prefixes)
-    ])
+    await Promise.all(promises)
 }
 
 describe("writeToLearnerRecord", () => {
     const app = getApp(ip, repo, prefixes, endpoints)
     const userID = "1234"
     const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent"
+    const responseTime = 100
     it("Should allow you to say that a person got something right", async () => {
-        
-        const timestamp = new Date().getTime()
-        const correct = true
-        const body = { userID, standardLearnedContent: content, timestamp, correct }
+        const time = new Date()
+        const expected = new Map<Resource,Answer[]>()
+        expected.set({userID,content},[{correct: true, responseTime, timestamp: new Date(time.toUTCString()).getTime()}])
         const test = supertest(app)
-        await test.put(writeToLearnerRecord.route).set("Content-Type", "application/json").send(body).expect(202)
-        await Promise.all([
-            expectAnswers(1, 1, userID, content, prefixes),
-            expectContent(userID, content, timestamp, correct, prefixes)
-        ])
+        await queryWrite(test,userID,content,time,true,responseTime)
+        await waitFor(async () => {
+            expectStatements(expected)
+        })  
     })
     it("Should allow you to say that a person got something wrong", async () => {
-        const userID = "1234"
-        const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent2"
-        const timestamp = new Date().getTime()
-        const correct = false
-        const body = { userID: userID, standardLearnedContent: content, timestamp: timestamp, correct: correct }
+        const time = new Date()
+        const expected = new Map<Resource,Answer[]>()
+        expected.set({userID,content},[{correct: false, responseTime, timestamp: new Date(time.toUTCString()).getTime()}])
         const test = supertest(app)
-        await test.put(writeToLearnerRecord.route).send(body).expect(202)
-        await Promise.all([
-            expectContent(userID, content, timestamp, correct, prefixes),
-            expectAnswers(0, 1, userID, content, prefixes)
-        ])
+        await queryWrite(test,userID,content,time,false,responseTime)
+        await waitFor(async () => {
+            expectStatements(expected)
+        })
     })
     it("Should be able to handle several concurrent requests", async () => {
-        const userID = "1234"
-        const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent"
-        const correct = true
-        const timestamp1 = new Date().getTime()
-        const body1 = { userID, standardLearnedContent: content, timestamp: timestamp1, correct }
-        const timestamp2 = timestamp1 + 1
-        const body2 = { userID, standardLearnedContent: content, timestamp: timestamp2, correct }
+        const timestamp = new Date()
+        const expected = new Map<Resource,Answer[]>()
+        const answers = [
+            {correct: false, responseTime, timestamp: new Date(timestamp.toUTCString()).getTime()},
+            {correct: true, responseTime, timestamp: new Date(timestamp.toUTCString()).getTime()}
+        ]
+        expected.set({userID,content},answers)
         const test = supertest(app)
         await Promise.all([
-            test.put(writeToLearnerRecord.route).send(body1).expect(202),
-            test.put(writeToLearnerRecord.route).send(body2).expect(202)
+            queryWrite(test,userID,content,timestamp,true,responseTime),
+            queryWrite(test,userID,content,timestamp,false,responseTime)
         ])
-        await Promise.all([
-            expectContent(userID, content, timestamp1, correct, prefixes),
-            expectContent(userID, content, timestamp2, correct, prefixes),
-            expectAnswers(2, 2, userID, content, prefixes)
-        ])
+        await waitFor(async () => {
+            expectStatements(expected)
+        })
     })
     it("Should send back a 400 error if the date header is malformed", async () => {
         const test = supertest(app)
-        const userID = "1234"
-        const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent"
-        const correct = true
-        const timestamp = new Date().getTime()
-        const body1 = {userID, content, correct, timestamp}
-        const body2 = {userID, content, correct}
-        await Promise.all([
-            test.put(writeToLearnerRecord.route).set("Date",new Date().toUTCString() + "junk").send(body1).expect(400),
-            test.put(writeToLearnerRecord.route).set("Date",new Date().toUTCString() + "junk").send(body2).expect(400)
-        ])
+        const body = {userID, content, correct: true}
+        const route = writeToLearnerRecord.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
+        await test.put(route).set("Date",new Date().toUTCString() + "junk").send(body).expect(400)
     })
     afterEach(async () => {
         await fetch(`${ip}/repositories/${repo}/statements`, {
@@ -190,23 +154,23 @@ describe("writeToLearnerRecord", () => {
     const mockIp=`http://localhost:${port}`
     const userID = "1234"
     const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent2"
-    const timestamp = new Date().getTime()
-    const correct = false
+    const timestamp = new Date()
+    const responseTime = 100
+    const app = getApp(mockIp,repo,prefixes,[writeToLearnerRecord])
     const body = {
-        userID,
-        standardLearnedContent: content,
-        correct,
-        timestamp
+        correct: false,
+        responseTime
     }
+    const route = writeToLearnerRecord.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
     it("Should send a server error if it cannot start a transaction", async () => {
-        const test = supertest(getApp(mockIp, "blah", prefixes, endpoints))
-        await test.put(writeToLearnerRecord.route).send(body).expect(500)
+        const test = supertest(app)
+        await test.put(route).set("Date",timestamp.toUTCString()).send(body).expect(500)
     })
     it("Should send a server error and attempt a rollback if it cannot execute a transaction", done => {
         const mockDB = getMockDB(mockIp,express(),repo,true,true,false)
         server = mockDB.server.listen(port, () => {
-            const test = supertest(getApp(mockIp, repo, prefixes, endpoints))
-            test.put(writeToLearnerRecord.route).send(body).expect(500)
+            const test = supertest(app)
+            test.put(writeToLearnerRecord.route).set("Date",timestamp.toUTCString()).send(body).expect(500)
             .then(() => {
                 expect(mockDB.start).toHaveBeenCalled()
                 expect(mockDB.rollback).toHaveBeenCalled()
@@ -222,8 +186,8 @@ describe("writeToLearnerRecord", () => {
             response.send()
         })
         server = mockDB.server.listen(port, () => {
-            const test = supertest(getApp(mockIp, repo, prefixes, endpoints))
-            test.put(writeToLearnerRecord.route).send(body).expect(500)
+            const test = supertest(app)
+            test.put(route).set("Date",timestamp.toUTCString()).send(body).expect(500)
             .then(() => {
                 try{
                     expect(mockDB.start).toHaveBeenCalled()
@@ -239,17 +203,17 @@ describe("writeToLearnerRecord", () => {
     })
     it("Should send a server error and attempt a rollback if commiting the transaction fails", done => {
         const mockServer = express()
+        const timestamp = new Date()
         mockServer.use(express.raw({type: "application/sparql-update"}))
         const mockDB = getMockDB(mockIp,mockServer,repo,true,true,true)
         server = mockDB.server.listen(port, () => {
-            const test = supertest(getApp(mockIp, repo, prefixes, endpoints))
-            test.put(writeToLearnerRecord.route).send(body).expect(500)
+            const test = supertest(app)
+            test.put(route).set("Date", timestamp.toUTCString()).send(body).expect(500)
             .then(() => {
                 try{
                     expect(mockDB.start).toHaveBeenCalled()
                     expect(mockDB.rollback).toHaveBeenCalled()
                     expect(mockDB.exec).toHaveBeenCalled()
-                    expect(mockDB.exec).toHaveBeenCalledWith(insertQuery(createLearnerRecordTriples(userID, content, timestamp, correct), prefixes),"UPDATE")
                     done()
                 }catch(e){
                     done(e)
@@ -274,7 +238,6 @@ describe("writeToLearnerRecord", () => {
                     expect(mockDB.start).toHaveBeenCalled()
                     expect(mockDB.rollback).toHaveBeenCalled()
                     expect(mockDB.exec).toHaveBeenCalled()
-                    expect(mockDB.exec).toHaveBeenCalledWith(insertQuery(createLearnerRecordTriples(userID, content, timestamp, correct), prefixes),"UPDATE")
                     done()
                 }catch(e){
                     done(e)

@@ -17,24 +17,30 @@ const bodySchema = Joi.object({
 const route = "/users/:userID/:content"
 
 export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, correct: boolean, responseTime: number): string {
-    const contentTerm = content.replace(/.*\/(?!\/)/, "")
-    let rawTriples = `cco:Person_${userID} rdf:type cco:Person ; \n`
-    rawTriples += `\tcco:agent_in cco:Act_Learning_${contentTerm}_${timestamp}_Person_${userID} . \n\n`
-    // Act of Learning
-    rawTriples += `cco:Act_Learning_${contentTerm}_${timestamp}_Person_${userID} rdf:type cco:ActOfEducationalTrainingAcquisition ; \n`
-    rawTriples += `\tcco:occurs_on cco:ReferenceTime_Act_Learning_${contentTerm}_${timestamp}_Person_${userID}; \n ` ///
-    rawTriples += `\tcco:has_agent cco:Person_${userID}; \n `
-    rawTriples += `\tcco:has_object <${content}>; \n `
-    rawTriples += `\tcco:is_measured_by_ordinal cco:${contentTerm}_${timestamp}_Response_Ordinal_Person_${userID} ; \n `
-    rawTriples += `\tcco:is_measured_by_nominal cco:${contentTerm}_${timestamp}_Nominal_Person_${userID} . \n\n`
-    //Correctness 
-    rawTriples += `cco:${contentTerm}_${timestamp}_Nominal_Person_${userID} rdf:type cco:NominalMeasurementInformationContentEntity ; \n `
-    rawTriples += `\tcco:is_tokenized_by "${correct}"^^xsd:boolean .\n\n`
+    const id = uuid()
+    const person = `cco:Person_${userID}`
+    const act = `cco:Act_Learning_${id}`
+    const timeNominal = `cco:Reference_Time_Act_Learning_${id}`
+    const correctNominal = `cco:Correct_Nominal_Act_Learning_${id}`
+    const responseTimeOrdinal = `cco:Response_Ordinal_Act_Learning_${id}`
+    //Person
+    let rawTriples = `${person} a cco:Person ;`
+    rawTriples += `cco:agent_in ${act} .`
+    //Act of Learning
+    rawTriples += `${act} a cco:ActOfEducationalTrainingAcquisition ;`
+    rawTriples += `cco:has_agent ${person} ;`
+    rawTriples += `cco:has_object <${content}> ;`
+    rawTriples += `cco:occurs_on ${timeNominal} ;`
+    rawTriples += `cco:is_measured_by_nominal ${correctNominal} ;`
+    rawTriples += `cco:is_measured_by_ordinal ${responseTimeOrdinal} .`
     //Time Stamp
-    rawTriples += `cco:ReferenceTime_Act_Learning_${contentTerm}_${timestamp}_Person_${userID} rdf:type cco:ReferenceTime; \n `
-    rawTriples += `\tcco:is_tokenized_by "${timestamp}"^^xsd:integer.\n\n`
+    rawTriples += `${timeNominal} a cco:ReferenceTime ;`
+    rawTriples += `cco:is_tokenized_by "${timestamp}"^^xsd:integer .`
+    //Correctness
+    rawTriples += `${correctNominal} a cco:NominalMeasurementInformationContentEntity ;`
+    rawTriples += `cco:is_tokenized_by "${correct}"^^xsd:boolean .`
     //Response time
-    rawTriples += `cco:${contentTerm}_${timestamp}_Response_Ordinal_Person_${userID} rdf:type cco:OrdinalInformationContentEntity ;\n`
+    rawTriples += `${responseTimeOrdinal} a cco:OrdinalInformationContentEntity ;`
     rawTriples += `cco:is_tokenized_by "${responseTime}"^^xsd:integer .`
     return rawTriples
 }

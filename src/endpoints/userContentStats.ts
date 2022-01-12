@@ -8,7 +8,6 @@ import { Transaction } from "../util/transaction/Transaction"
 import commitTransaction from "../util/transaction/commitTransaction"
 import {ParamsDictionary, Query} from "express-serve-static-core"
 import { parseQueryOutput } from "../util/QueryOutputParsing/ParseContent"
-import { requestStatus } from "rdf-namespaces/dist/cal"
 
 const querySchema = Joi.object({
     since: Joi.string().custom((value: string, helper) => {

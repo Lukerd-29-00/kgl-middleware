@@ -104,4 +104,8 @@ export interface TimeInterval{
     before?: Date
 }
 
-export async function queryWrite(userID: string, content: string, correct: boolean, responseTime: string)
+export async function queryWrite(test: supertest.SuperTest<supertest.Test>, userID: string, content: string, timestamp: Date, correct: boolean, responseTime: number): Promise<void>{
+    const route = writeToLearnerRecord.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
+    const body = {correct, responseTime}
+    await test.put(route).set("Content-Type","application/json").set("Date",timestamp.toUTCString()).send(body).expect(202)
+}
