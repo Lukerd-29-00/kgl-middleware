@@ -24,27 +24,13 @@ interface ReqParams extends ParamsDictionary{
     userID: string
 }
 
-const querySchema = Joi.object({
-    since: Joi.string().custom((value: string | undefined, helper) => {
-        if(value === undefined){
-            return value
-        }else if(!isNaN(parseInt(value,10)) && !isNaN(new Date(parseInt(value,10)).getTime())){
-            return value
-        }else if(!isNaN(new Date(value).getTime())){
-            return value
-        }
-        return helper.message({custom: "Invalid date for since"})          
+export const querySchema = Joi.object({
+    since: Joi.when("before",{
+        is: Joi.date().required(),
+        then: Joi.date().max(Joi.ref("before")),
+        otherwise: Joi.date()
     }),
-    before: Joi.string().custom((value: string | undefined, helper) => {
-        if(value === undefined){
-            return value
-        }else if(!isNaN(parseInt(value,10)) && !isNaN(new Date(parseInt(value,10)).getTime())){
-            return value
-        }else if(!isNaN(new Date(value).getTime())){
-            return value
-        }
-        return helper.message({custom: "Invalid date for since"})          
-    }),
+    before: Joi.date(),
     stdev: Joi.string().equal("true","false"),
     median: Joi.string().equal("true","false"),
     mean: Joi.string().equal("true","false")
@@ -72,7 +58,7 @@ export function getNumberAttemptsQuery(userID: string, prefixes: [string, string
             FILTER(?c="true"^^xsd:boolean)
             
         }
-        FILTER(?t > ${since} && ?t < ${before})
+        FILTER(?t >= ${since} && ?t <= ${before})
     }ORDER BY ?content ?r`
     return output
 }
@@ -80,9 +66,7 @@ export function getNumberAttemptsQuery(userID: string, prefixes: [string, string
 async function processUserStats(request: Request<ReqParams,string,Record<string,string>,ReqQuery> , response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
     const userID = request.params.userID
     let before = new Date().getTime()
-    if(request.query.before !== undefined && !isNaN(parseInt(request.query.before,10))){
-        before = new Date(parseInt(request.query.before,10)).getTime()
-    }else if(request.query.before !== undefined){
+    if(request.query.before !== undefined){
         before = new Date(request.query.before).getTime()
     }else if(request.headers.date !== undefined){
         before = new Date(request.headers.date).getTime()
@@ -93,9 +77,7 @@ async function processUserStats(request: Request<ReqParams,string,Record<string,
         }
     }
     let since = before - 8.64e+7
-    if(request.query.since && !isNaN(parseInt(request.query.since))){
-        since = new Date(parseInt(request.query.since,10)).getTime()
-    }else if(request.query.since){
+    if(request.query.since){
         since = new Date(request.query.since).getTime()
     }
     const query = getNumberAttemptsQuery(userID,prefixes,since,before)

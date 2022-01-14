@@ -9,28 +9,7 @@ import commitTransaction from "../util/transaction/commitTransaction"
 import {ParamsDictionary, Query} from "express-serve-static-core"
 import { parseQueryOutput } from "../util/QueryOutputParsing/ParseContent"
 import { ResBody } from "../util/QueryOutputParsing/ParseContent"
-
-const querySchema = Joi.object({
-    since: Joi.string().custom((value: string, helper) => {
-        if(isNaN(new Date(value).getTime()) && !isNaN(new Date(parseInt(value,10)).getTime())){
-            return value
-        }else if(!isNaN(new Date(value).getTime())){
-            return value
-        }
-        return helper.message({custom: "Invalid date for since"})          
-    }),
-    before: Joi.string().custom((value: string, helper) => {
-        if(isNaN(new Date(value).getTime()) && !isNaN(new Date(parseInt(value,10)).getTime())){
-            return value
-        }else if(!isNaN(new Date(value).getTime())){
-            return value
-        }
-        return helper.message({custom: "Invalid date for before"})   
-    }),
-    stdev: Joi.string().equal("true","false"),
-    median: Joi.string().equal("true","false"),
-    mean: Joi.string().equal("true","false")
-})
+import { querySchema } from "./userStats"
 
 interface ReqQuery extends Query{
     since?: string,
@@ -66,7 +45,7 @@ export function getNumberAttemptsQuery(userID: string, prefixes: [string, string
                 cco:is_measured_by_ordinal / cco:is_tokenized_by ?r .
             FILTER(?c="true"^^xsd:boolean)
         }
-        FILTER(?t > ${since} && ?t < ${before})
+        FILTER(?t >= ${since} && ?t <= ${before})
     }ORDER BY ?content ?r`
     
     return output

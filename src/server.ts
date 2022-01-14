@@ -10,11 +10,13 @@ import morgan from "morgan"
 import Joi, { Schema } from "joi"
 import {ParamsDictionary, Query} from "express-serve-static-core"
 
-type processor<P extends ParamsDictionary,S extends string | number | Record<string,unknown> | undefined,R extends Record<string, string | number | boolean | undefined>,Q extends Query> = 
+type plainOrArrayOf<T> = Array<T> | T
+
+type processor<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends Record<string, string | number | boolean | undefined>,Q extends Query> = 
 ((request: Request<P,S,R,Q>, response: Response<S>, ip: string, repo: string, prefixes: Array<[string, string]>) => Promise<void>) 
 | ((request: Request, response: Response, ip: string, repo: string) => Promise<void>)
 
-export interface Endpoint<P extends ParamsDictionary,S extends string | number | Record<string,unknown> | undefined,R extends Record<string, string | number | boolean | undefined>,Q extends Query>{
+export interface Endpoint<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends Record<string, string | number | boolean | undefined>,Q extends Query>{
     schema: RequestSchema,
     route: string,
     method: "put" | "post" | "delete" | "get",
@@ -36,7 +38,7 @@ interface RequestSchema{
 function checkRequest(request: Request, response: Response, next: () => void, schema: RequestSchema): void {
     schema = {body: schema.body === undefined ? Joi.object({}) : schema.body, query: schema.query === undefined ? Joi.object({}) : schema.query}
     if(schema.body !== undefined){
-        const { error } = schema.body.validate(request.body)
+        const { error } = schema.body.validate(request.body,{dateFormat: "utc"})
         if(error !== undefined){
             response.status(400)
             response.send(`Invalid body: ${error.message}`)
@@ -44,7 +46,7 @@ function checkRequest(request: Request, response: Response, next: () => void, sc
         }
     }
     if(schema.query !== undefined){
-        const {error} = schema.query.validate(request.query)
+        const {error} = schema.query.validate(request.query,{dateFormat: "utc"})
         if(error !== undefined){
             response.status(400)
             response.send(`Invalid query string: ${error.message}`)

@@ -64,7 +64,7 @@ export async function waitFor(callback: () => Promise<void>, timeout = 5000, wai
             resolve()
         })
     }
-    const p2 = (resolve: () => void, reject: () => void) => {
+    const p2 = async (resolve: () => void, reject: () => void) => {
         callback()
             .then(() => {
                 stop.abort()
@@ -120,7 +120,7 @@ export async function queryStats(route: string, test: supertest.SuperTest<supert
         for(const entry of Object.entries(kwargs)){
             if(entry[1] !== undefined && entry[0] !== "content"){
                 if(isDate(entry[1])){
-                    url += `${queryMarker}${entry[0]}=${encodeURIComponent(entry[1].getTime())}`
+                    url += `${queryMarker}${entry[0]}=${encodeURIComponent(entry[1].toUTCString())}`
                 }else{
                     url += `${queryMarker}${entry[0]}=${encodeURIComponent(entry[1])}`
                 }

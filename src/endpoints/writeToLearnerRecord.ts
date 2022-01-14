@@ -13,7 +13,7 @@ const bodySchema = Joi.object({
     correct: Joi.boolean().required(),
     responseTime: Joi.when("correct",{
         is: Joi.boolean().valid(true),
-        then: Joi.number().required(),
+        then: Joi.number().integer().unit("milliseconds").required(),
         otherwise: Joi.forbidden()
     })
 })

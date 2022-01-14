@@ -8,6 +8,7 @@ import express from "express"
 import {Server} from "http"
 import getMockDB from "./mockDB"
 import { getNumberAttemptsQuery } from "../src/endpoints/userStats"
+
 const repo = "userStatsTest"
 const port = 7203
 
@@ -30,8 +31,10 @@ describe("userStats", () => {
         await writeAttempt(repo,userID,content2,false,resTime)
         const test = getTest()
         await waitFor(async () => {
-            expect(await query(test)).toHaveProperty(content)
-            expect(await query(test)).toHaveProperty(content2)
+            const body = await query(test)
+            expect(body).toHaveProperty(content)
+            expect(body).toHaveProperty(content2)
+            expect(Object.entries(body)).toHaveLength(2)
         })
     })
     it("Should count the number of attempts in each object correctly", async () => {
@@ -65,9 +68,6 @@ describe("userStats", () => {
         })
         expect((await query(test))[content2]).toHaveProperty("correct",1)
         expect((await query(test))[content]).toHaveProperty("correct",1)
-    })
-    it("Should allow a date string or a number representing UTC time as dates for the since and before query arguments", async () => {
-        
     })
     it("Should be able to narrow down queries between timestamps", async () => {
         const test = getTest()

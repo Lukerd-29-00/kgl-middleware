@@ -36,7 +36,7 @@ interface ReqQuery extends Query{
     since: string
 }
 
-interface Answer{
+interface Answer extends Record<string, unknown>{
     correct: boolean,
     timestamp: number,
     responseTime: number,
