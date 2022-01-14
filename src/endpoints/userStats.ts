@@ -8,8 +8,9 @@ import ExecTransaction from "../util/transaction/ExecTransaction"
 import commitTransaction from "../util/transaction/commitTransaction"
 import { Transaction } from "../util/transaction/Transaction"
 import { Endpoint } from "../server"
+import { ResBody } from "../util/QueryOutputParsing/ParseContent"
 
-const route = "/users/:userID/stats"
+const route = "/users/stats/:userID"
 
 interface ReqQuery extends Query{
     since?: string,
@@ -24,36 +25,55 @@ interface ReqParams extends ParamsDictionary{
 }
 
 const querySchema = Joi.object({
-    since: Joi.string().custom((value: string, helper) => {
-        if(isNaN(new Date(value).getTime()) && !isNaN(new Date(parseInt(value,10)).getTime())){
+    since: Joi.string().custom((value: string | undefined, helper) => {
+        if(value === undefined){
+            return value
+        }
+        if(!isNaN(parseInt(value,10)) && !isNaN(new Date(parseInt(value,10)).getTime())){
             return value
         }else if(!isNaN(new Date(value).getTime())){
             return value
         }
         return helper.message({custom: "Invalid date for since"})          
     }),
-    before: Joi.string().custom((value: string, helper) => {
-        if(isNaN(new Date(value).getTime()) && !isNaN(new Date(parseInt(value,10)).getTime())){
+    before: Joi.string().custom((value: string | undefined, helper) => {
+        if(value === undefined){
+            return value
+        }
+        if(!isNaN(parseInt(value,10)) && !isNaN(new Date(parseInt(value,10)).getTime())){
             return value
         }else if(!isNaN(new Date(value).getTime())){
             return value
         }
-        return helper.message({custom: "Invalid date for before"})   
+        return helper.message({custom: "Invalid date for since"})          
     }),
     stdev: Joi.string().equal("true","false"),
     median: Joi.string().equal("true","false"),
     mean: Joi.string().equal("true","false")
 })
 
-function getNumberAttemptsQuery(userID: string, prefixes: [string, string][], since: number, before: number): string{
+export function getNumberAttemptsQuery(userID: string, prefixes: [string, string][], since: number, before: number): string{
     let output = getPrefixes(prefixes)
     output += 
     `select ?content ?r ?c where {
-        cco:Person_${userID} cco:agent_in ?p .
-        ?p cco:has_object ?content ;
-            cco:is_measured_by_nominal / cco:is_tokenized_by ?c ;
-            cco:occurs_on / cco:is_tokenized_by ?t ;
-            cco:is_measured_by_ordinal / cco:is_tokenized_by ?r .
+        {
+            cco:Person_${userID} cco:agent_in ?p .
+            ?p cco:has_object ?content ;
+                cco:is_measured_by_nominal / cco:is_tokenized_by ?c ;
+                cco:occurs_on / cco:is_tokenized_by ?t ;
+            FILTER(?c="false"^^xsd:boolean)
+            BIND("NaN"^^xsd:string as ?r)
+        }
+        UNION
+        {
+            cco:Person_${userID} cco:agent_in ?p .
+            ?p cco:has_object ?content ;
+                cco:is_measured_by_nominal / cco:is_tokenized_by ?c ;
+                cco:occurs_on / cco:is_tokenized_by ?t ;
+                cco:is_measured_by_ordinal / cco:is_tokenized_by ?r .
+            FILTER(?c="true"^^xsd:boolean)
+            
+        }
         FILTER(?t > ${since} && ?t < ${before})
     }ORDER BY ?content ?r`
     return output
@@ -93,7 +113,7 @@ async function processUserStats(request: Request<ReqParams,string,Record<string,
         ExecTransaction(transaction, prefixes).then((res) => {
             commitTransaction(location).catch(() => {})
             const parsed = parseQueryOutput(res,{stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true"})
-            response.send(Object.fromEntries(parsed.entries()))
+            response.send(Object.fromEntries((parsed as Map<string, ResBody>).entries()))
         }).catch((e: Error) => {
             response.status(500)
             response.send(e.message)

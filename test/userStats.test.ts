@@ -8,23 +8,9 @@ import express from "express"
 import {Server} from "http"
 import getMockDB from "./mockDB"
 import {getPrefixes} from "../src/util/QueryGenerators/SparqlQueryGenerator"
-
+import { getNumberAttemptsQuery } from "../src/endpoints/userStats"
 const repo = "userStatsTest"
 const port = 7203
-
-function getNumberAttemptsQuery(userID: string, prefixes: [string, string][], since: number, before: number): string{
-    let output = getPrefixes(prefixes)
-    output += 
-    `select ?content ?r ?c where {
-        cco:Person_${userID} cco:agent_in ?p .
-        ?p cco:has_object ?content ;
-            cco:is_measured_by_nominal / cco:is_tokenized_by ?c ;
-            cco:occurs_on / cco:is_tokenized_by ?t ;
-            cco:is_measured_by_ordinal / cco:is_tokenized_by ?r .
-        FILTER(?t > ${since} && ?t < ${before})
-    }ORDER BY ?content ?r`
-    return output
-}
 
 describe("userStats", () => {
     const userID = "1234"
@@ -82,6 +68,9 @@ describe("userStats", () => {
         expect(((await query(test))[content2])).toHaveProperty("correct",1)
         expect(((await query(test))[content])).toHaveProperty("correct",1)
     })
+    it("Should allow a date string or a number representing UTC time as dates for the since and before query arguments", async () => {
+        
+    })
     it("Should be able to narrow down queries between timestamps", async () => {
         const test = getTest()
         const since = new Date("1/7/2021")
@@ -110,6 +99,7 @@ describe("userStats", () => {
                 writeAttemptTimed(repo,userID,content3,new Date(before.getTime()+2),false,resTime),
                 writeAttemptTimed(repo,userID,content3,new Date(before.getTime()+3),true,resTime)
         ])
+        
         await Promise.all([
             waitFor(async () => {
                 const body = await query(test,{since: new Date("1/6/2021"),before})
@@ -147,7 +137,6 @@ describe("userStats", () => {
             })
         ])
     },20000)
-    
     it("Should send back a 400 error if the Date header is malformed and there is no before query parameter", async () => {
         const test = getTest()
         await test.get(userStats.route).set("Date",'Wed, 02 Mar 2022 05:00:00 GMTjunk').expect(400)
@@ -206,7 +195,7 @@ describe("userStats", () => {
                     expect(mockDB.start).toHaveBeenCalled()
                     expect(mockDB.exec).toHaveBeenCalled()
                     expect(mockDB.exec).toHaveBeenCalledWith(getNumberAttemptsQuery(userID,prefixes,new Date(timestamp.toUTCString()).getTime()- 8.64e+7,new Date(timestamp.toUTCString()).getTime()),"QUERY")
-                    waitFor(() => {
+                    waitFor(async () => {
                         expect(mockDB.exec).toHaveBeenCalledTimes(2)
                     }).then(done)
                 }catch(e){

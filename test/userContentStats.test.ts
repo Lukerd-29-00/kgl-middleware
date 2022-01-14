@@ -4,9 +4,38 @@ import supertest from "supertest"
 import getApp from "../src/server"
 import {ip, prefixes} from "../src/config"
 import fetch from "node-fetch"
+import {mean, median, ResBody, stdev} from "../src/util/QueryOutputParsing/ParseContent"
 
 const repo = "userContentStatsTest"
 const port = 7202
+
+function expectError(actual: number, expected: number, threshold: number = 0.01): void{
+    const error = Math.abs(actual - expected)/Math.abs(actual)
+    expect(error).toBeLessThanOrEqual(threshold)
+}
+
+async function expectStats(test: supertest.SuperTest<supertest.Test>, userID: string, content: string, expectedMean: number, expectedMedian: number, expectedStdev: number, interval?: TimeInterval): Promise<void>{
+    for(const calcMean of [true, false]){
+        for(const calcMedian of [true, false]){
+            for(const calcStdev of [true, false]){
+                const output = await queryStats(userContentStats.route,test,userID,{content,...interval, mean: calcMean, median: calcMedian, stdev: calcStdev}) as ResBody
+                if(calcMean){
+                    expect(output).toHaveProperty("mean")
+                    expectError(output.mean as number, expectedMean)
+                }
+                if(calcMedian){
+                    expect(output).toHaveProperty("median")
+                    expectError(output.median as number, expectedMedian)
+                }
+                if(calcStdev){
+                    expect(output).toHaveProperty("stdev")
+                    expectError(output.stdev as number,expectedStdev)
+                }
+            }
+        }
+    }
+
+}
 
 describe("userContentStats", () => {
     const userID = "1234"
@@ -88,6 +117,15 @@ describe("userContentStats", () => {
             }),
         ])
     },20000)
+    it("Should be able to correctly calculate any combination of the mean, median, and standard deviation of the response times", async () => {
+        const resTimes = [100,102,401,1200]
+        await Promise.all(resTimes.map((value: number) => {
+            writeAttemptTimed(repo,userID,content,new Date(),true,value)
+        }))
+        await waitFor(async () => {
+            await expectStats(getTest(),userID,content,mean(resTimes),median(resTimes),stdev(resTimes))
+        })
+    })
     afterEach(async () => {
         await fetch(`${ip}/repositories/${repo}/statements`, {
             method: "DELETE",

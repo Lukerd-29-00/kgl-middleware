@@ -11,12 +11,19 @@ import {v4 as uuid} from "uuid"
 
 const bodySchema = Joi.object({
     correct: Joi.boolean().required(),
-    responseTime: Joi.number().required()
+    responseTime: Joi.when("correct",{
+        is: Joi.boolean().valid(true),
+        then: Joi.number().required(),
+        otherwise: Joi.forbidden()
+    })
 })
 
-const route = "/users/:userID/:content"
+const route = "/users/data/:userID/:content"
 
-export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, correct: boolean, responseTime: number): string {
+
+export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, correct: false): string
+export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, correct: true, responseTime: number): string
+export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, correct: boolean, responseTime?: number): string {
     const id = uuid()
     const person = `cco:Person_${userID}`
     const act = `cco:Act_Learning_${id}`
@@ -40,8 +47,10 @@ export function createLearnerRecordTriples(userID: string, content: string, time
     rawTriples += `${correctNominal} a cco:NominalMeasurementInformationContentEntity ;`
     rawTriples += `cco:is_tokenized_by "${correct}"^^xsd:boolean .`
     //Response time
-    rawTriples += `${responseTimeOrdinal} a cco:OrdinalInformationContentEntity ;`
-    rawTriples += `cco:is_tokenized_by "${responseTime}"^^xsd:integer .`
+    if(correct){
+        rawTriples += `${responseTimeOrdinal} a cco:OrdinalInformationContentEntity ;`
+        rawTriples += `cco:is_tokenized_by "${responseTime}"^^xsd:integer .`
+    }
     return rawTriples
 }
 
@@ -68,7 +77,13 @@ async function processWriteToLearnerRecord(request: Request<ReqParams,string,Req
     const content = request.params.content
     const correct = request.body.correct
     const responseTime = request.body.responseTime
-    const triples = createLearnerRecordTriples(userID, content, timestamp, correct,responseTime)
+    let tmp2: undefined | string
+    if(correct){
+        tmp2 = createLearnerRecordTriples(userID, content, timestamp,true,responseTime)
+    }else{
+        tmp2 = createLearnerRecordTriples(userID, content, timestamp,false)
+    }
+    const triples = tmp2 as string
     writeToLearnerRecord(ip, repo, prefixes, triples)
         .then(() => {
             response.status(202)

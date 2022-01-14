@@ -26,7 +26,7 @@ interface Resource{
 interface Answer{
     correct: boolean,
     timestamp: number,
-    responseTime: number,
+    responseTime?: number,
 }
 
 function findStatementQuery(location: Resource, statement: Answer): string{
@@ -35,18 +35,17 @@ function findStatementQuery(location: Resource, statement: Answer): string{
         cco:Person_${location.userID} cco:agent_in ?a .
         ?a cco:has_object <${location.content}> ;
            cco:occurs_on / cco:is_tokenized_by "${statement.timestamp}"^^xsd:integer ;
-           cco:is_measured_by_nominal / cco:is_tokenized_by "${statement.correct}"^^xsd:boolean ;
-           cco:is_measured_by_ordinal / cco:is_tokenized_by "${statement.responseTime}"^^xsd:integer .
-    }`
+           cco:is_measured_by_nominal / cco:is_tokenized_by "${statement.correct}"^^xsd:boolean ;`
+    output += statement.correct ? `cco:is_measured_by_ordinal / cco:is_tokenized_by "${statement.responseTime}"^^xsd:integer .}` : "}"
     return output
 }
 
 function getFilter(statement: Answer): string{
-    return `FILTER NOT EXISTS {
+    let output = `FILTER NOT EXISTS {
         ?a cco:occurs_on / cco:is_tokenized_by "${statement.timestamp}"^^xsd:integer ;
-        cco:is_measured_by_nominal / cco:is_tokenized_by "${statement.correct}"^^xsd:boolean ;
-        cco:is_measured_by_ordinal / cco:is_tokenized_by "${statement.responseTime}"^^xsd:integer .     
-    }`
+        cco:is_measured_by_nominal / cco:is_tokenized_by "${statement.correct}"^^xsd:boolean ;`
+    output += statement.correct ? `cco:is_measured_by_ordinal / cco:is_tokenized_by "${statement.responseTime}"^^xsd:integer .}` : "}"
+    return output
 }
 
 async function findUnexpectedStatements(location: Resource, statements: Answer[]): Promise<void>{
@@ -112,9 +111,9 @@ describe("writeToLearnerRecord", () => {
     it("Should allow you to say that a person got something wrong", async () => {
         const time = new Date()
         const expected = new Map<Resource,Answer[]>()
-        expected.set({userID,content},[{correct: false, responseTime, timestamp: new Date(time.toUTCString()).getTime()}])
+        expected.set({userID,content},[{correct: false, timestamp: new Date(time.toUTCString()).getTime()}])
         const test = supertest(app)
-        await queryWrite(test,userID,content,time,false,responseTime)
+        await queryWrite(test,userID,content,time,false)
         await waitFor(async () => {
             expectStatements(expected)
         })
@@ -130,7 +129,7 @@ describe("writeToLearnerRecord", () => {
         const test = supertest(app)
         await Promise.all([
             queryWrite(test,userID,content,timestamp,true,responseTime),
-            queryWrite(test,userID,content,timestamp,false,responseTime)
+            queryWrite(test,userID,content,timestamp,false)
         ])
         await waitFor(async () => {
             expectStatements(expected)
@@ -138,7 +137,7 @@ describe("writeToLearnerRecord", () => {
     })
     it("Should send back a 400 error if the date header is malformed", async () => {
         const test = supertest(app)
-        const body = {userID, content, correct: true}
+        const body = {correct: false}
         const route = writeToLearnerRecord.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
         await test.put(route).set("Date",new Date().toUTCString() + "junk").send(body).expect(400)
     })
@@ -158,7 +157,7 @@ describe("writeToLearnerRecord", () => {
     const responseTime = 100
     const app = getApp(mockIp,repo,prefixes,[writeToLearnerRecord])
     const body = {
-        correct: false,
+        correct: true,
         responseTime
     }
     const route = writeToLearnerRecord.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))

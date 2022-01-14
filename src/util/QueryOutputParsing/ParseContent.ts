@@ -10,10 +10,31 @@ interface ParseQueryOptions extends Record<string, boolean | undefined>{
     mean?: boolean,
     median?: boolean,
     stdev?: boolean,
+    content?: boolean
 }
 
-interface ParseQueryOptionsWithContent extends ParseQueryOptions{
-    content: boolean
+export function mean(numbers: number[]): number{
+    return numbers.reduce((prev: number, current: number) => {
+        return prev + current
+    })/numbers.length
+}
+
+export function median(numbers: number[]): number{
+    numbers = [...numbers].sort((a,b) => {
+        return a - b
+    })
+    if(numbers.length % 2 === 1){
+        return numbers[Math.floor(numbers.length/2)]
+    }else{
+        return mean([numbers[(numbers.length/2)-1],numbers[numbers.length/2]])
+    }
+}
+
+export function stdev(numbers: number[]): number{
+    const avg = mean(numbers)
+    return Math.sqrt(numbers.reduce((prev: number, current: number) => {
+        return prev + ((current - avg)**2)
+    })/(numbers.length-1))
 }
 
 function parseContent(response: [string, string][], options?: ParseQueryOptions ): ResBody{
@@ -27,7 +48,7 @@ function parseContent(response: [string, string][], options?: ParseQueryOptions 
             responseTimes = new Array<number>()
         }
         for(const match of response){
-            if(responseTimes){
+            if(responseTimes && !isNaN(parseInt(match[0],10))){
                 responseTimes.push(parseInt(match[0],10))
             }
             if(match[1] === "true"){
@@ -35,24 +56,20 @@ function parseContent(response: [string, string][], options?: ParseQueryOptions 
             }
             output.attempts++
         }
-        if(options.mean){
-            output.mean = (responseTimes as number[]).reduce((prev: number, current: number) => {
-                return current + prev
-            })/(responseTimes as number[]).length
+        if(options.mean && (responseTimes as number[]).length > 0){
+            output.mean = mean(responseTimes as number[])
+        }else if(options.mean){
+            output.mean = NaN
         }
-        if(options.stdev){
-            const mean = (responseTimes as number[]).reduce((prev: number, current: number) => {
-                return current + prev
-            })/(responseTimes as number[]).length
-            const variance = (responseTimes as number[]).reduce((prev: number, current: number) => {
-                return prev + (current - mean)
-            })/((responseTimes as number[]).length-1)
-            output.stdev = Math.sqrt(variance)
+        if(options.stdev && (responseTimes as number[]).length > 1){
+            output.stdev = stdev(responseTimes as number[])
+        }else if(options.stdev){
+            output.stdev = NaN
         }
-        if(options.median && (responseTimes as number[]).length % 2){
-            output.median = (responseTimes as number[])[Math.floor((responseTimes as number[]).length/2)]
+        if(options.median && (responseTimes as number[]).length > 0){
+            output.median = median(responseTimes as number[])
         }else if(options.median){
-            output.median = ((responseTimes as number[])[Math.floor((responseTimes as number[]).length/2)] + (responseTimes as number[])[Math.ceil((responseTimes as number[]).length/2)])/2
+            output.median = NaN
         }
         return output
     }else{
@@ -70,11 +87,7 @@ function parseContent(response: [string, string][], options?: ParseQueryOptions 
     }
 }
 
-export function parseQueryOutput(response: string, options?: ParseQueryOptions): Map<string, ResBody>
-
-export function parseQueryOutput(response: string, options?: ParseQueryOptionsWithContent): ResBody
-
-export function parseQueryOutput(response: string, options?: ParseQueryOptionsWithContent | ParseQueryOptions): Map<string, ResBody> | ResBody{
+export function parseQueryOutput(response: string, options?: ParseQueryOptions): Map<string, ResBody> | ResBody{
     if(options === undefined || !options.content){
         const output = new Map<string,ResBody>()
         const matches = response.matchAll(/^(.+),(.+),(.+)$/gm)

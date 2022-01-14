@@ -8,6 +8,7 @@ import { Transaction } from "../util/transaction/Transaction"
 import commitTransaction from "../util/transaction/commitTransaction"
 import {ParamsDictionary, Query} from "express-serve-static-core"
 import { parseQueryOutput } from "../util/QueryOutputParsing/ParseContent"
+import { ResBody } from "../util/QueryOutputParsing/ParseContent"
 
 const querySchema = Joi.object({
     since: Joi.string().custom((value: string, helper) => {
@@ -44,17 +45,29 @@ interface ReqParams extends ParamsDictionary{
     content: string
 }
 
-export function getNumberAttemptsQuery(userID: string, prefixes: [string, string][], since: number, before: number, contentIRI: string): string{
+export function getNumberAttemptsQuery(userID: string, prefixes: [string, string][], since: number, before: number, content: string): string{
     let output = getPrefixes(prefixes)
     output += 
-    `select ?r ?c where{
-        cco:Person_${userID} cco:agent_in ?p .
-        ?p cco:has_object <${contentIRI}> ;
-            cco:is_measured_by_nominal / cco:is_tokenized_by ?c ;
-            cco:occurs_on / cco:is_tokenized_by ?t ;
-            cco:is_measured_by_ordinal / cco:is_tokenized_by ?r .
+    `select ?r ?c where {
+        {
+            cco:Person_${userID} cco:agent_in ?p .
+            ?p cco:has_object <${content}> ;
+                cco:is_measured_by_nominal / cco:is_tokenized_by ?c ;
+                cco:occurs_on / cco:is_tokenized_by ?t ;
+            FILTER(?c="false"^^xsd:boolean)
+            BIND("NaN"^^xsd:string as ?r)
+        }
+        UNION
+        {
+            cco:Person_${userID} cco:agent_in ?p .
+            ?p cco:has_object <${content}> ;
+                cco:is_measured_by_nominal / cco:is_tokenized_by ?c ;
+                cco:occurs_on / cco:is_tokenized_by ?t ;
+                cco:is_measured_by_ordinal / cco:is_tokenized_by ?r .
+            FILTER(?c="true"^^xsd:boolean)
+        }
         FILTER(?t > ${since} && ?t < ${before})
-    } ORDER BY ?r`
+    }ORDER BY ?content ?r`
     
     return output
 }
@@ -98,7 +111,7 @@ async function processReadFromLearnerRecord(request: Request<ReqParams,string,Re
         ExecTransaction(transaction, prefixes).then((res) => {
             commitTransaction(location).catch(() => {})
             const parsed = parseQueryOutput(res, {stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true", content: true})
-            response.send(parsed)
+            response.send(parsed as ResBody)
         }).catch((e: Error) => {
             response.status(500)
             response.send(e.message)
@@ -109,7 +122,7 @@ async function processReadFromLearnerRecord(request: Request<ReqParams,string,Re
     })
 }
 
-const route = "/users/:userID/:content/stats"
+const route = "/users/stats/:userID/:content"
 
 const endpoint: Endpoint<ReqParams,string,Record<string,string>,ReqQuery> = { method: "get", schema: {query: querySchema}, route: route, process: processReadFromLearnerRecord }
 export default endpoint

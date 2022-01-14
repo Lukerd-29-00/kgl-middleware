@@ -99,7 +99,7 @@ async function processGetRawData(request: Request<ReqParams,Answer[] | string,Re
     })
 }
 
-const route = "/users/:userID/:content"
+const route = "/users/data/:userID/:content"
 
 const endpoint: Endpoint<ReqParams,Answer[] | string,Record<string, string | boolean | number>,ReqQuery> = {
     route,
