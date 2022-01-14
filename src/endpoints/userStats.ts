@@ -28,8 +28,7 @@ const querySchema = Joi.object({
     since: Joi.string().custom((value: string | undefined, helper) => {
         if(value === undefined){
             return value
-        }
-        if(!isNaN(parseInt(value,10)) && !isNaN(new Date(parseInt(value,10)).getTime())){
+        }else if(!isNaN(parseInt(value,10)) && !isNaN(new Date(parseInt(value,10)).getTime())){
             return value
         }else if(!isNaN(new Date(value).getTime())){
             return value
@@ -39,8 +38,7 @@ const querySchema = Joi.object({
     before: Joi.string().custom((value: string | undefined, helper) => {
         if(value === undefined){
             return value
-        }
-        if(!isNaN(parseInt(value,10)) && !isNaN(new Date(parseInt(value,10)).getTime())){
+        }else if(!isNaN(parseInt(value,10)) && !isNaN(new Date(parseInt(value,10)).getTime())){
             return value
         }else if(!isNaN(new Date(value).getTime())){
             return value

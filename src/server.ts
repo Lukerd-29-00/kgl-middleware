@@ -10,11 +10,11 @@ import morgan from "morgan"
 import Joi, { Schema } from "joi"
 import {ParamsDictionary, Query} from "express-serve-static-core"
 
-type processor<P extends ParamsDictionary,S extends string | number | Object | undefined,R extends Record<string, string | number | boolean | undefined>,Q extends Query> = 
+type processor<P extends ParamsDictionary,S extends string | number | Record<string,unknown> | undefined,R extends Record<string, string | number | boolean | undefined>,Q extends Query> = 
 ((request: Request<P,S,R,Q>, response: Response<S>, ip: string, repo: string, prefixes: Array<[string, string]>) => Promise<void>) 
 | ((request: Request, response: Response, ip: string, repo: string) => Promise<void>)
 
-export interface Endpoint<P extends ParamsDictionary,S extends string | number | Object | undefined,R extends Record<string, string | number | boolean | undefined>,Q extends Query>{
+export interface Endpoint<P extends ParamsDictionary,S extends string | number | Record<string,unknown> | undefined,R extends Record<string, string | number | boolean | undefined>,Q extends Query>{
     schema: RequestSchema,
     route: string,
     method: "put" | "post" | "delete" | "get",
@@ -56,11 +56,11 @@ function checkRequest(request: Request, response: Response, next: () => void, sc
 
 interface Responder{
     method: "get" | "put" | "post" | "delete"
-    process: processor<any,any,any,any>
+    process: processor<any,any,any,any> //eslint-disable-line
     schema: RequestSchema   
 }
 
-export default function getApp<E extends Endpoint<any,any,any,any>>(ip: string, repo: string, prefixes: Array<[string, string]>, endpoints: Array<E>, log?: boolean): Express {
+export default function getApp<E extends Endpoint<any,any,any,any> = Endpoint<any,any,any,any>>(ip: string, repo: string, prefixes: Array<[string, string]>, endpoints: Array<E>, log?: boolean): Express { //eslint-disable-line
     const app = express()
     //Use the morgan logging library to log requests if desired
     if (log) {

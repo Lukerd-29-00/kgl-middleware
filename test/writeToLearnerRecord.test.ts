@@ -2,16 +2,15 @@ import endpoints from "../src/endpoints/endpoints"
 import getApp from "../src/server"
 import { ip, prefixes } from "../src/config"
 import supertest from "supertest"
-import writeToLearnerRecord, { createLearnerRecordTriples } from "../src/endpoints/writeToLearnerRecord"
+import writeToLearnerRecord from "../src/endpoints/writeToLearnerRecord"
 import startTransaction from "../src/util/transaction/startTransaction"
 import ExecTransaction from "../src/util/transaction/ExecTransaction"
 import commitTransaction from "../src/util/transaction/commitTransaction"
 import {getPrefixes} from "../src/util/QueryGenerators/SparqlQueryGenerator"
 import { Transaction } from "../src/util/transaction/Transaction"
 import fetch from "node-fetch"
-import express, { query } from "express"
+import express from "express"
 import { Server } from "http"
-import { insertQuery } from "../src/util/transaction/insertQuery"
 import getMockDB from "./mockDB"
 import { queryWrite, waitFor } from "./util"
 
@@ -59,7 +58,7 @@ async function findUnexpectedStatements(location: Resource, statements: Answer[]
     }
     output += "}"
     const res = await makeQuery(output)
-    expect(res).not.toMatch(/http:[\/]\/www.ontologyrepository.com\/CommonCoreOntologies\/Act_Learning/)
+    expect(res).not.toMatch(/http:[\/]\/www.ontologyrepository.com\/CommonCoreOntologies\/Act_Learning/) //eslint-disable-line
 }
 
 async function makeQuery(body: string): Promise<string>{
@@ -79,7 +78,7 @@ async function makeQuery(body: string): Promise<string>{
 
 async function expectStatement(location: Resource, expected: Answer): Promise<void>{
     const res = await makeQuery(findStatementQuery(location,expected))
-    expect(res).toMatch(/http:[\/]\/www.ontologyrepository.com\/CommonCoreOntologies\/Act_Learning/)
+    expect(res).toMatch(/http:[\/]\/www.ontologyrepository.com\/CommonCoreOntologies\/Act_Learning/) //eslint-disable-line
 }
 
 async function expectStatements(expected: Map<Resource, Answer[]>): Promise<void>{
@@ -170,13 +169,13 @@ describe("writeToLearnerRecord", () => {
         server = mockDB.server.listen(port, () => {
             const test = supertest(app)
             test.put(writeToLearnerRecord.route).set("Date",timestamp.toUTCString()).send(body).expect(500)
-            .then(() => {
-                expect(mockDB.start).toHaveBeenCalled()
-                expect(mockDB.rollback).toHaveBeenCalled()
-                done()
-            }).catch((e) => {
-                done(e)
-            })
+                .then(() => {
+                    expect(mockDB.start).toHaveBeenCalled()
+                    expect(mockDB.rollback).toHaveBeenCalled()
+                    done()
+                }).catch((e) => {
+                    done(e)
+                })
         })
     })
     it("Should still send a server error if it fails the rollback", done => {
@@ -187,17 +186,17 @@ describe("writeToLearnerRecord", () => {
         server = mockDB.server.listen(port, () => {
             const test = supertest(app)
             test.put(route).set("Date",timestamp.toUTCString()).send(body).expect(500)
-            .then(() => {
-                try{
-                    expect(mockDB.start).toHaveBeenCalled()
-                    expect(mockDB.rollback).toHaveBeenCalled()
-                    done()
-                }catch(e){
+                .then(() => {
+                    try{
+                        expect(mockDB.start).toHaveBeenCalled()
+                        expect(mockDB.rollback).toHaveBeenCalled()
+                        done()
+                    }catch(e){
+                        done(e)
+                    }
+                }).catch((e) => {
                     done(e)
-                }
-            }).catch((e) => {
-                done(e)
-            })
+                })
         })
     })
     it("Should send a server error and attempt a rollback if commiting the transaction fails", done => {
@@ -208,18 +207,18 @@ describe("writeToLearnerRecord", () => {
         server = mockDB.server.listen(port, () => {
             const test = supertest(app)
             test.put(route).set("Date", timestamp.toUTCString()).send(body).expect(500)
-            .then(() => {
-                try{
-                    expect(mockDB.start).toHaveBeenCalled()
-                    expect(mockDB.rollback).toHaveBeenCalled()
-                    expect(mockDB.exec).toHaveBeenCalled()
-                    done()
-                }catch(e){
+                .then(() => {
+                    try{
+                        expect(mockDB.start).toHaveBeenCalled()
+                        expect(mockDB.rollback).toHaveBeenCalled()
+                        expect(mockDB.exec).toHaveBeenCalled()
+                        done()
+                    }catch(e){
+                        done(e)
+                    }    
+                }).catch((e) => {
                     done(e)
-                }    
-            }).catch((e) => {
-                done(e)
-            })
+                })
         })
     })
     it("Should still return the same error if the rollback fails after failing to commit", done => {
@@ -232,18 +231,18 @@ describe("writeToLearnerRecord", () => {
         server = mockDB.server.listen(port, () => {
             const test = supertest(getApp(mockIp, repo, prefixes, endpoints))
             test.put(writeToLearnerRecord.route).send(body).expect(500)
-            .then(() => {
-                try{
-                    expect(mockDB.start).toHaveBeenCalled()
-                    expect(mockDB.rollback).toHaveBeenCalled()
-                    expect(mockDB.exec).toHaveBeenCalled()
-                    done()
-                }catch(e){
+                .then(() => {
+                    try{
+                        expect(mockDB.start).toHaveBeenCalled()
+                        expect(mockDB.rollback).toHaveBeenCalled()
+                        expect(mockDB.exec).toHaveBeenCalled()
+                        done()
+                    }catch(e){
+                        done(e)
+                    }
+                }).catch((e) => {
                     done(e)
-                }
-            }).catch((e) => {
-                done(e)
-            })
+                })
         })
     })
     afterEach(async () => {

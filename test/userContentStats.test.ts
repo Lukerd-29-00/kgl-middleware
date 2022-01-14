@@ -9,7 +9,7 @@ import {mean, median, ResBody, stdev} from "../src/util/QueryOutputParsing/Parse
 const repo = "userContentStatsTest"
 const port = 7202
 
-function expectError(actual: number, expected: number, threshold: number = 0.01): void{
+function expectError(actual: number, expected: number, threshold = 0.01): void{
     const error = Math.abs(actual - expected)/Math.abs(actual)
     expect(error).toBeLessThanOrEqual(threshold)
 }
@@ -87,17 +87,16 @@ describe("userContentStats", () => {
         const test = getTest()
         const since = new Date("1/7/2021")
         const before = new Date("1/12/2021")
-        const content3 = `${content}3`
         await Promise.all([
-                writeAttemptTimed(repo,userID,content,new Date(since.getTime()+1),true,resTime),
-                writeAttemptTimed(repo,userID,content,new Date(since.getTime()+2),false,resTime),
-                writeAttemptTimed(repo,userID,content,new Date(since.getTime()-1),true,resTime),
-                writeAttemptTimed(repo,userID,content,new Date(since.getTime()-2),false,resTime),
-                writeAttemptTimed(repo,userID,content,new Date(before.getTime()-1),true,resTime),
-                writeAttemptTimed(repo,userID,content,new Date(before.getTime()-2),false,resTime),
-                writeAttemptTimed(repo,userID,content,new Date(before.getTime()+1),true,resTime),
-                writeAttemptTimed(repo,userID,content,new Date(before.getTime()+2),false,resTime),
-                writeAttemptTimed(repo,userID,content,new Date(before.getTime()+3),true,resTime)
+            writeAttemptTimed(repo,userID,content,new Date(since.getTime()+1),true,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(since.getTime()+2),false,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(since.getTime()-1),true,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(since.getTime()-2),false,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(before.getTime()-1),true,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(before.getTime()-2),false,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(before.getTime()+1),true,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(before.getTime()+2),false,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(before.getTime()+3),true,resTime)
         ])
         await Promise.all([
             waitFor(async () => {

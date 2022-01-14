@@ -7,7 +7,6 @@ import userStats from "../src/endpoints/userStats"
 import express from "express"
 import {Server} from "http"
 import getMockDB from "./mockDB"
-import {getPrefixes} from "../src/util/QueryGenerators/SparqlQueryGenerator"
 import { getNumberAttemptsQuery } from "../src/endpoints/userStats"
 const repo = "userStatsTest"
 const port = 7203
@@ -16,7 +15,6 @@ describe("userStats", () => {
     const userID = "1234"
     const content = "http://aribtrarywebsite/TestContent"
     const content2 = "http://aribtrarywebsite/TestContent2"
-    const defaultURL = userStats.route.replace("/:userID",userID)
     const resTime = 100
     const getTest = (IP?: string) => {
         return supertest(getApp(IP ? IP : ip, repo, prefixes,[userStats]))
@@ -40,33 +38,33 @@ describe("userStats", () => {
         await writeAttempt(repo,userID,content,true,resTime,2)
         const test = getTest()
         await waitFor(async () => {
-            expect(((await query(test))[content])).toHaveProperty("attempts",2)
+            expect((await query(test))[content]).toHaveProperty("attempts",2)
         })
         await writeAttempt(repo,userID,content2,false,resTime,3)
         await waitFor(async () => {
-            expect(((await query(test))[content2])).toHaveProperty("attempts",3)
+            expect((await query(test))[content2]).toHaveProperty("attempts",3)
         })
-        expect(((await query(test))[content])).toHaveProperty("attempts",2)
+        expect((await query(test))[content]).toHaveProperty("attempts",2)
     })
     it("Should track the number of correct answers in each object correctly", async () => {
         const test = getTest()
         await writeAttempt(repo,userID,content,false,resTime)
         await waitFor(async () => {
-            expect(((await query(test))[content])).toHaveProperty("correct",0)
+            expect((await query(test))[content]).toHaveProperty("correct",0)
         })
         await writeAttempt(repo,userID,content,true,resTime)
         await writeAttempt(repo,userID,content,false,resTime)
         await waitFor(async () => {
-            expect(((await query(test))[content])).toHaveProperty("attempts",3)
-            expect(((await query(test))[content])).toHaveProperty("correct",1)
+            expect((await query(test))[content]).toHaveProperty("attempts",3)
+            expect((await query(test))[content]).toHaveProperty("correct",1)
         })
         await writeAttempt(repo,userID,content2,true,resTime)
         await writeAttempt(repo,userID,content2,false,resTime)
         await waitFor(async () => {
-            expect(((await query(test))[content2])).toHaveProperty("attempts",2)
+            expect((await query(test))[content2]).toHaveProperty("attempts",2)
         })
-        expect(((await query(test))[content2])).toHaveProperty("correct",1)
-        expect(((await query(test))[content])).toHaveProperty("correct",1)
+        expect((await query(test))[content2]).toHaveProperty("correct",1)
+        expect((await query(test))[content]).toHaveProperty("correct",1)
     })
     it("Should allow a date string or a number representing UTC time as dates for the since and before query arguments", async () => {
         
@@ -77,27 +75,27 @@ describe("userStats", () => {
         const before = new Date("1/12/2021")
         const content3 = `${content}3`
         await Promise.all([
-                writeAttemptTimed(repo,userID,content,new Date(since.getTime()+1),true,resTime),
-                writeAttemptTimed(repo,userID,content,new Date(since.getTime()+2),false,resTime),
-                writeAttemptTimed(repo,userID,content,new Date(since.getTime()-1),true,resTime),
-                writeAttemptTimed(repo,userID,content,new Date(since.getTime()-2),false,resTime),
-                writeAttemptTimed(repo,userID,content2,new Date(since.getTime()+1),true,resTime),
-                writeAttemptTimed(repo,userID,content2,new Date(since.getTime()+2),false,resTime),
-                writeAttemptTimed(repo,userID,content2,new Date(since.getTime()-1),true,resTime),
-                writeAttemptTimed(repo,userID,content2,new Date(since.getTime()-2),false,resTime),
-                writeAttemptTimed(repo,userID,content3,new Date(since.getTime()-1),true,resTime),
-                writeAttemptTimed(repo,userID,content3,new Date(since.getTime()-2),false,resTime),
-                writeAttemptTimed(repo,userID,content,new Date(before.getTime()-1),true,resTime),
-                writeAttemptTimed(repo,userID,content,new Date(before.getTime()-2),false,resTime),
-                writeAttemptTimed(repo,userID,content,new Date(before.getTime()+1),true,resTime),
-                writeAttemptTimed(repo,userID,content,new Date(before.getTime()+2),false,resTime),
-                writeAttemptTimed(repo,userID,content2,new Date(before.getTime()-1),true,resTime),
-                writeAttemptTimed(repo,userID,content2,new Date(before.getTime()-2),false,resTime),
-                writeAttemptTimed(repo,userID,content2,new Date(before.getTime()+1),true,resTime),
-                writeAttemptTimed(repo,userID,content2,new Date(before.getTime()+2),false,resTime),
-                writeAttemptTimed(repo,userID,content3,new Date(before.getTime()+1),true,resTime),
-                writeAttemptTimed(repo,userID,content3,new Date(before.getTime()+2),false,resTime),
-                writeAttemptTimed(repo,userID,content3,new Date(before.getTime()+3),true,resTime)
+            writeAttemptTimed(repo,userID,content,new Date(since.getTime()+1),true,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(since.getTime()+2),false,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(since.getTime()-1),true,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(since.getTime()-2),false,resTime),
+            writeAttemptTimed(repo,userID,content2,new Date(since.getTime()+1),true,resTime),
+            writeAttemptTimed(repo,userID,content2,new Date(since.getTime()+2),false,resTime),
+            writeAttemptTimed(repo,userID,content2,new Date(since.getTime()-1),true,resTime),
+            writeAttemptTimed(repo,userID,content2,new Date(since.getTime()-2),false,resTime),
+            writeAttemptTimed(repo,userID,content3,new Date(since.getTime()-1),true,resTime),
+            writeAttemptTimed(repo,userID,content3,new Date(since.getTime()-2),false,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(before.getTime()-1),true,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(before.getTime()-2),false,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(before.getTime()+1),true,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(before.getTime()+2),false,resTime),
+            writeAttemptTimed(repo,userID,content2,new Date(before.getTime()-1),true,resTime),
+            writeAttemptTimed(repo,userID,content2,new Date(before.getTime()-2),false,resTime),
+            writeAttemptTimed(repo,userID,content2,new Date(before.getTime()+1),true,resTime),
+            writeAttemptTimed(repo,userID,content2,new Date(before.getTime()+2),false,resTime),
+            writeAttemptTimed(repo,userID,content3,new Date(before.getTime()+1),true,resTime),
+            writeAttemptTimed(repo,userID,content3,new Date(before.getTime()+2),false,resTime),
+            writeAttemptTimed(repo,userID,content3,new Date(before.getTime()+3),true,resTime)
         ])
         
         await Promise.all([
@@ -139,8 +137,8 @@ describe("userStats", () => {
     },20000)
     it("Should send back a 400 error if the Date header is malformed and there is no before query parameter", async () => {
         const test = getTest()
-        await test.get(userStats.route).set("Date",'Wed, 02 Mar 2022 05:00:00 GMTjunk').expect(400)
-        await test.get(userStats.route).set("Date",'Wed, 02 Mar 2022 05:00:00 GMTjunk').expect(400)
+        await test.get(userStats.route).set("Date","Wed, 02 Mar 2022 05:00:00 GMTjunk").expect(400)
+        await test.get(userStats.route).set("Date","Wed, 02 Mar 2022 05:00:00 GMTjunk").expect(400)
     })
     afterEach(async () => {
         await fetch(`${ip}/repositories/${repo}/statements`, {
@@ -170,16 +168,16 @@ describe("userStats", () => {
         server = mockDB.server.listen(port,() => {
             const test = getTest()
             test.get(defaultURL).expect(500)
-            .then(() => {
-                try{
-                    expect(mockDB.start).toHaveBeenCalled()
-                    done()
-                }catch(e){
+                .then(() => {
+                    try{
+                        expect(mockDB.start).toHaveBeenCalled()
+                        done()
+                    }catch(e){
+                        done(e)
+                    }
+                }).catch((e) => {
                     done(e)
-                }
-            }).catch((e) => {
-                done(e)
-            })
+                })
         })
     })
     it("Should not send a server error if committing the transaction fails", done => {
@@ -190,20 +188,20 @@ describe("userStats", () => {
         server = mockDB.server.listen(port,() => {
             const timestamp = new Date()
             test.get(defaultURL).set("Date",timestamp.toUTCString()).expect(200)
-            .then(() => {
-                try{
-                    expect(mockDB.start).toHaveBeenCalled()
-                    expect(mockDB.exec).toHaveBeenCalled()
-                    expect(mockDB.exec).toHaveBeenCalledWith(getNumberAttemptsQuery(userID,prefixes,new Date(timestamp.toUTCString()).getTime()- 8.64e+7,new Date(timestamp.toUTCString()).getTime()),"QUERY")
-                    waitFor(async () => {
-                        expect(mockDB.exec).toHaveBeenCalledTimes(2)
-                    }).then(done)
-                }catch(e){
+                .then(() => {
+                    try{
+                        expect(mockDB.start).toHaveBeenCalled()
+                        expect(mockDB.exec).toHaveBeenCalled()
+                        expect(mockDB.exec).toHaveBeenCalledWith(getNumberAttemptsQuery(userID,prefixes,new Date(timestamp.toUTCString()).getTime()- 8.64e+7,new Date(timestamp.toUTCString()).getTime()),"QUERY")
+                        waitFor(async () => {
+                            expect(mockDB.exec).toHaveBeenCalledTimes(2)
+                        }).then(done)
+                    }catch(e){
+                        done(e)
+                    }
+                }).catch((e) => {
                     done(e)
-                }
-            }).catch((e) => {
-                done(e)
-            })
+                })
         })
     })
     afterEach(async () => {

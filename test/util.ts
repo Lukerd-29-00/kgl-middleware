@@ -6,12 +6,6 @@ import {createLearnerRecordTriples} from "../src/endpoints/writeToLearnerRecord"
 import {Transaction} from "../src/util/transaction/Transaction"
 import {ip, prefixes} from "../src/config"
 import writeToLearnerRecord from "../src/endpoints/writeToLearnerRecord"
-import { abort } from "process"
-
-interface ResBody{
-    correct: number,
-    attempts: number
-}
 
 export async function writeAttemptTimed(repo: string, userID: string, content: string, time: Date, correct: boolean, responseTime: number){
     const location = await startTransaction(ip, repo)
@@ -34,7 +28,7 @@ export async function writeAttemptTimed(repo: string, userID: string, content: s
     await commitTransaction(location)
 }
 
-export async function writeAttempt(repo: string, userID: string, content: string, correct: boolean, responseTime: number, count: number = 1): Promise<void>{
+export async function writeAttempt(repo: string, userID: string, content: string, correct: boolean, responseTime: number, count = 1): Promise<void>{
     const location = await startTransaction(ip, repo)
     for(let i = 0; i < count; i++){
         let tmp
@@ -58,7 +52,7 @@ export async function writeAttempt(repo: string, userID: string, content: string
     await commitTransaction(location)
 }
 
-export async function waitFor(callback: () => Promise<void>, timeout: number = 5000, waitPeriod: number = 250): Promise<void>{
+export async function waitFor(callback: () => Promise<void>, timeout = 5000, waitPeriod = 250): Promise<void>{
     const stop = new AbortController()
     const p1 = (resolve: () => void, reject: () => void) => {
         const timeoutId = setTimeout(() => {
@@ -72,25 +66,25 @@ export async function waitFor(callback: () => Promise<void>, timeout: number = 5
     }
     const p2 = (resolve: () => void, reject: () => void) => {
         callback()
-        .then(() => {
-            stop.abort()
-            resolve()
-        })
-        .catch(() => {
-            new Promise<void>(resolve => {
-                const timeoutId = setTimeout(() => {
-                    clearTimeout(timeoutId)
-                    resolve()
-                },waitPeriod)
-            })
             .then(() => {
-                if(!stop.signal.aborted){
-                    p2(resolve,reject)
-                }else{
-                    reject()
-                }
+                stop.abort()
+                resolve()
             })
-        })
+            .catch(() => {
+                new Promise<void>(resolve => {
+                    const timeoutId = setTimeout(() => {
+                        clearTimeout(timeoutId)
+                        resolve()
+                    },waitPeriod)
+                })
+                    .then(() => {
+                        if(!stop.signal.aborted){
+                            p2(resolve,reject)
+                        }else{
+                            reject()
+                        }
+                    })
+            })
     }
     await Promise.race([
         new Promise<void>(p1).catch(() => {
@@ -113,7 +107,7 @@ function isDate(x: Date | string | boolean): x is Date{
     return (x as Date).getTime !== undefined
 }
 
-export async function queryStats(route: string, test: supertest.SuperTest<supertest.Test>, userID: string, kwargs?: QueryStatsKwargs): Promise<any>{
+export async function queryStats(route: string, test: supertest.SuperTest<supertest.Test>, userID: string, kwargs?: QueryStatsKwargs): Promise<any>{ //eslint-disable-line
     route = route.replace(":userID",userID)
     if(kwargs !== undefined && kwargs.content !== undefined){
         route = route.replace(":content",encodeURIComponent(kwargs.content))
