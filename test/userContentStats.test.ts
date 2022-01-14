@@ -5,7 +5,9 @@ import getApp from "../src/server"
 import {ip, prefixes} from "../src/config"
 import fetch from "node-fetch"
 import {mean, median, ResBody, stdev} from "../src/util/QueryOutputParsing/ParseContent"
-
+import {Server} from "http"
+import getMockDB from "./mockDB"
+import express from "express"
 const repo = "userContentStatsTest"
 const port = 7202
 
@@ -125,6 +127,21 @@ describe("userContentStats", () => {
             await expectStats(getTest(),userID,content,mean(resTimes),median(resTimes),stdev(resTimes))
         })
     })
+    it("Should return a statistic as null if calculating it would result in division by zero", async () => {
+        const res = await queryStats(userContentStats.route,getTest(),userID,{content,mean:true,median:true,stdev:true})
+        expect(res).toHaveProperty("stdev",null)
+        expect(res).toHaveProperty("mean",null)
+        expect(res).toHaveProperty("median",null)
+        await writeAttempt(repo,userID,content,true,100)
+        await waitFor(async () => {
+            const res = await queryStats(userContentStats.route,getTest(),userID,{content,mean:true,median:true,stdev:true})
+            expect(res).toHaveProperty("correct",1) //Make sure the database is finished writing
+            expect(res).toHaveProperty("stdev",null)
+        })
+    })
+    it("Should send back a 400 error if the Date header is malformed", async () => {
+        await getTest().get(userContentStats.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))).set("Date","junk").expect(400)
+    })
     afterEach(async () => {
         await fetch(`${ip}/repositories/${repo}/statements`, {
             method: "DELETE",
@@ -133,5 +150,64 @@ describe("userContentStats", () => {
         await waitFor(async () => {
             expect(await query(test)).toHaveProperty("attempts",0)
         })
+    })
+})
+
+describe("userStats", () => {
+    let server: Server | null = null
+    const userID = "1234"
+    const mockIp = `http://localhost:${port}`
+    const defaultURL = userContentStats.route.replace(":userID",userID)
+    const getTest = () => {
+        return supertest(getApp(mockIp, repo, prefixes,[userContentStats]))
+    }
+    it("Should send back a server error if starting a transaction fails", async () => {
+        const test = getTest()
+        await test.get(defaultURL).expect(500)
+    })
+    it("Should send back a server error and attempt a rollback if executing the transaction fails", done => {
+        const mockDB = getMockDB(mockIp,express(),repo,true,false,false)
+        server = mockDB.server.listen(port,() => {
+            const test = getTest()
+            test.get(defaultURL).expect(500)
+                .then(() => {
+                    try{
+                        expect(mockDB.start).toHaveBeenCalled()
+                        done()
+                    }catch(e){
+                        done(e)
+                    }
+                }).catch((e) => {
+                    done(e)
+                })
+        })
+    })
+    it("Should not send a server error if committing the transaction fails", done => {
+        const test = getTest()
+        const mockServer = express()
+        mockServer.use(express.raw({type: "application/sparql-query"}))
+        const mockDB = getMockDB(mockIp,mockServer,repo,true,false,true)
+        server = mockDB.server.listen(port,() => {
+            const timestamp = new Date()
+            test.get(defaultURL).set("Date",timestamp.toUTCString()).expect(200)
+                .then(() => {
+                    try{
+                        expect(mockDB.start).toHaveBeenCalled()
+                        expect(mockDB.exec).toHaveBeenCalled()
+                        waitFor(async () => {
+                            expect(mockDB.exec).toHaveBeenCalledTimes(2)
+                        }).then(done)
+                    }catch(e){
+                        done(e)
+                    }
+                }).catch((e) => {
+                    done(e)
+                })
+        })
+    })
+    afterEach(async () => {
+        if(server !== null){
+            await server.close()
+        }
     })
 })

@@ -53,28 +53,19 @@ export function getNumberAttemptsQuery(userID: string, prefixes: [string, string
 
 async function processReadFromLearnerRecord(request: Request<ReqParams,string,Record<string,string>,ReqQuery> , response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
     const userID = request.params.userID
-    let tmp: undefined | number
-    if(request.query.before !== undefined && !isNaN(parseInt(request.query.before,10))){
-        tmp = new Date(parseInt(request.query.before,10)).getTime()
-    }else if(request.query.before !== undefined){
-        tmp = new Date(request.query.before).getTime()
+    let before = new Date().getTime()
+    if(request.query.before !== undefined){
+        before = new Date(request.query.before).getTime()
     }else if(request.headers.date !== undefined){
-        tmp = new Date(request.headers.date).getTime()
-        if(isNaN(tmp)){
+        before = new Date(request.headers.date).getTime()
+        if(isNaN(before)){
             response.status(400)
             response.send("Malformed Date header")
             return
         }
-    }else{
-        response.status(400)
-        response.send("before query parameter is required if no Date header is supplied")
-        return
     }
-    const before = tmp as number
     let since = before - 8.64e+7
-    if(request.query.since && !isNaN(parseInt(request.query.since))){
-        since = new Date(parseInt(request.query.since,10)).getTime()
-    }else if(request.query.since){
+    if(request.query.since){
         since = new Date(request.query.since).getTime()
     }
     const query = getNumberAttemptsQuery(userID,prefixes,since,before,request.params.content)

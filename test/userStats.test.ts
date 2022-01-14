@@ -140,6 +140,20 @@ describe("userStats", () => {
         await test.get(userStats.route).set("Date","Wed, 02 Mar 2022 05:00:00 GMTjunk").expect(400)
         await test.get(userStats.route).set("Date","Wed, 02 Mar 2022 05:00:00 GMTjunk").expect(400)
     })
+    it("Should report the standard deviation as null for any contents that have exactly one element", async () => {
+        await Promise.all([
+            writeAttempt(repo,userID,content,true,100),
+            writeAttempt(repo,userID,content2,true,100)
+        ])
+        const test = getTest()
+        await waitFor(async () => {
+            const body = await queryStats(userStats.route,test,userID,{stdev:true})
+            expect(body).toHaveProperty(content)
+            expect(body).toHaveProperty(content2)
+            expect(body[content]).toHaveProperty("stdev",null)
+            expect(body[content2]).toHaveProperty("stdev",null)
+        })
+    })
     afterEach(async () => {
         await fetch(`${ip}/repositories/${repo}/statements`, {
             method: "DELETE",
