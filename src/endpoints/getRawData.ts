@@ -13,12 +13,12 @@ const querySchema = Joi.object({
     before: Joi.date().required()
 })
 
-interface ReqParams extends ParamsDictionary{
+export interface ReqParams extends ParamsDictionary{
     userID: string,
     content: string
 }
 
-interface ReqQuery extends Query{
+export interface ReqQuery extends Query{
     before: string,
     since: string
 }

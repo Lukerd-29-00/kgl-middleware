@@ -12,7 +12,11 @@ import { ResBody } from "../util/QueryOutputParsing/ParseContent"
 
 const route = "/users/stats/:userID"
 
-interface ReqQuery extends Query{
+export interface ReqParams extends ParamsDictionary{
+    userID: string
+}
+
+export interface ReqQuery extends Query{
     since?: string,
     before?: string,
     stdev?: string,
@@ -20,9 +24,7 @@ interface ReqQuery extends Query{
     median?: string
 }
 
-interface ReqParams extends ParamsDictionary{
-    userID: string
-}
+
 
 export const querySchema = Joi.object({
     since: Joi.when("before",{

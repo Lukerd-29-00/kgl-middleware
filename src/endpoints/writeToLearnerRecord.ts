@@ -20,6 +20,15 @@ const bodySchema = Joi.object({
 
 const route = "/users/data/:userID/:content"
 
+export interface ReqParams extends ParamsDictionary{
+    userID: string
+    content: string
+}
+
+export interface ReqBody extends Record<string, string | number | boolean | undefined>{
+    responseTime: number,
+    correct: boolean
+}
 
 export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, correct: false): string
 export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, correct: true, responseTime: number): string
@@ -54,15 +63,6 @@ export function createLearnerRecordTriples(userID: string, content: string, time
     return rawTriples
 }
 
-interface ReqBody extends Record<string, string | number | boolean | undefined>{
-    responseTime: number,
-    correct: boolean
-}
-
-interface ReqParams extends ParamsDictionary{
-    userID: string
-    content: string
-}
 async function processWriteToLearnerRecord(request: Request<ReqParams,string,ReqBody,Query>, response: Response<string>, ip: string, repo: string, prefixes: Array<[string, string]>) {
     const userID = request.params.userID
     let timestamp = new Date().getTime()

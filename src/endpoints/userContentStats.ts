@@ -11,7 +11,14 @@ import { parseQueryOutput } from "../util/QueryOutputParsing/ParseContent"
 import { ResBody } from "../util/QueryOutputParsing/ParseContent"
 import { querySchema } from "./userStats"
 
-interface ReqQuery extends Query{
+const route = "/users/stats/:userID/:content"
+
+export interface ReqParams extends ParamsDictionary{
+    userID: string,
+    content: string
+}
+
+export interface ReqQuery extends Query{
     since?: string,
     before?: string,
     stdev?: string,
@@ -19,10 +26,7 @@ interface ReqQuery extends Query{
     median?: string
 }
 
-interface ReqParams extends ParamsDictionary{
-    userID: string,
-    content: string
-}
+
 
 export function getNumberAttemptsQuery(userID: string, prefixes: [string, string][], since: number, before: number, content: string): string{
     let output = getPrefixes(prefixes)
@@ -91,8 +95,6 @@ async function processReadFromLearnerRecord(request: Request<ReqParams,string,Re
         response.send(e.message)
     })
 }
-
-const route = "/users/stats/:userID/:content"
 
 const endpoint: Endpoint<ReqParams,string,Record<string,string>,ReqQuery> = { method: "get", schema: {query: querySchema}, route: route, process: processReadFromLearnerRecord }
 export default endpoint
