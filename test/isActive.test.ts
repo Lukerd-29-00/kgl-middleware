@@ -5,7 +5,7 @@ import express, {Response} from "express"
 import { Server } from "http"
 import {ip} from "../src/config"
 
-const port = 7201
+const port = 7202
 const repo = "isActiveTest"
 
 describe("active", () => {
@@ -21,7 +21,6 @@ describe("active", () => {
     })
 
     it("Should get a 200 status code if the server is running", async () => {
-        expect(port).toBe(7201)
         const request = supertest(getApp(ip,repo,[],[active]))
         const req = request.get(active.route)
         await req.expect(204)

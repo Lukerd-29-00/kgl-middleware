@@ -10,7 +10,7 @@ import getMockDB from "./mockDB"
 import { getNumberAttemptsQuery } from "../src/endpoints/userStats"
 
 const repo = "userStatsTest"
-const port = 7203
+const port = 7204
 
 describe("userStats", () => {
     const userID = "1234"
@@ -27,8 +27,8 @@ describe("userStats", () => {
         expect(Object.entries(await query(getTest()))).toHaveLength(0)
     })
     it("Should return an object for each subject the user has answered a question for if no content is supplied", async () => {
-        await writeAttempt(repo,userID,content,true,resTime)
-        await writeAttempt(repo,userID,content2,false,resTime)
+        await writeAttempt(repo,userID,content,true,1,resTime)
+        await writeAttempt(repo,userID,content2,false)
         const test = getTest()
         await waitFor(async () => {
             const body = await query(test)
@@ -38,31 +38,33 @@ describe("userStats", () => {
         })
     })
     it("Should count the number of attempts in each object correctly", async () => {
-        await writeAttempt(repo,userID,content,true,resTime,2)
+        await writeAttempt(repo,userID,content,true,2,resTime)
         const test = getTest()
         await waitFor(async () => {
-            expect((await query(test))[content]).toHaveProperty("attempts",2)
+            const body = await query(test)
+            expect(body[content]).toHaveProperty("attempts",2)
         })
-        await writeAttempt(repo,userID,content2,false,resTime,3)
+        await writeAttempt(repo,userID,content2,false,3)
         await waitFor(async () => {
-            expect((await query(test))[content2]).toHaveProperty("attempts",3)
+            const body = await query(test)
+            expect(body[content2]).toHaveProperty("attempts",3)
         })
         expect((await query(test))[content]).toHaveProperty("attempts",2)
     })
     it("Should track the number of correct answers in each object correctly", async () => {
         const test = getTest()
-        await writeAttempt(repo,userID,content,false,resTime)
+        await writeAttempt(repo,userID,content,false)
         await waitFor(async () => {
             expect((await query(test))[content]).toHaveProperty("correct",0)
         })
-        await writeAttempt(repo,userID,content,true,resTime)
-        await writeAttempt(repo,userID,content,false,resTime)
+        await writeAttempt(repo,userID,content,true,1,resTime)
+        await writeAttempt(repo,userID,content,false)
         await waitFor(async () => {
             expect((await query(test))[content]).toHaveProperty("attempts",3)
             expect((await query(test))[content]).toHaveProperty("correct",1)
         })
-        await writeAttempt(repo,userID,content2,true,resTime)
-        await writeAttempt(repo,userID,content2,false,resTime)
+        await writeAttempt(repo,userID,content2,true,1,resTime)
+        await writeAttempt(repo,userID,content2,false)
         await waitFor(async () => {
             expect((await query(test))[content2]).toHaveProperty("attempts",2)
         })
@@ -76,25 +78,25 @@ describe("userStats", () => {
         const content3 = `${content}3`
         await Promise.all([
             writeAttemptTimed(repo,userID,content,new Date(since.getTime()+1),true,resTime),
-            writeAttemptTimed(repo,userID,content,new Date(since.getTime()+2),false,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(since.getTime()+2),false),
             writeAttemptTimed(repo,userID,content,new Date(since.getTime()-1),true,resTime),
-            writeAttemptTimed(repo,userID,content,new Date(since.getTime()-2),false,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(since.getTime()-2),false),
             writeAttemptTimed(repo,userID,content2,new Date(since.getTime()+1),true,resTime),
-            writeAttemptTimed(repo,userID,content2,new Date(since.getTime()+2),false,resTime),
+            writeAttemptTimed(repo,userID,content2,new Date(since.getTime()+2),false),
             writeAttemptTimed(repo,userID,content2,new Date(since.getTime()-1),true,resTime),
-            writeAttemptTimed(repo,userID,content2,new Date(since.getTime()-2),false,resTime),
+            writeAttemptTimed(repo,userID,content2,new Date(since.getTime()-2),false),
             writeAttemptTimed(repo,userID,content3,new Date(since.getTime()-1),true,resTime),
-            writeAttemptTimed(repo,userID,content3,new Date(since.getTime()-2),false,resTime),
+            writeAttemptTimed(repo,userID,content3,new Date(since.getTime()-2),false),
             writeAttemptTimed(repo,userID,content,new Date(before.getTime()-1),true,resTime),
-            writeAttemptTimed(repo,userID,content,new Date(before.getTime()-2),false,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(before.getTime()-2),false),
             writeAttemptTimed(repo,userID,content,new Date(before.getTime()+1),true,resTime),
-            writeAttemptTimed(repo,userID,content,new Date(before.getTime()+2),false,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(before.getTime()+2),false),
             writeAttemptTimed(repo,userID,content2,new Date(before.getTime()-1),true,resTime),
-            writeAttemptTimed(repo,userID,content2,new Date(before.getTime()-2),false,resTime),
+            writeAttemptTimed(repo,userID,content2,new Date(before.getTime()-2),false),
             writeAttemptTimed(repo,userID,content2,new Date(before.getTime()+1),true,resTime),
-            writeAttemptTimed(repo,userID,content2,new Date(before.getTime()+2),false,resTime),
+            writeAttemptTimed(repo,userID,content2,new Date(before.getTime()+2),false),
             writeAttemptTimed(repo,userID,content3,new Date(before.getTime()+1),true,resTime),
-            writeAttemptTimed(repo,userID,content3,new Date(before.getTime()+2),false,resTime),
+            writeAttemptTimed(repo,userID,content3,new Date(before.getTime()+2),false),
             writeAttemptTimed(repo,userID,content3,new Date(before.getTime()+3),true,resTime)
         ])
         
@@ -142,8 +144,8 @@ describe("userStats", () => {
     })
     it("Should report the standard deviation as null for any contents that have exactly one element", async () => {
         await Promise.all([
-            writeAttempt(repo,userID,content,true,100),
-            writeAttempt(repo,userID,content2,true,100)
+            writeAttempt(repo,userID,content,true,1,100),
+            writeAttempt(repo,userID,content2,true,1,100)
         ])
         const test = getTest()
         await waitFor(async () => {

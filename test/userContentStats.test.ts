@@ -9,7 +9,7 @@ import {Server} from "http"
 import getMockDB from "./mockDB"
 import express from "express"
 const repo = "userContentStatsTest"
-const port = 7202
+const port = 7203
 
 function expectError(actual: number, expected: number, threshold = 0.01): void{
     const error = Math.abs(actual - expected)/Math.abs(actual)
@@ -55,18 +55,24 @@ describe("userContentStats", () => {
     it("Should return zero attempts if no attempts at the desired content have been made", async () => {
         expect(await query(getTest())).toHaveProperty("attempts",0)
     })
+    it("Should ignore data concerning different content", async () => {
+        await Promise.all([
+            writeAttempt(repo,userID,content,true,2,resTime),
+            writeAttempt(repo,userID,content,false),
+        ])
+    })
     it("Should correctly report the number of attempts made at a particular subject, regardless of correctness", async () => {
         await Promise.all([
-            writeAttempt(repo,userID,content,true,resTime,2),
-            writeAttempt(repo,userID,content,false,resTime),
+            writeAttempt(repo,userID,content,true,2,resTime),
+            writeAttempt(repo,userID,content,false),
         ])
         const test = getTest()
         await waitFor(async () => {
             expect(await query(test)).toHaveProperty("attempts",3)
         })
         await Promise.all([
-            writeAttempt(repo,userID,content,true,resTime),
-            writeAttempt(repo,userID,content,false,resTime)
+            writeAttempt(repo,userID,content,true,1,resTime),
+            writeAttempt(repo,userID,content,false)
         ])
         await waitFor(async () => {
             expect(await query(test)).toHaveProperty("attempts",5)
@@ -75,11 +81,11 @@ describe("userContentStats", () => {
     it("Should correctly report the number of correct answers for a particular subject", async () => {
         const test = getTest()
         expect(await query(test)).toHaveProperty("correct",0)
-        await writeAttempt(repo,userID, content, true,resTime, 3)
+        await writeAttempt(repo,userID, content, true,3,resTime)
         await waitFor(async () => {
             expect(await query(test)).toHaveProperty("correct",3)
         })
-        await writeAttempt(repo,userID,content, false, resTime, 2)
+        await writeAttempt(repo,userID,content, false, 2)
         await waitFor(async () => {
             expect(await query(test)).toHaveProperty("attempts", 5)
         })
@@ -91,13 +97,13 @@ describe("userContentStats", () => {
         const before = new Date("1/12/2021")
         await Promise.all([
             writeAttemptTimed(repo,userID,content,new Date(since.getTime()+1),true,resTime),
-            writeAttemptTimed(repo,userID,content,new Date(since.getTime()+2),false,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(since.getTime()+2),false),
             writeAttemptTimed(repo,userID,content,new Date(since.getTime()-1),true,resTime),
-            writeAttemptTimed(repo,userID,content,new Date(since.getTime()-2),false,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(since.getTime()-2),false),
             writeAttemptTimed(repo,userID,content,new Date(before.getTime()-1),true,resTime),
-            writeAttemptTimed(repo,userID,content,new Date(before.getTime()-2),false,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(before.getTime()-2),false),
             writeAttemptTimed(repo,userID,content,new Date(before.getTime()+1),true,resTime),
-            writeAttemptTimed(repo,userID,content,new Date(before.getTime()+2),false,resTime),
+            writeAttemptTimed(repo,userID,content,new Date(before.getTime()+2),false),
             writeAttemptTimed(repo,userID,content,new Date(before.getTime()+3),true,resTime)
         ])
         await Promise.all([
@@ -132,7 +138,7 @@ describe("userContentStats", () => {
         expect(res).toHaveProperty("stdev",null)
         expect(res).toHaveProperty("mean",null)
         expect(res).toHaveProperty("median",null)
-        await writeAttempt(repo,userID,content,true,100)
+        await writeAttempt(repo,userID,content,true,1,100)
         await waitFor(async () => {
             const res = await queryStats(userContentStats.route,getTest(),userID,{content,mean:true,median:true,stdev:true})
             expect(res).toHaveProperty("correct",1) //Make sure the database is finished writing

@@ -7,13 +7,15 @@ import {Transaction} from "../src/util/transaction/Transaction"
 import {ip, prefixes} from "../src/config"
 import writeToLearnerRecord from "../src/endpoints/writeToLearnerRecord"
 
-export async function writeAttemptTimed(repo: string, userID: string, content: string, time: Date, correct: boolean, responseTime: number){
+export async function writeAttemptTimed(repo: string, userID: string, content: string, time: Date, correct: false): Promise<void>
+export async function writeAttemptTimed(repo: string, userID: string, content: string, time: Date, correct: true, responseTime: number): Promise<void>
+export async function writeAttemptTimed(repo: string, userID: string, content: string, time: Date, correct: boolean, responseTime?: number){
     const location = await startTransaction(ip, repo)
     let tmp
-    if(correct){
-        tmp = createLearnerRecordTriples(userID, content,time.getTime(),true,responseTime)
+    if(responseTime){
+        tmp = createLearnerRecordTriples(userID, content,time.getTime(),correct as true,responseTime)
     }else{
-        tmp = createLearnerRecordTriples(userID, content,time.getTime(),false)
+        tmp = createLearnerRecordTriples(userID, content,time.getTime(),correct as false)
     }
     const triples = tmp as string
     const transaction: Transaction = {
@@ -28,15 +30,18 @@ export async function writeAttemptTimed(repo: string, userID: string, content: s
     await commitTransaction(location)
 }
 
-export async function writeAttempt(repo: string, userID: string, content: string, correct: boolean, responseTime: number, count = 1): Promise<void>{
+export async function writeAttempt(repo: string, userID: string, content: string, correct: false): Promise<void>
+export async function writeAttempt(repo: string, userID: string, content: string, correct: false, count: number): Promise<void>
+export async function writeAttempt(repo: string, userID: string, content: string, correct: true, count: number, responseTime: number): Promise<void>
+export async function writeAttempt(repo: string, userID: string, content: string, correct: boolean, count: number = 1, responseTime?: number): Promise<void>{
     const location = await startTransaction(ip, repo)
     for(let i = 0; i < count; i++){
         let tmp
         const time = new Date().getTime()
-        if(correct){
-            tmp = createLearnerRecordTriples(userID, content,time,true,responseTime)
+        if(responseTime){
+            tmp = createLearnerRecordTriples(userID, content,time,correct as true,responseTime)
         }else{
-            tmp = createLearnerRecordTriples(userID, content,time,false)
+            tmp = createLearnerRecordTriples(userID, content,time,correct as false)
         }
         const triples = tmp as string
         const transaction: Transaction = {
