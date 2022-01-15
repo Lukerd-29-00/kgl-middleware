@@ -7,17 +7,25 @@
  */
 import express, { Express, Request, Response } from "express"
 import morgan from "morgan"
-import Joi from "joi"
+import Joi, { Schema } from "joi"
+import {ParamsDictionary, Query} from "express-serve-static-core"
 
-type processor = 
-((request: Request, response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) => void) 
-| ((request: Request, response: Response, ip: string, repo: string) => void)
+type plainOrArrayOf<T> = Array<T> | T
 
-export interface Endpoint{
-    schema: Joi.Schema,
+type processor<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends Record<string, string | number | boolean | undefined>,Q extends Query> = 
+((request: Request<P,S,R,Q>, response: Response<S>, ip: string, repo: string, prefixes: Array<[string, string]>) => Promise<void>) 
+| ((request: Request, response: Response, ip: string, repo: string) => Promise<void>)
+
+export interface Endpoint<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends Record<string, string | number | boolean | undefined>,Q extends Query>{
+    schema: RequestSchema,
     route: string,
     method: "put" | "post" | "delete" | "get",
-    process: processor
+    process: processor<P,S,R,Q>
+}
+
+interface RequestSchema{
+    query?: Schema,
+    body?: Schema
 }
 
 /**
@@ -27,35 +35,73 @@ export interface Endpoint{
  * @param response The Express response object used to reply to the user.
  * @param endpoint The endpoint that triggered the error.
  */
-function checkRequestBody(request: Request, response: Response, next: () => void, schema: Joi.Schema): void {
-    const { error } = schema.validate(request.body)
-    if (error === undefined) {
-        next()
-    } else {
-        response.status(400)
-        response.send(error.message)
+function checkRequest(request: Request, response: Response, next: () => void, schema: RequestSchema): void {
+    schema = {body: schema.body === undefined ? Joi.object({}) : schema.body, query: schema.query === undefined ? Joi.object({}) : schema.query}
+    if(schema.body !== undefined){
+        const { error } = schema.body.validate(request.body,{dateFormat: "utc"})
+        if(error !== undefined){
+            response.status(400)
+            response.send(`Invalid body: ${error.message}`)
+            return
+        }
     }
+    if(schema.query !== undefined){
+        const {error} = schema.query.validate(request.query,{dateFormat: "utc"})
+        if(error !== undefined){
+            response.status(400)
+            response.send(`Invalid query string: ${error.message}`)
+            return
+        }
+    }
+    next()
 }
 
-export default function getApp(ip: string, repo: string, prefixes: Array<[string, string]>, endpoints: Array<Endpoint>, log?: boolean): Express {
+interface Responder{
+    method: "get" | "put" | "post" | "delete"
+    process: processor<any,any,any,any> //eslint-disable-line
+    schema: RequestSchema   
+}
+
+export default function getApp<E extends Endpoint<any,any,any,any> = Endpoint<any,any,any,any>>(ip: string, repo: string, prefixes: Array<[string, string]>, endpoints: Array<E>, log?: boolean): Express { //eslint-disable-line
     const app = express()
+    //Use the morgan logging library to log requests if desired
     if (log) {
         app.use(morgan("combined"))
     }
+
+    //Use the json body parser
     app.use(express.json())
-
     app.use(express.urlencoded({ extended: true }))
-
+    
+    //Map the various routes to endpoints
+    const routes = new Map<string, Responder[]>()
     for (const endpoint of endpoints) {
-        app.use(endpoint.route, (request: Request, response: Response, next: () => void) => {
-            checkRequestBody(request, response, next, endpoint.schema)
-        })
-
-        app[endpoint.method](endpoint.route, (request: Request, response: Response) => {
-            endpoint.process(request, response, ip, repo, prefixes)
-        })
-
+        const route = routes.get(endpoint.route)
+        if(route !== undefined){
+            route.push({...endpoint})
+        }else{
+            routes.set(endpoint.route,[{...endpoint}])
+        }
     }
+
+    //Use express.Router to set the possible methods at each route
+    const router = express.Router()
+    for(const entry of routes.entries()){
+        const route = router.route(entry[0])
+        for(const responder of entry[1]){
+            route[responder.method]((request: Request, response: Response, next: () => void) => {
+                checkRequest(request,response,next,responder.schema)
+            })
+            route[responder.method]((request: Request, response: Response) => {
+                responder.process(request,response,ip,repo,prefixes).catch((e: Error) => {
+                    if(log){
+                        console.log(e)
+                    }
+                })
+            })
+        }
+    }
+    app.use("/",router)
 
     return app
 }

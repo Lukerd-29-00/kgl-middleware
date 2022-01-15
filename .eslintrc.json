@@ -20,7 +20,7 @@
         "@typescript-eslint"
     ],
     "rules": {
-        "no-extra-parens": ["warn", "all", {
+        "@typescript-eslint/no-extra-parens": ["warn", "all", {
             "nestedBinaryExpressions": false
         }],
         "brace-style": ["error", "1tbs"],
@@ -37,7 +37,8 @@
             "never"
         ],
         "no-var": "error",
-        "no-unreachable": "warn"
+        "no-unreachable": "warn",
+        "@typescript-eslint/no-empty-function": 0
 
     }
 }
