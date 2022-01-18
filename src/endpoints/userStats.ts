@@ -65,7 +65,7 @@ export function getNumberAttemptsQuery(userID: string, prefixes: [string, string
     return output
 }
 
-async function processUserStats(request: Request<ReqParams,string,Record<string,string>,ReqQuery> , response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
+async function processUserStats(request: Request<ReqParams,string,Record<string,string>,ReqQuery> , response: Response,next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>) {
     const userID = request.params.userID
     let before = new Date().getTime()
     if(request.query.before !== undefined){

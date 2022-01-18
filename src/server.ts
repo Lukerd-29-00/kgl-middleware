@@ -13,8 +13,8 @@ import {ParamsDictionary, Query} from "express-serve-static-core"
 type plainOrArrayOf<T> = Array<T> | T
 
 type processor<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends Record<string, string | number | boolean | undefined>,Q extends Query> = 
-((request: Request<P,S,R,Q>, response: Response<S>, ip: string, repo: string, prefixes: Array<[string, string]>) => Promise<void>) 
-| ((request: Request, response: Response, ip: string, repo: string) => Promise<void>)
+((request: Request<P,S,R,Q>, response: Response<S>,next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>) => Promise<void>) 
+| ((request: Request, response: Response, next: (e?: Error) => void, ip: string, repo: string) => Promise<void>)
 
 export interface Endpoint<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends Record<string, string | number | boolean | undefined>,Q extends Query>{
     schema: RequestSchema,
@@ -26,6 +26,26 @@ export interface Endpoint<P extends ParamsDictionary,S extends plainOrArrayOf<st
 interface RequestSchema{
     query?: Schema,
     body?: Schema
+}
+
+async function send(request: Request, response: Response): Promise<void>{ //eslint-disable-line
+    const body = response.locals.body
+    if(request.method === "HEAD"){
+        response.status(204)
+        if(typeof body == "string"){
+            response.header("Content-Length",body.length.toString())
+        }else if(body){
+            response.header("Content-Length",JSON.stringify(body).length.toString())
+        }
+        response.end()
+    }else if(body !== undefined){
+        if(response.getHeader("Content-Length")){
+            throw Error("Error: Content-Length was set prematurely! the send function at the end of the stack should set this header!")
+        }
+        response.send(body)
+    }else{
+        response.end()
+    }
 }
 
 /**
@@ -92,13 +112,19 @@ export default function getApp<E extends Endpoint<any,any,any,any> = Endpoint<an
             route[responder.method]((request: Request, response: Response, next: () => void) => {
                 checkRequest(request,response,next,responder.schema)
             })
-            route[responder.method]((request: Request, response: Response) => {
-                responder.process(request,response,ip,repo,prefixes).catch((e: Error) => {
+            const handler = (request: Request, response: Response, next: (e?: Error) => void) => {
+                responder.process(request,response,next,ip,repo,prefixes).catch((e: Error) => {
                     if(log){
                         console.log(e)
                     }
                 })
-            })
+            }
+            route[responder.method](handler)
+            route[responder.method](send)
+            if(responder.method == "get"){
+                route.head(handler)
+                route.head(send)
+            }
         }
     }
     app.use("/",router)

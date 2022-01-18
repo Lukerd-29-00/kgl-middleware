@@ -55,7 +55,7 @@ export function getNumberAttemptsQuery(userID: string, prefixes: [string, string
     return output
 }
 
-async function processReadFromLearnerRecord(request: Request<ReqParams,string,Record<string,string>,ReqQuery> , response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
+async function processReadFromLearnerRecord(request: Request<ReqParams,string,Record<string,string>,ReqQuery> , response: Response, next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>) {
     const userID = request.params.userID
     let before = new Date().getTime()
     if(request.query.before !== undefined){
@@ -63,9 +63,10 @@ async function processReadFromLearnerRecord(request: Request<ReqParams,string,Re
     }else if(request.headers.date !== undefined){
         before = new Date(request.headers.date).getTime()
         if(isNaN(before)){
+            const e = Error("Malformed Date header")
             response.status(400)
-            response.send("Malformed Date header")
-            return
+            next(e)
+            throw e
         }
     }
     let since = before - 8.64e+7
@@ -85,14 +86,15 @@ async function processReadFromLearnerRecord(request: Request<ReqParams,string,Re
         ExecTransaction(transaction, prefixes).then((res) => {
             commitTransaction(location).catch(() => {})
             const parsed = parseQueryOutput(res, {stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true", content: true})
-            response.send(parsed as ResBody)
+            response.locals.body = parsed
+            next()
         }).catch((e: Error) => {
-            response.status(500)
-            response.send(e.message)
+            next(e)
+            throw e
         })
     }).catch((e: Error) => {
-        response.status(500)
-        response.send(e.message)
+        next(e)
+        throw e
     })
 }
 

@@ -54,36 +54,37 @@ function getRawDataQuery(userID: string, content: string, since: number, before:
     return output
 }
 
-async function processGetRawData(request: Request<ReqParams,Answer[] | string,Record<string,string | boolean | number>,ReqQuery>,response: Response<Answer[] | string>, ip: string, repo: string, prefixes: Array<[string ,string]>): Promise<void>{
+async function processGetRawData(request: Request<ReqParams,Answer[] | string,Record<string,string | boolean | number>,ReqQuery>,response: Response<Answer[] | string>, next: (e?: Error) => void,ip: string, repo: string, prefixes: Array<[string ,string]>): Promise<void>{
     const userID = request.params.userID
     const content = request.params.content
     const before = new Date(request.query.before).getTime()
     const since = new Date(request.query.since).getTime()
     const location = await startTransaction(ip, repo).catch((e: Error) => {
-        response.status(500)
-        response.send(e.message)
+        next(e)
         throw e
     })
     const transaction: Transaction = {
         subj: null,
         pred: null,
         obj: null,
-        location,
+        location: location as string,
         body: getRawDataQuery(userID,content,since,before,prefixes),
         action: "QUERY"
     }
     await ExecTransaction(transaction).then((res: string) => {
-        commitTransaction(location).catch(() => {})
+        commitTransaction(location as string).catch((e: Error) => {
+            throw e
+        })
         const output = new Array<Answer>()
         const matches = res.matchAll(/^(.+),(.+),(.+)$/gm)
         matches.next()
         for(const match of matches){
             output.push({timestamp: parseInt(match[1],10), correct: match[2] === "true" ? true : false, responseTime: isNaN(parseInt(match[3],10)) ? undefined : parseInt(match[3],10)})
         }
-        response.send(output)
+        response.locals.body = output
+        next()
     }).catch((e: Error) => {
-        response.status(500)
-        response.send(e.message)
+        next(e)
         throw e
     })
 }

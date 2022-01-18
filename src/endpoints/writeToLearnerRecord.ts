@@ -63,7 +63,7 @@ export function createLearnerRecordTriples(userID: string, content: string, time
     return rawTriples
 }
 
-async function processWriteToLearnerRecord(request: Request<ReqParams,string,ReqBody,Query>, response: Response<string>, ip: string, repo: string, prefixes: Array<[string, string]>) {
+async function processWriteToLearnerRecord(request: Request<ReqParams,string,ReqBody,Query>, response: Response<string>, next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>) {
     const userID = request.params.userID
     let timestamp = new Date().getTime()
     if(request.headers.date !== undefined){
