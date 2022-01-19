@@ -35,8 +35,8 @@ describe("userStats", () => {
             expect(body).toHaveProperty(content)
             expect(body).toHaveProperty(content2)
             expect(Object.entries(body)).toHaveLength(2)
-        })
-    })
+        },400000)
+    },600000)
     it("Should count the number of attempts in each object correctly", async () => {
         await writeAttempt(repo,userID,content,true,2,resTime)
         const test = getTest()

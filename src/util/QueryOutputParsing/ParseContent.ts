@@ -1,3 +1,6 @@
+import {Interface} from "readline"
+import events from "events"
+import { PassThrough } from "stream"
 export interface ResBody{
     correct: number,
     attempts: number,
@@ -8,7 +11,6 @@ export interface ResBody{
 
 interface ParseQueryOptions extends Record<string, boolean | undefined>{
     mean?: boolean,
-    median?: boolean,
     stdev?: boolean,
     content?: boolean
 }
@@ -19,104 +21,170 @@ export function mean(numbers: number[]): number{
     })/numbers.length
 }
 
-export function median(numbers: number[]): number{
-    numbers = [...numbers].sort((a,b) => {
-        return a - b
-    })
-    if(numbers.length % 2 === 1){
-        return numbers[Math.floor(numbers.length/2)]
+export function stdev(number: number[]): number
+export function stdev(numbers: RunningStdev, length: number): number
+export function stdev(numbers: number[] | RunningStdev, length?: number): number{
+    if(!length){
+        numbers = numbers as number[]
+        const avg = mean(numbers)
+        return Math.sqrt(numbers.reduce((prev: number, current: number) => {
+            return prev + ((current - avg)**2)
+        })
+        //This is numbers.length, not numbers.length - 1, on purpose. This is a parameter, not a statstic; we are querying ALL of the response time values in a particular time frame, NOT a sample of them.
+        /numbers.length) 
     }else{
-        return mean([numbers[(numbers.length/2)-1],numbers[numbers.length/2]])
+        numbers = numbers as RunningStdev
+        return Math.sqrt(length*numbers.s2-numbers.s1**2)/length
+    }
+    
+}
+
+interface ParseLineOutput{
+    sum: number
+    runningStdev: RunningStdev
+}
+
+interface RunningStdev{
+    s1: number,
+    s2: number
+}
+
+function ParseLine(data: string, output: ParseLineOutput, res: ResBody, options: ParseQueryOptions): void{
+    const match = data.match(/([^,]+),([^,]+)$/)
+    if(match === null){
+        throw Error(`Invalid line ${data}`)
+    }
+    if(match[2] === "true"){
+        res.correct++
+        if(options.mean){
+            output.sum += parseInt(match[1],10)
+        }
+        if(options.stdev){
+            const resTime = parseInt(match[1],10)
+            output.runningStdev.s1 += resTime
+            output.runningStdev.s2 += resTime**2
+        }
+    }
+    res.attempts++
+}
+
+function calculateStats(output: ResBody, stats: ParseLineOutput, options: ParseQueryOptions): void{
+    if(options.mean && output.correct > 0){
+        output.mean = stats.sum/output.correct
+    }else if(options.mean){
+        output.mean = NaN
+    }
+    if(options.stdev && output.correct > 0){
+        output.stdev = stdev(stats.runningStdev,output.correct)
+    }else if(options.stdev){
+        output.stdev = NaN
     }
 }
 
-export function stdev(numbers: number[]): number{
-    const avg = mean(numbers)
-    return Math.sqrt(numbers.reduce((prev: number, current: number) => {
-        return prev + ((current - avg)**2)
-    })/(numbers.length-1))
-}
-
-function parseContent(response: [string, string][], options?: ParseQueryOptions ): ResBody{
-    if(options !== undefined){
+export async function parseQueryOutput(response: Interface, options: ParseQueryOptions): Promise<[PassThrough, number]>{
+    const pass = new PassThrough()
+    const write = async (data: string) => {
+        return new Promise<void>(resolve => {
+            pass.write(data,() => {
+                resolve()
+            })
+        })
+    }
+    if(options.content !== undefined){
+        const stats: ParseLineOutput = {
+            sum: options.mean ? 0 : NaN,
+            runningStdev: {
+                s1: options.stdev ? 0 : NaN,
+                s2: options.stdev ? 0 : NaN
+            }
+        }
         const output: ResBody = {
             correct: 0,
             attempts: 0
         }
-        let responseTimes
-        if(options.stdev || options.mean || options.median){
-            responseTimes = new Array<number>()
-        }
-        for(const match of response){
-            if(responseTimes && !isNaN(parseInt(match[0],10))){
-                responseTimes.push(parseInt(match[0],10))
+        let firstLine = true
+        response.on("line", (line: string) => {
+            if(firstLine){
+                firstLine = false
+                return
             }
-            if(match[1] === "true"){
-                output.correct++
-            }
-            output.attempts++
-        }
-        if(options.mean && (responseTimes as number[]).length > 0){
-            output.mean = mean(responseTimes as number[])
-        }else if(options.mean){
-            output.mean = NaN
-        }
-        if(options.stdev && (responseTimes as number[]).length > 1){
-            output.stdev = stdev(responseTimes as number[])
-        }else if(options.stdev){
-            output.stdev = NaN
-        }
-        if(options.median && (responseTimes as number[]).length > 0){
-            output.median = median(responseTimes as number[])
-        }else if(options.median){
-            output.median = NaN
-        }
-        return output
+            ParseLine(line,stats,output,options)
+        })
+        await events.once(response,"close")
+        calculateStats(output,stats,options)
+        const outputString = JSON.stringify(output)
+        await write(outputString)
+        return [pass, outputString.length]
     }else{
-        const output: ResBody = {
-            correct: 0,
-            attempts: 0
+        const writes = new Array<Promise<void>>()
+        let length = 0
+        const newWrite = (data: string) => {
+            writes.push(write(data))
+            length += data.length
         }
-        for(const match of response){
-            if(match[1] === "true"){
-                output.correct++
-            }
-            output.attempts++
-        }
-        return output
-    }
-}
-
-export function parseQueryOutput(response: string, options?: ParseQueryOptions): Map<string, ResBody> | ResBody{
-    if(options === undefined || !options.content){
-        const output = new Map<string,ResBody>()
-        const matches = response.matchAll(/^(.+),(.+),(.+)$/gm)
-        matches.next()
         let currentContent = ""
-        let linesWithCurrentContent = new Array<[string, string]>()
-        for(let match = matches.next();!match.done;){
-            if(match.value[1] === currentContent){
-                linesWithCurrentContent.push([match.value[2], match.value[3]])
-                match = matches.next()
-            }else{
-                if(currentContent !== ""){
-                    output.set(currentContent,parseContent(linesWithCurrentContent,options))
-                }
-                currentContent = match.value[1]
-                linesWithCurrentContent = new Array<[string, string]>()
+        let firstLine = true
+        let firstObject = true
+        let stats: ParseLineOutput = {
+            sum: options.mean ? 0 : NaN,
+            runningStdev: {
+                s1: options.stdev ? 0 : NaN,
+                s2: options.stdev ? 0 : NaN
             }
         }
-        if(currentContent !== ""){
-            output.set(currentContent,parseContent(linesWithCurrentContent,options))
+        let currentOutput: ResBody = {
+            attempts: 0,
+            correct: 0
         }
-        return output
-    }else{
-        const lines = new Array<[string, string]>()
-        const matches = response.matchAll(/^(.+),(.+)$/gm)
-        matches.next()
-        for(const match of matches){
-            lines.push([match[1],match[2]])
+        newWrite("{\n")
+        response.on("line",(data: Buffer) => {
+            if(firstLine){
+                firstLine = false
+                return
+            }
+            const line = data.toString()
+            const match = line.match(/^(.+),(.+),(.+)$/)
+            if(match === null){
+                throw Error("invalid response from graphdb")
+            }
+            if(match[1] !== currentContent){
+                if(currentContent !== "" && !firstObject){
+                    calculateStats(currentOutput,stats,options)
+                    const newString = `,\n"${currentContent}": ${JSON.stringify(currentOutput)}`
+                    newWrite(newString)
+                }else if(currentContent !== ""){
+                    firstObject = false
+                    calculateStats(currentOutput,stats,options)
+                    const newString = `"${currentContent}": ${JSON.stringify(currentOutput)}`
+                    newWrite(newString)
+                }
+                currentContent = match[1]
+                stats = {
+                    sum: options.stdev ? 0 : NaN,
+                    runningStdev: {
+                        s1: options.stdev ? 0 : NaN,
+                        s2: options.stdev ? 0 : NaN
+                    }
+                }
+                currentOutput = {
+                    correct: 0,
+                    attempts: 0
+                }
+            }
+            ParseLine(line,stats,currentOutput,options)
+        })
+        await events.once(response,"close")
+        if(currentContent !== "" && !firstObject){
+            calculateStats(currentOutput,stats,options)
+            const newString = `,\n"${currentContent}": ${JSON.stringify(currentOutput)}`
+            newWrite(newString)
+        }else if(currentContent !== ""){
+            calculateStats(currentOutput,stats,options)
+            const newString = `"${currentContent}": ${JSON.stringify(currentOutput)}`
+            newWrite(newString)
         }
-        return parseContent(lines,options)
+        newWrite("\n}")
+        await Promise.all(writes) //Make sure all the data is finished writing before returning!
+        return [pass, length]
     }
 }

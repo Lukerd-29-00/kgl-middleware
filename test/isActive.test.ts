@@ -29,7 +29,7 @@ describe("active", () => {
     it("Should give a 502 error if the graphdb server returns an error.", async () => {
         const request = supertest(getApp(`http://localhost:${port}`,"isActiveTest",[],[active]))
         const req = request.get(active.route)
-        await req.expect(502)
+        await req.expect(500)
     })
 
     it("Should get a 500 status error if the graphdb server is not found", async () => {

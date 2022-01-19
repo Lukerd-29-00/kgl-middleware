@@ -4,35 +4,30 @@ import supertest from "supertest"
 import getApp from "../src/server"
 import {ip, prefixes} from "../src/config"
 import fetch from "node-fetch"
-import {mean, median, ResBody, stdev} from "../src/util/QueryOutputParsing/ParseContent"
+import {ResBody} from "../src/util/QueryOutputParsing/ParseContent"
 import {Server} from "http"
 import getMockDB from "./mockDB"
 import express from "express"
+import {mean, std} from "mathjs"
 const repo = "userContentStatsTest"
 const port = 7203
 
-function expectError(actual: number, expected: number, threshold = 0.01): void{
+function expectError(actual: number, expected: number, threshold = 0.1): void{
     const error = Math.abs(actual - expected)/Math.abs(actual)
     expect(error).toBeLessThanOrEqual(threshold)
 }
 
-async function expectStats(test: supertest.SuperTest<supertest.Test>, userID: string, content: string, expectedMean: number, expectedMedian: number, expectedStdev: number, interval?: TimeInterval): Promise<void>{
+async function expectStats(test: supertest.SuperTest<supertest.Test>, userID: string, content: string, expectedMean: number, expectedStdev: number, interval?: TimeInterval): Promise<void>{
     for(const calcMean of [true, false]){
-        for(const calcMedian of [true, false]){
-            for(const calcStdev of [true, false]){
-                const output = await queryStats(userContentStats.route,test,userID,{content,...interval, mean: calcMean, median: calcMedian, stdev: calcStdev}) as ResBody
-                if(calcMean){
-                    expect(output).toHaveProperty("mean")
-                    expectError(output.mean as number, expectedMean)
-                }
-                if(calcMedian){
-                    expect(output).toHaveProperty("median")
-                    expectError(output.median as number, expectedMedian)
-                }
-                if(calcStdev){
-                    expect(output).toHaveProperty("stdev")
-                    expectError(output.stdev as number,expectedStdev)
-                }
+        for(const calcStdev of [true, false]){
+            const output = await queryStats(userContentStats.route,test,userID,{content,...interval, mean: calcMean, stdev: calcStdev}) as ResBody
+            if(calcMean){
+                expect(output).toHaveProperty("mean")
+                expectError(output.mean as number, expectedMean)
+            }
+            if(calcStdev){
+                expect(output).toHaveProperty("stdev")
+                expectError(output.stdev as number,expectedStdev)
             }
         }
     }
@@ -124,26 +119,25 @@ describe("userContentStats", () => {
             }),
         ])
     },20000)
-    it("Should be able to correctly calculate any combination of the mean, median, and standard deviation of the response times", async () => {
-        const resTimes = [100,102,401,1200]
-        await Promise.all(resTimes.map((value: number) => {
-            writeAttemptTimed(repo,userID,content,new Date(),true,value)
-        }))
-        await waitFor(async () => {
-            await expectStats(getTest(),userID,content,mean(resTimes),median(resTimes),stdev(resTimes))
-        })
+    it("Should be able to correctly calculate any combination of the mean and standard deviation of the response times", async () => {
+        for(let j = 0;j < 3; j++){
+            const resTimes = new Array<number>()
+            for(let i = 0;i < 5;i++){
+                resTimes.push(Math.random()*1000) //Techincally, it is possible for this test to fail on a working program; however, if it is happening regularly, you have a problem.
+            }
+            await Promise.all(resTimes.map((value: number) => {
+                writeAttemptTimed(repo,userID,content,new Date(),true,value)
+            }))
+            await waitFor(async () => {
+                await expectStats(getTest(),userID,content,mean(resTimes),std(resTimes,"uncorrected"))
+            })
+        }
+
     })
     it("Should return a statistic as null if calculating it would result in division by zero", async () => {
-        const res = await queryStats(userContentStats.route,getTest(),userID,{content,mean:true,median:true,stdev:true})
+        const res = await queryStats(userContentStats.route,getTest(),userID,{content,mean:true,stdev:true})
         expect(res).toHaveProperty("stdev",null)
         expect(res).toHaveProperty("mean",null)
-        expect(res).toHaveProperty("median",null)
-        await writeAttempt(repo,userID,content,true,1,100)
-        await waitFor(async () => {
-            const res = await queryStats(userContentStats.route,getTest(),userID,{content,mean:true,median:true,stdev:true})
-            expect(res).toHaveProperty("correct",1) //Make sure the database is finished writing
-            expect(res).toHaveProperty("stdev",null)
-        })
     })
     it("Should send back a 400 error if the Date header is malformed", async () => {
         await getTest().get(userContentStats.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))).set("Date","junk").expect(400)

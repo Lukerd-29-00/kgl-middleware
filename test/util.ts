@@ -33,7 +33,7 @@ export async function writeAttemptTimed(repo: string, userID: string, content: s
 export async function writeAttempt(repo: string, userID: string, content: string, correct: false): Promise<void>
 export async function writeAttempt(repo: string, userID: string, content: string, correct: false, count: number): Promise<void>
 export async function writeAttempt(repo: string, userID: string, content: string, correct: true, count: number, responseTime: number): Promise<void>
-export async function writeAttempt(repo: string, userID: string, content: string, correct: boolean, count: number = 1, responseTime?: number): Promise<void>{
+export async function writeAttempt(repo: string, userID: string, content: string, correct: boolean, count = 1, responseTime?: number): Promise<void>{
     const location = await startTransaction(ip, repo)
     for(let i = 0; i < count; i++){
         let tmp
@@ -104,7 +104,6 @@ interface QueryStatsKwargs{
     since?: Date,
     before?: Date,
     mean?: boolean,
-    median?: boolean,
     stdev?: boolean
 }
 

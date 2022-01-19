@@ -1,5 +1,6 @@
 import {getPrefixes} from "../util/QueryGenerators/SparqlQueryGenerator"
 import {Query, ParamsDictionary} from "express-serve-static-core"
+import readline from "readline"
 import Joi from "joi"
 import {Request, Response} from "express"
 import { parseQueryOutput } from "../util/QueryOutputParsing/ParseContent"
@@ -8,20 +9,18 @@ import ExecTransaction from "../util/transaction/ExecTransaction"
 import commitTransaction from "../util/transaction/commitTransaction"
 import { Transaction } from "../util/transaction/Transaction"
 import { Endpoint } from "../server"
-import { ResBody } from "../util/QueryOutputParsing/ParseContent"
 
-const route = "/users/stats/:userID"
+const route = "/users/:userID/stats"
 
-interface ReqQuery extends Query{
+export interface ReqParams extends ParamsDictionary{
+    userID: string
+}
+
+export interface ReqQuery extends Query{
     since?: string,
     before?: string,
     stdev?: string,
     mean?: string,
-    median?: string
-}
-
-interface ReqParams extends ParamsDictionary{
-    userID: string
 }
 
 export const querySchema = Joi.object({
@@ -63,7 +62,7 @@ export function getNumberAttemptsQuery(userID: string, prefixes: [string, string
     return output
 }
 
-async function processUserStats(request: Request<ReqParams,string,Record<string,string>,ReqQuery> , response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
+async function processUserStats(request: Request<ReqParams,string,Record<string,string>,ReqQuery> , response: Response,next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>): Promise<void> {
     const userID = request.params.userID
     let before = new Date().getTime()
     if(request.query.before !== undefined){
@@ -72,7 +71,7 @@ async function processUserStats(request: Request<ReqParams,string,Record<string,
         before = new Date(request.headers.date).getTime()
         if(isNaN(before)){
             response.status(400)
-            response.send("Malformed Date header")
+            next(Error("Malformed Date header"))
             return
         }
     }
@@ -92,15 +91,17 @@ async function processUserStats(request: Request<ReqParams,string,Record<string,
         }
         ExecTransaction(transaction, prefixes).then((res) => {
             commitTransaction(location).catch(() => {})
-            const parsed = parseQueryOutput(res,{stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true"})
-            response.send(Object.fromEntries((parsed as Map<string, ResBody>).entries()))
+            response.setHeader("Content-Type","application/json")
+            parseQueryOutput(readline.createInterface({input: res.body, output: response}),{stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true"}).then(output => {
+                response.locals.stream = output[0]
+                response.locals.length = output[1]
+                next()
+            })
         }).catch((e: Error) => {
-            response.status(500)
-            response.send(e.message)
+            next(e)
         })
     }).catch((e: Error) => {
-        response.status(500)
-        response.send(e.message)
+        next(e)
     })
 }
 

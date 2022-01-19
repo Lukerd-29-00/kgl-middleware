@@ -1,10 +1,10 @@
-import fetch from "node-fetch"
+import fetch, {Response} from "node-fetch"
 import { insertQuery } from "./insertQuery"
 import { Transaction } from "./Transaction"
 import { URL } from "url"
 import { deleteQuery } from "./deleteQuery"
 
-async function ExecTransaction(transaction: Transaction, prefixes?: Array<[string, string]>): Promise<string>{
+async function ExecTransaction(transaction: Transaction, prefixes?: Array<[string, string]>): Promise<Response>{
     const url = new URL(transaction.location)
     let body = transaction.body
     let headers = {}
@@ -51,7 +51,7 @@ async function ExecTransaction(transaction: Transaction, prefixes?: Array<[strin
     if(!res.ok){
         throw Error(`Something went wrong executing ${body} at ${transaction.location}: ${await res.text()}\n`)
     }
-    return await res.text()
+    return res
 }
 
 export default ExecTransaction

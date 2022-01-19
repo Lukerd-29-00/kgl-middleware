@@ -1,5 +1,5 @@
 import { Request, Response } from "express"
-import Joi from "joi"
+import readline from "readline"
 import { Endpoint } from "../server"
 import {getPrefixes} from "../util/QueryGenerators/SparqlQueryGenerator"
 import startTransaction from "../util/transaction/startTransaction"
@@ -11,18 +11,21 @@ import { parseQueryOutput } from "../util/QueryOutputParsing/ParseContent"
 import { ResBody } from "../util/QueryOutputParsing/ParseContent"
 import { querySchema } from "./userStats"
 
-interface ReqQuery extends Query{
+const route = "/users/:userID/stats/:content"
+
+export interface ReqParams extends ParamsDictionary{
+    userID: string,
+    content: string
+}
+
+export interface ReqQuery extends Query{
     since?: string,
     before?: string,
     stdev?: string,
     mean?: string,
-    median?: string
 }
 
-interface ReqParams extends ParamsDictionary{
-    userID: string,
-    content: string
-}
+
 
 export function getNumberAttemptsQuery(userID: string, prefixes: [string, string][], since: number, before: number, content: string): string{
     let output = getPrefixes(prefixes)
@@ -51,7 +54,7 @@ export function getNumberAttemptsQuery(userID: string, prefixes: [string, string
     return output
 }
 
-async function processReadFromLearnerRecord(request: Request<ReqParams,string,Record<string,string>,ReqQuery> , response: Response, ip: string, repo: string, prefixes: Array<[string, string]>) {
+async function processReadFromLearnerRecord(request: Request<ReqParams,string,Record<string,string>,ReqQuery> , response: Response, next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>): Promise<void> {
     const userID = request.params.userID
     let before = new Date().getTime()
     if(request.query.before !== undefined){
@@ -59,8 +62,9 @@ async function processReadFromLearnerRecord(request: Request<ReqParams,string,Re
     }else if(request.headers.date !== undefined){
         before = new Date(request.headers.date).getTime()
         if(isNaN(before)){
+            const e = Error("Malformed Date header")
             response.status(400)
-            response.send("Malformed Date header")
+            next(e)
             return
         }
     }
@@ -80,19 +84,19 @@ async function processReadFromLearnerRecord(request: Request<ReqParams,string,Re
         }
         ExecTransaction(transaction, prefixes).then((res) => {
             commitTransaction(location).catch(() => {})
-            const parsed = parseQueryOutput(res, {stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true", content: true})
-            response.send(parsed as ResBody)
+            response.setHeader("Content-Type","application/json")
+            parseQueryOutput(readline.createInterface({input: res.body}), {stdev: request.query.stdev === "true", mean: request.query.mean === "true", content: true}).then((output) => {
+                response.locals.stream = output[0]
+                response.locals.length = output[1]
+                next()
+            })
         }).catch((e: Error) => {
-            response.status(500)
-            response.send(e.message)
+            next(e)
         })
     }).catch((e: Error) => {
-        response.status(500)
-        response.send(e.message)
+        next(e)
     })
 }
-
-const route = "/users/stats/:userID/:content"
 
 const endpoint: Endpoint<ReqParams,string,Record<string,string>,ReqQuery> = { method: "get", schema: {query: querySchema}, route: route, process: processReadFromLearnerRecord }
 export default endpoint

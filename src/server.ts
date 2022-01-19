@@ -9,12 +9,13 @@ import express, { Express, Request, Response } from "express"
 import morgan from "morgan"
 import Joi, { Schema } from "joi"
 import {ParamsDictionary, Query} from "express-serve-static-core"
+import {PassThrough} from "stream"
 
 type plainOrArrayOf<T> = Array<T> | T
 
 type processor<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends Record<string, string | number | boolean | undefined>,Q extends Query> = 
-((request: Request<P,S,R,Q>, response: Response<S>, ip: string, repo: string, prefixes: Array<[string, string]>) => Promise<void>) 
-| ((request: Request, response: Response, ip: string, repo: string) => Promise<void>)
+((request: Request<P,S,R,Q>, response: Response<S>,next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>) => Promise<void>) 
+| ((request: Request, response: Response, next: (e?: Error) => void, ip: string, repo: string) => Promise<void>)
 
 export interface Endpoint<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends Record<string, string | number | boolean | undefined>,Q extends Query>{
     schema: RequestSchema,
@@ -26,6 +27,48 @@ export interface Endpoint<P extends ParamsDictionary,S extends plainOrArrayOf<st
 interface RequestSchema{
     query?: Schema,
     body?: Schema
+}
+
+async function send(request: Request, response: Response): Promise<void>{ //eslint-disable-line
+    const stream = response.locals.stream as PassThrough | undefined
+    let length = response.locals.length || 0 
+    if(stream !== undefined){
+        if(request.method === "HEAD"){
+            response.status(204)
+        }
+        const sender = () => {
+            const writes = new Array<Promise<void>>()
+            if(response.locals.append !== undefined){
+                length += response.locals.append.length
+            }
+            response.setHeader("Content-Length",length)
+            stream.pause()
+            stream.on("data", data => {
+                writes.push(new Promise<void>(resolve => {
+                    response.write(data, () => {
+                        resolve()
+                    })
+                }))
+                
+            })
+            stream.read()
+            stream.end()
+            stream.destroy()
+            Promise.all(writes).then(() => {
+                response.end()
+            })
+        }
+        if(response.locals.append !== undefined){
+            stream.write(response.locals.append,sender)
+        }else{
+            sender()
+        }
+    }else{
+        if(response.statusCode === 200){
+            response.status(204)
+        }
+        response.end()
+    }
 }
 
 /**
@@ -92,13 +135,15 @@ export default function getApp<E extends Endpoint<any,any,any,any> = Endpoint<an
             route[responder.method]((request: Request, response: Response, next: () => void) => {
                 checkRequest(request,response,next,responder.schema)
             })
-            route[responder.method]((request: Request, response: Response) => {
-                responder.process(request,response,ip,repo,prefixes).catch((e: Error) => {
-                    if(log){
-                        console.log(e)
-                    }
-                })
-            })
+            const handler = (request: Request, response: Response, next: (e?: Error) => void) => {
+                responder.process(request,response,next,ip,repo,prefixes)
+            }
+            route[responder.method](handler)
+            route[responder.method](send)
+            if(responder.method == "get"){
+                route.head(handler)
+                route.head(send)
+            }
         }
     }
     app.use("/",router)
