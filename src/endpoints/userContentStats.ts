@@ -1,5 +1,5 @@
 import { Request, Response } from "express"
-import Joi from "joi"
+import readline from "readline"
 import { Endpoint } from "../server"
 import {getPrefixes} from "../util/QueryGenerators/SparqlQueryGenerator"
 import startTransaction from "../util/transaction/startTransaction"
@@ -11,7 +11,7 @@ import { parseQueryOutput } from "../util/QueryOutputParsing/ParseContent"
 import { ResBody } from "../util/QueryOutputParsing/ParseContent"
 import { querySchema } from "./userStats"
 
-const route = "/users/stats/:userID/:content"
+const route = "/users/:userID/stats/:content"
 
 export interface ReqParams extends ParamsDictionary{
     userID: string,
@@ -23,7 +23,6 @@ export interface ReqQuery extends Query{
     before?: string,
     stdev?: string,
     mean?: string,
-    median?: string
 }
 
 
@@ -55,7 +54,7 @@ export function getNumberAttemptsQuery(userID: string, prefixes: [string, string
     return output
 }
 
-async function processReadFromLearnerRecord(request: Request<ReqParams,string,Record<string,string>,ReqQuery> , response: Response, next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>) {
+async function processReadFromLearnerRecord(request: Request<ReqParams,string,Record<string,string>,ReqQuery> , response: Response, next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>): Promise<void> {
     const userID = request.params.userID
     let before = new Date().getTime()
     if(request.query.before !== undefined){
@@ -66,7 +65,7 @@ async function processReadFromLearnerRecord(request: Request<ReqParams,string,Re
             const e = Error("Malformed Date header")
             response.status(400)
             next(e)
-            throw e
+            return
         }
     }
     let since = before - 8.64e+7
@@ -85,16 +84,17 @@ async function processReadFromLearnerRecord(request: Request<ReqParams,string,Re
         }
         ExecTransaction(transaction, prefixes).then((res) => {
             commitTransaction(location).catch(() => {})
-            const parsed = parseQueryOutput(res, {stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true", content: true})
-            response.locals.body = parsed
-            next()
+            response.setHeader("Content-Type","application/json")
+            parseQueryOutput(readline.createInterface({input: res.body}), {stdev: request.query.stdev === "true", mean: request.query.mean === "true", content: true}).then((output) => {
+                response.locals.stream = output[0]
+                response.locals.length = output[1]
+                next()
+            })
         }).catch((e: Error) => {
             next(e)
-            throw e
         })
     }).catch((e: Error) => {
         next(e)
-        throw e
     })
 }
 

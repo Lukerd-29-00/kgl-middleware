@@ -104,7 +104,6 @@ interface QueryStatsKwargs{
     since?: Date,
     before?: Date,
     mean?: boolean,
-    median?: boolean,
     stdev?: boolean
 }
 

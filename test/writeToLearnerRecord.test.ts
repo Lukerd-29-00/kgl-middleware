@@ -73,7 +73,7 @@ async function makeQuery(body: string): Promise<string>{
     }
     const res = await ExecTransaction(transaction,prefixes)
     await commitTransaction(transactionLocation)
-    return res
+    return await res.text()
 }
 
 async function expectStatement(location: Resource, expected: Answer): Promise<void>{
@@ -115,8 +115,8 @@ describe("writeToLearnerRecord", () => {
         await queryWrite(test,userID,content,time,false)
         await waitFor(async () => {
             expectStatements(expected)
-        })
-    })
+        },40000)
+    },40000)
     it("Should be able to handle several concurrent requests", async () => {
         const timestamp = new Date()
         const expected = new Map<Resource,Answer[]>()

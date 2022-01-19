@@ -8,6 +8,7 @@ import Joi from "joi"
 import { Endpoint } from "../server"
 import {ParamsDictionary, Query} from "express-serve-static-core"
 import {v4 as uuid} from "uuid"
+import { nextTick } from "process"
 
 const bodySchema = Joi.object({
     correct: Joi.boolean().required(),
@@ -18,7 +19,7 @@ const bodySchema = Joi.object({
     })
 })
 
-const route = "/users/data/:userID/:content"
+const route = "/users/:userID/data/:content"
 
 export interface ReqParams extends ParamsDictionary{
     userID: string
@@ -63,14 +64,14 @@ export function createLearnerRecordTriples(userID: string, content: string, time
     return rawTriples
 }
 
-async function processWriteToLearnerRecord(request: Request<ReqParams,string,ReqBody,Query>, response: Response<string>, next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>) {
+async function processWriteToLearnerRecord(request: Request<ReqParams,string,ReqBody,Query>, response: Response<string>, next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>): Promise<void> {
     const userID = request.params.userID
     let timestamp = new Date().getTime()
     if(request.headers.date !== undefined){
         timestamp = new Date(request.headers.date).getTime()
         if(isNaN(timestamp)){
             response.status(400)
-            response.send("Malformed Date header")
+            next(Error("Malformed Date header"))
             return
         }
     }
@@ -87,11 +88,10 @@ async function processWriteToLearnerRecord(request: Request<ReqParams,string,Req
     writeToLearnerRecord(ip, repo, prefixes, triples)
         .then(() => {
             response.status(202)
-            response.send("")
+            next()
         })
         .catch((e: Error) => {
-            response.status(500)
-            response.send(e.message)
+            next(e)
         })
 }
 

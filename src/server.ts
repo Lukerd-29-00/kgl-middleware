@@ -7,8 +7,9 @@
  */
 import express, { Express, Request, Response } from "express"
 import morgan from "morgan"
-import Joi, { Schema } from "joi"
+import Joi, { isRef, Schema } from "joi"
 import {ParamsDictionary, Query} from "express-serve-static-core"
+import {PassThrough} from "stream"
 
 type plainOrArrayOf<T> = Array<T> | T
 
@@ -29,21 +30,43 @@ interface RequestSchema{
 }
 
 async function send(request: Request, response: Response): Promise<void>{ //eslint-disable-line
-    const body = response.locals.body
-    if(request.method === "HEAD"){
-        response.status(204)
-        if(typeof body == "string"){
-            response.header("Content-Length",body.length.toString())
-        }else if(body){
-            response.header("Content-Length",JSON.stringify(body).length.toString())
+    const stream = response.locals.stream as PassThrough | undefined
+    let length = response.locals.length || 0 
+    if(stream !== undefined){
+        if(request.method === "HEAD"){
+            response.status(204)
         }
-        response.end()
-    }else if(body !== undefined){
-        if(response.getHeader("Content-Length")){
-            throw Error("Error: Content-Length was set prematurely! the send function at the end of the stack should set this header!")
+        const sender = () => {
+            const writes = new Array<Promise<void>>()
+            if(response.locals.append !== undefined){
+                length += response.locals.append.length
+            }
+            response.setHeader("Content-Length",length)
+            stream.pause()
+            stream.on("data", data => {
+                writes.push(new Promise<void>(resolve => {
+                    response.write(data, () => {
+                        resolve()
+                    })
+                }))
+                
+            })
+            stream.read()
+            stream.end()
+            stream.destroy()
+            Promise.all(writes).then(() => {
+                response.end()
+            })
         }
-        response.send(body)
+        if(response.locals.append !== undefined){
+            stream.write(response.locals.append,sender)
+        }else{
+            sender()
+        }
     }else{
+        if(response.statusCode === 200){
+            response.status(204)
+        }
         response.end()
     }
 }
@@ -113,11 +136,7 @@ export default function getApp<E extends Endpoint<any,any,any,any> = Endpoint<an
                 checkRequest(request,response,next,responder.schema)
             })
             const handler = (request: Request, response: Response, next: (e?: Error) => void) => {
-                responder.process(request,response,next,ip,repo,prefixes).catch((e: Error) => {
-                    if(log){
-                        console.log(e)
-                    }
-                })
+                responder.process(request,response,next,ip,repo,prefixes)
             }
             route[responder.method](handler)
             route[responder.method](send)
