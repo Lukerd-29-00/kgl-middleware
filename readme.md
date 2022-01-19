@@ -51,15 +51,19 @@ These are some possible questions I forsee developers having with developing gam
 1. Q: Can I access the graphdb database directly?
 <!-- -->
 A: No.
+<!-- -->
 2. Q: My requests to the API keep saying the server is not found when I include the content in the URL, but works fine otherwise. Why?
 <!-- -->
 A: The content IRIs contain characters that are not URL-safe. make sure to [URL encode](https://en.wikipedia.org/wiki/Percent-encoding) the content IRIs.
+<!-- -->
 3. Q: My write requests keep failing, even though the body is perfectly valid JSON, but everything else is fine! what do I do?
 <!-- -->
 A: Set the Content-Type header to application/json. 
+<!-- -->
 4. Q: How do I decide when a student has mastered a particular question?
 <!-- -->
 A: Since this program is new, there isn't much data on the best method for this. However, I would advise against simply picking an arbitrary number. Let's illustrate why with an example. Suppose I have one question matching 'c' to it's sound, and the other options are q, a, and b There is a 1 in 4 chance the child will guess the right answer at random. If I want them to spell cat with the letters c, a, t, and d, and I only allow them to enter 3 letters, there is a 4^(-3) = 1/64 chance of them guessing it randomly. Setting the same threshold for correct answers for both of these problems is clearly not ideal. I would recommend that you utilize the [χ2 distribution](https://en.wikipedia.org/wiki/Chi-squared_test) to select your thresholds. If the child knows some of the letters, you may need to remember to consider the effects of the [Monty Hall problem](https://en.wikipedia.org/wiki/Monty_Hall_problem), which could skew the percentage of correct answers above what you might expect, though it is unknown if young children will realize they can exploit this; adults usually do not, but some animals have been known to notice this effect and exploit it, so it wouldn't be too surprising if a young child who hasn't learned anything about probability noticed it.
+<!-- -->
 5. Q: Why are we recording response times?
 <!-- -->
 A: To detect outliers. This allows detection of another player helping a child with a question, which could otherwise create bad data. Currently, there is no functionality to exclude extreme outliers from queries; you will have to do it yourself by querying the raw data and filtering it yourself. In the future, we plan to implement functions to exclude extreme outliers. However, we do not currently know what distribution the reponse times will fall on, so it is not possible to know the most efficient method for doing this. To find the distribution the response times usually fall into, we need to record this data; hence, we record it without doing much with it, for the time being. If you want to exclude outliers, you can either determine the distribution of the response time yourself in real-time, or use a t-test, which is not distribution-sensitive, as long as you're careful about skew. Don't go too overboard with the calculations, though; the people using these apps may not have perfectly reliable electricity access, so don't go wasting power running massively complex statstical analysis every second or two.
