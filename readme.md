@@ -21,14 +21,16 @@ The API itself is in a standard REST format. It contains the following resources
 #### Writing data
 To write a statement, make a PUT request to /users/{id}/data/{content} with a body containing a boolean value correct and, if correct is true, a response time in milliseconds. The Date header of the request is used to determine the timestamp. (The timestamp may be moved to the body in the future to allow for bulk uploads).
 
-### Reading data
+#### Reading data
 All queries involving reading data from the database allow the query parameters before and since. These should both be UTC date strings. The data returned will concern only the statements with timestamps after since and before before. Any GET request can also be substituted for a HEAD request.
 
-#### Raw data
+##### Raw data
 To get the raw data, make a request to /users/{id}/data/{content}. Before and since are _required_ for this resource, to make sure people query only the data they actually need and avoid slowdown from overly large requests.
 
-#### Statistics
-A request to /users/{id}/data/{content} will return a json response with the fields "correct" and "attempts". "attempts" represents the number of times the question was attempted, while correct represents the number of these attempts that were successful. Optionally, you may add the mean and stdev query parameters with values of true to get the mean and standard deviation of the response times in the desired time range. If since and before are unspecified, the program will attempt to set before to the Date header. If it is not present, before defaults to the server time (UTC date strings are only accurate to the second anyway, so this is unlikely to make a significant difference in your data, but it is recomended to supply either the before parameter or the Date header, as you cannot be sure when your request will arrive and be processed). Since will be set to a day before the value of before if it is not specified.
+##### Statistics
+A request to /users/{id}/stats/{content} will return a json response with the fields "correct" and "attempts". "attempts" represents the number of times the question was attempted, while correct represents the number of these attempts that were successful. Optionally, you may add the mean and stdev query parameters with values of true to get the mean and standard deviation of the response times in the desired time range. If since and before are unspecified, the program will attempt to set before to the Date header. If it is not present, before defaults to the server time (UTC date strings are only accurate to the second anyway, so this is unlikely to make a significant difference in your data, but it is recomended to supply either the before parameter or the Date header, as you cannot be sure when your request will arrive and be processed). Since will be set to a day before the value of before if it is not specified. Alternatively, you can make a request to /users/{id}/stats to get the data for all subjects. The request format is the same, and the response will be the IRI of each content mapped to the output you would get from /users/{id}/stats/{content} for each IRI. Requesting the mean or standard deviation if there are no statements for something will give you null for either statistic. Note that the standard deviation is not calculated using the corrected formula.
+<!-- -->
+<b>Currently, the standard deviation is not calculated reliably. Use at your own risk!</b>
 
 ## Repository Structure
 
