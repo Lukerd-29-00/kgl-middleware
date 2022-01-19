@@ -2,14 +2,13 @@ import { Request, Response } from "express"
 import fetch from "node-fetch"
 import { Endpoint } from "../server"
 import {ParamsDictionary, Query} from "express-serve-static-core"
-import { nextTick } from "process"
 
 const route = "/active"
 
 async function processActive(request: Request<ParamsDictionary,string,Record<string,string | number | boolean | undefined>,Query>, response: Response<string>, next: (e?: Error) => void, ip: string, defaultRepo: string): Promise<void>{
     fetch(`${ip}/repositories/${defaultRepo}/size`).then(probe => {
         if(!probe.ok){
-            probe.text().then(res => {
+            probe.text().then(() => {
                 const e = new Error("Could not find graphdb")
                 next(e)
             }).catch(e => {

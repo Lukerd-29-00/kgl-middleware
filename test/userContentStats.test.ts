@@ -8,7 +8,7 @@ import {ResBody} from "../src/util/QueryOutputParsing/ParseContent"
 import {Server} from "http"
 import getMockDB from "./mockDB"
 import express from "express"
-const mathjs = require("mathjs")
+import {mean, std} from "mathjs"
 const repo = "userContentStatsTest"
 const port = 7203
 
@@ -129,9 +129,7 @@ describe("userContentStats", () => {
                 writeAttemptTimed(repo,userID,content,new Date(),true,value)
             }))
             await waitFor(async () => {
-                const mean = mathjs.mean(resTimes)
-                const std = mathjs.std(resTimes)
-                await expectStats(getTest(),userID,content,mathjs.mean(resTimes),mathjs.std(resTimes,"uncorrected"))
+                await expectStats(getTest(),userID,content,mean(resTimes),std(resTimes,"uncorrected"))
             })
         }
 

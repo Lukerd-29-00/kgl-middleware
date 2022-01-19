@@ -7,7 +7,7 @@
  */
 import express, { Express, Request, Response } from "express"
 import morgan from "morgan"
-import Joi, { isRef, Schema } from "joi"
+import Joi, { Schema } from "joi"
 import {ParamsDictionary, Query} from "express-serve-static-core"
 import {PassThrough} from "stream"
 

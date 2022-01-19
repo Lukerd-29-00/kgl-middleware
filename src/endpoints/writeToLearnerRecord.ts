@@ -8,7 +8,6 @@ import Joi from "joi"
 import { Endpoint } from "../server"
 import {ParamsDictionary, Query} from "express-serve-static-core"
 import {v4 as uuid} from "uuid"
-import { nextTick } from "process"
 
 const bodySchema = Joi.object({
     correct: Joi.boolean().required(),

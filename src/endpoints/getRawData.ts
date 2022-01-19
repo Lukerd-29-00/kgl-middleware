@@ -1,4 +1,4 @@
-import Joi, { object } from "joi"
+import Joi from "joi"
 import {Request, Response} from "express"
 import {Response as FetchResponse} from "node-fetch"
 import { getPrefixes } from "../util/QueryGenerators/SparqlQueryGenerator"
@@ -9,9 +9,7 @@ import {Transaction} from "../util/transaction/Transaction"
 import { Endpoint } from "../server"
 import {ParamsDictionary, Query} from "express-serve-static-core"
 import readline from "readline"
-import {v4 as uuid} from "uuid"
 import { PassThrough } from "stream"
-import { createWriteStream } from "fs"
 const querySchema = Joi.object({
     since: Joi.date().required().max(Joi.ref("before")),
     before: Joi.date().required()

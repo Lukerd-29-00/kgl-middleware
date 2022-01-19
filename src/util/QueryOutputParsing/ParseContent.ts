@@ -31,7 +31,7 @@ export function stdev(numbers: number[] | RunningStdev, length?: number): number
             return prev + ((current - avg)**2)
         })
         //This is numbers.length, not numbers.length - 1, on purpose. This is a parameter, not a statstic; we are querying ALL of the response time values in a particular time frame, NOT a sample of them.
-        /(numbers.length)) 
+        /numbers.length) 
     }else{
         numbers = numbers as RunningStdev
         return Math.sqrt(length*numbers.s2-numbers.s1**2)/length
