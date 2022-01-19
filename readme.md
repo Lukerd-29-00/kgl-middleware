@@ -5,7 +5,8 @@ This is the source code for a nodejs-based REST API that can be utilized to quer
 This API stores statements in rdf triple format in graphdb. The data is uploaded in [Turtle](https://www.w3.org/TR/turtle/) format. Every time a user answers a question, the following data will be stored at users/{their id}/data/{the iri for the concept}:
 1. Did they get the question correct or not?
 2. if they did get it correct, how long did it take them to respond (in ms)?
-3. When was the question answered (in [Unix time](https://en.wikipedia.org/wiki/Unix_time))?<!-- -->
+3. When was the question answered (in [Unix time](https://en.wikipedia.org/wiki/Unix_time))?
+<!-- -->
 All request bodies must be in JSON format, and the responses, as long as there is not an error, will also be in JSON format. If there is an error, an error message will be returned in html format.
 
 ### Resource structure
