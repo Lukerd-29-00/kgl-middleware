@@ -14,12 +14,12 @@ import {PassThrough} from "stream"
 type plainOrArrayOf<T> = Array<T> | T
 
 /**This is a specific type of middleware, intended to retrieve the desired data or write it to the database. Places the data into a PassThrough stream under response.locals.stream, the number of bytes in the stream under response.locals.length, and any characters to be added to the stream before reading in the response.locals.append variable. */
-type processor<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends Record<string, string | number | boolean | undefined>,Q extends Query> = 
+type processor<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends plainOrArrayOf<Record<string, string | number | boolean | undefined>>,Q extends Query> = 
 ((request: Request<P,S,R,Q>, response: Response<S>,next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>) => Promise<void>) 
-| ((request: Request, response: Response, next: (e?: Error) => void, ip: string, repo: string) => Promise<void>)
+| ((request: Request<P,S,R,Q>, response: Response, next: (e?: Error) => void, ip: string, repo: string) => Promise<void>)
 
 /**This holds all the data required to determine what to do if a user queries the route field */
-export interface Endpoint<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends Record<string, string | number | boolean | undefined>,Q extends Query>{
+export interface Endpoint<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends plainOrArrayOf<Record<string, string | number | boolean | undefined>>,Q extends Query>{
     schema: RequestSchema,
     route: string,
     method: "put" | "post" | "delete" | "get",

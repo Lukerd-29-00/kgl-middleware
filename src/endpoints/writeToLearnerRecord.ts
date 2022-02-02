@@ -9,14 +9,17 @@ import { Endpoint } from "../server"
 import {ParamsDictionary, Query} from "express-serve-static-core"
 import {v4 as uuid} from "uuid"
 
-const bodySchema = Joi.object({
+
+const ReqBodySchema = Joi.object({
     correct: Joi.boolean().required(),
     responseTime: Joi.when("correct",{
         is: Joi.boolean().valid(true),
         then: Joi.number().integer().unit("milliseconds").required(),
         otherwise: Joi.forbidden()
-    })
+    }),
+    timestamp: Joi.date().required()
 })
+const bodySchema = Joi.alternatives(Joi.array().items(ReqBodySchema),ReqBodySchema)
 
 const route = "/users/:userID/data/:content"
 
@@ -27,7 +30,8 @@ export interface ReqParams extends ParamsDictionary{
 
 export interface ReqBody extends Record<string, string | number | boolean | undefined>{
     responseTime: number,
-    correct: boolean
+    correct: boolean,
+    timestamp: string
 }
 
 export function createLearnerRecordTriples(userID: string, content: string, timestamp: number, correct: false): string
@@ -63,59 +67,81 @@ export function createLearnerRecordTriples(userID: string, content: string, time
     return rawTriples
 }
 
-async function processWriteToLearnerRecord(request: Request<ReqParams,string,ReqBody,Query>, response: Response<string>, next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>): Promise<void> {
-    const userID = request.params.userID
-    let timestamp = new Date().getTime()
-    if(request.headers.date !== undefined){
-        timestamp = new Date(request.headers.date).getTime()
-        if(isNaN(timestamp)){
-            response.status(400)
-            next(Error("Malformed Date header"))
-            return
-        }
-    }
-    const content = request.params.content
-    const correct = request.body.correct
-    const responseTime = request.body.responseTime
-    let tmp2: undefined | string
-    if(correct){
-        tmp2 = createLearnerRecordTriples(userID, content, timestamp,true,responseTime)
-    }else{
-        tmp2 = createLearnerRecordTriples(userID, content, timestamp,false)
-    }
-    const triples = tmp2 as string
-    writeToLearnerRecord(ip, repo, prefixes, triples)
-        .then(() => {
-            response.status(202)
-            next()
-        })
-        .catch((e: Error) => {
-            next(e)
-        })
+function isReqBody(body: ReqBody | Array<ReqBody>): body is ReqBody{
+    return (body as ReqBody).correct !== undefined
 }
 
-async function writeToLearnerRecord(ip: string, repo: string, prefixes: Array<[string, string]>, triples: string): Promise<void> {
-    const location = await startTransaction(ip, repo)
-    const transaction: Transaction = { subj: null, pred: null, obj: null, body: triples, action: "UPDATE", location }
-    return new Promise<void>((resolve, reject) => {
-        ExecTransaction(transaction, prefixes).then(() => {
+async function processWriteToLearnerRecord(request: Request<ReqParams,string,Array<ReqBody> | ReqBody,Query>, response: Response<string>, next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>): Promise<void> {
+    const promises = new Array<Promise<void>>()
+    const location = await startTransaction(ip, repo).catch(e => {
+        next(e)
+    })
+    if(location === undefined){
+        return
+    }
+    if(isReqBody(request.body)){
+        let triples: undefined | string
+        if(request.body.correct){
+            triples = createLearnerRecordTriples(request.params.userID,request.params.content,new Date(request.body.timestamp).getTime(),true,request.body.responseTime)
+        }else{
+            triples = createLearnerRecordTriples(request.params.userID,request.params.content,new Date(request.body.timestamp).getTime(),false)
+        }
+        ExecTransaction({location, body: triples as string, subj: null, pred: null, obj: null, action: "UPDATE"},prefixes).then(() => {
             commitTransaction(location).then(() => {
-                resolve()
-            }).catch((e: Error) => {
+                response.status(202)
+                next()
+            }).catch(e => {
                 rollback(location).then(() => {
-                    reject(`Failed to commit transaction: ${e.message}`)
-                }).catch((err: Error) => {
-                    reject(`Failed to roll back: ${err.message}\n\nAfter error: ${e.message}`)
+                    next(e)
+                }).catch(e2 => {
+                    next(Error(`Failed rollback: ${e2} after error: ${e}`))
                 })
             })
-        }).catch((e) => {
+        }).catch(e => {
             rollback(location).then(() => {
-                reject(`Could not write to triple store: ${e.message}`)
-            }).catch((err: Error) => {
-                reject(`Could not roll back: ${err.message}\n\nAfter error: ${e.message}`)
+                next(e)
+            }).catch(e2 => {
+                next(Error(`Failed rollback: ${e2} after error: ${e}`))
             })
         })
-    })
+    }else{
+        for(const statement of request.body){
+            const userID = request.params.userID
+            const timestamp = new Date(statement.timestamp).getTime()
+            const content = request.params.content
+            const correct = statement.correct
+            const responseTime = statement.responseTime
+            let tmp2: undefined | string
+            if(correct){
+                tmp2 = createLearnerRecordTriples(userID, content, timestamp,true,responseTime)
+            }else{
+                tmp2 = createLearnerRecordTriples(userID, content, timestamp,false)
+            }
+            const triples = tmp2 as string
+            promises.push(writeToLearnerRecord(location, prefixes, triples))
+        }
+        Promise.all(promises).then(() => {
+            commitTransaction(location).then(() => {
+                response.status(202)
+                next()
+            }).catch((e) => {
+                next(e)
+            })
+        }).catch((e: Error) => {
+            rollback(location).then(() => {
+                next(e)
+            }).catch(e2 => {
+                const err = Error(`Failed rollback: ${e2} after error: ${e}`)
+                next(err)
+            })
+        })
+    }
+
 }
-const endpoint: Endpoint<ReqParams,string,ReqBody,Query> = { method: "put",schema: {body: bodySchema}, route, process: processWriteToLearnerRecord }
+
+async function writeToLearnerRecord(location: string, prefixes: Array<[string, string]>, triples: string): Promise<void> {
+    const transaction: Transaction = { subj: null, pred: null, obj: null, body: triples, action: "UPDATE", location }
+    await ExecTransaction(transaction, prefixes)
+}
+const endpoint: Endpoint<ReqParams,string,ReqBody[],Query> = { method: "put",schema: {body: bodySchema}, route, process: processWriteToLearnerRecord }
 export default endpoint
