@@ -134,6 +134,23 @@ describe("writeToLearnerRecord", () => {
             expectStatements(expected)
         })
     })
+    it("Should allow you to upload an array of answers", async () => {
+        const timestamp = new Date()
+        const expected = new Map<Resource,Answer[]>()
+        const answers = [
+            {correct: false, timestamp: timestamp.getTime()},
+            {correct: true, timestamp: timestamp.getTime(), responseTime: 100},
+            {correct: false, timestamp: new Date().getTime()}
+        ]
+        expected.set({userID,content},answers)
+        const test = supertest(app)
+        const route = writeToLearnerRecord.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
+        await test.put(route).set("Content-Type","application/json").send(answers).expect(202)
+        await waitFor(async () => {
+            expectStatements(expected)
+        })
+        
+    })
     it("Should send back a 400 error if the date header is malformed", async () => {
         const test = supertest(app)
         const body = {correct: false}
