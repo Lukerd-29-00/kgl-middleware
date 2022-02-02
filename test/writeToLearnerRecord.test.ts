@@ -157,12 +157,23 @@ describe("writeToLearnerRecord", () => {
     const app = getApp(mockIp,repo,prefixes,[writeToLearnerRecord])
     const body = {
         correct: true,
-        responseTime
+        responseTime,
+        timestamp: timestamp.toUTCString()
     }
     const route = writeToLearnerRecord.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
-    it("Should send a server error if it cannot start a transaction", async () => {
-        const test = supertest(app)
-        await test.put(route).set("Date",timestamp.toUTCString()).send(body).expect(500)
+    it("Should send a server error if it cannot start a transaction", done => {
+        const mockDB = getMockDB(mockIp,express(),repo,false,false,false)
+        server = mockDB.server.listen(port, () => {
+            const test = supertest(app)
+            test.put(route).send(body).expect(500).end(err => {
+                if(err !== undefined){
+                    done(err)
+                }else{
+                    done()
+                }
+            })
+        })
+        
     })
     it("Should send a server error and attempt a rollback if it cannot execute a transaction", done => {
         const mockDB = getMockDB(mockIp,express(),repo,true,true,false)

@@ -73,7 +73,12 @@ function isReqBody(body: ReqBody | Array<ReqBody>): body is ReqBody{
 
 async function processWriteToLearnerRecord(request: Request<ReqParams,string,Array<ReqBody> | ReqBody,Query>, response: Response<string>, next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>): Promise<void> {
     const promises = new Array<Promise<void>>()
-    const location = await startTransaction(ip, repo)
+    const location = await startTransaction(ip, repo).catch(e => {
+        next(e)
+    })
+    if(location === undefined){
+        return
+    }
     if(isReqBody(request.body)){
         let triples: undefined | string
         if(request.body.correct){
