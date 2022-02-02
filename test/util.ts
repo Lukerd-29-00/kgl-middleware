@@ -143,6 +143,6 @@ export async function queryWrite(test: supertest.SuperTest<supertest.Test>, user
 export async function queryWrite(test: supertest.SuperTest<supertest.Test>, userID: string, content: string, timestamp: Date, correct: true, responseTime: number): Promise<void>
 export async function queryWrite(test: supertest.SuperTest<supertest.Test>, userID: string, content: string, timestamp: Date, correct: boolean, responseTime?: number): Promise<void>{
     const route = writeToLearnerRecord.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
-    const body = {correct, responseTime}
-    await test.put(route).set("Content-Type","application/json").set("Date",timestamp.toUTCString()).send(body).expect(202)
+    const body = {correct, responseTime, timestamp: timestamp.toUTCString()}
+    await test.put(route).set("Content-Type","application/json").send(body).expect(202)
 }

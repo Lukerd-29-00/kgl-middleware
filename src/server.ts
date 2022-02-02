@@ -13,11 +13,13 @@ import {PassThrough} from "stream"
 
 type plainOrArrayOf<T> = Array<T> | T
 
-type processor<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends Record<string, string | number | boolean | undefined>,Q extends Query> = 
+/**This is a specific type of middleware, intended to retrieve the desired data or write it to the database. Places the data into a PassThrough stream under response.locals.stream, the number of bytes in the stream under response.locals.length, and any characters to be added to the stream before reading in the response.locals.append variable. */
+type processor<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends plainOrArrayOf<Record<string, string | number | boolean | undefined>>,Q extends Query> = 
 ((request: Request<P,S,R,Q>, response: Response<S>,next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>) => Promise<void>) 
-| ((request: Request, response: Response, next: (e?: Error) => void, ip: string, repo: string) => Promise<void>)
+| ((request: Request<P,S,R,Q>, response: Response, next: (e?: Error) => void, ip: string, repo: string) => Promise<void>)
 
-export interface Endpoint<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends Record<string, string | number | boolean | undefined>,Q extends Query>{
+/**This holds all the data required to determine what to do if a user queries the route field */
+export interface Endpoint<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends plainOrArrayOf<Record<string, string | number | boolean | undefined>>,Q extends Query>{
     schema: RequestSchema,
     route: string,
     method: "put" | "post" | "delete" | "get",
@@ -29,6 +31,10 @@ interface RequestSchema{
     body?: Schema
 }
 
+/**Sends a response that has been pre-processed by a processor (see above). Always ends the response. The response should not be ended before this function is called.
+ * @param request The original request
+ * @param response The response to send back
+ */
 async function send(request: Request, response: Response): Promise<void>{ //eslint-disable-line
     const stream = response.locals.stream as PassThrough | undefined
     let length = response.locals.length || 0 
@@ -105,6 +111,14 @@ interface Responder{
     schema: RequestSchema   
 }
 
+/**Constructs an Express object from a list of Endpoint objects that executes checkRequest on the endpoints' schemas, their processors, and then send for each endpoint.  
+ * @param ip The URL to the desired Graphdb server
+ * @param repo The graphdb repository to interact with
+ * @param prefixes The prefixes to use in SPARQL queries
+ * @param endpoints The endpoints of this server
+ * @param log Whether or not to log requests to the console.
+ * @returns an Express object that will host the desired Endpoint objects.
+ */
 export default function getApp<E extends Endpoint<any,any,any,any> = Endpoint<any,any,any,any>>(ip: string, repo: string, prefixes: Array<[string, string]>, endpoints: Array<E>, log?: boolean): Express { //eslint-disable-line
     const app = express()
     //Use the morgan logging library to log requests if desired
@@ -147,7 +161,6 @@ export default function getApp<E extends Endpoint<any,any,any,any> = Endpoint<an
         }
     }
     app.use("/",router)
-
     return app
 }
 
