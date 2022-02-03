@@ -11,7 +11,7 @@ import { Transaction } from "../src/util/transaction/Transaction"
 
 function getPrefixes(triples: string): Array<[string, string]>{
     const prefs = new Array<[string, string]>()
-    const re = /(?:@prefix | PREFIX )(.*:) <([^>]*)> \./g
+    const re = /(?:@prefix | PREFIX )(.*): <([^>]*)> \./g
     let matches = triples.matchAll(re)
     for(let entry = matches.next(); !entry.done; entry = matches.next()){
         prefs.push([entry.value[1],entry.value[2]])
