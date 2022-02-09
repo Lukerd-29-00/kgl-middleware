@@ -3,9 +3,7 @@ import readline from "readline"
 import { Endpoint } from "../server"
 import {getPrefixes} from "../util/QueryGenerators/SparqlQueryGenerator"
 import startTransaction from "../util/transaction/startTransaction"
-import ExecTransaction from "../util/transaction/ExecTransaction"
-import { Transaction } from "../util/transaction/Transaction"
-import commitTransaction from "../util/transaction/commitTransaction"
+import {execTransaction, BodyAction, BodyLessAction} from "../util/transaction/execTransaction"
 import {ParamsDictionary, Query} from "express-serve-static-core"
 import { parseQueryOutput } from "../util/QueryOutputParsing/ParseContent"
 import { querySchema } from "./userStats"
@@ -90,16 +88,8 @@ async function processUserContentStats(request: Request<ReqParams,string,Record<
     }
     const query = getNumberAttemptsQuery(userID,prefixes,since,before,request.params.content)
     startTransaction(ip, repo).then((location) => {
-        const transaction: Transaction = {
-            subj: null,
-            pred: null,
-            obj: null,
-            action: "QUERY",
-            body: query,
-            location: location
-        }
-        ExecTransaction(transaction, prefixes).then(res => {
-            commitTransaction(location).catch(() => {})
+        execTransaction(BodyAction.QUERY, location, prefixes, query).then(res => {
+            execTransaction(BodyLessAction.COMMIT,location).catch(() => {})
             response.setHeader("Content-Type","application/json")
             parseQueryOutput(readline.createInterface({input: res.body}), {stdev: request.query.stdev === "true", mean: request.query.mean === "true", content: true}).then(output => {
                 response.locals.stream = output[0]

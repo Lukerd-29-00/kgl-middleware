@@ -1,9 +1,7 @@
 import supertest from "supertest"
 import startTransaction from "../src/util/transaction/startTransaction"
-import ExecTransaction from "../src/util/transaction/ExecTransaction"
-import commitTransaction from "../src/util/transaction/commitTransaction"
+import {execTransaction, BodyAction, BodyLessAction} from "../src/util/transaction/ExecTransaction"
 import {createLearnerRecordTriples} from "../src/endpoints/writeToLearnerRecord"
-import {Transaction} from "../src/util/transaction/Transaction"
 import {ip, prefixes} from "../src/config"
 import writeToLearnerRecord from "../src/endpoints/writeToLearnerRecord"
 
@@ -18,16 +16,8 @@ export async function writeAttemptTimed(repo: string, userID: string, content: s
         tmp = createLearnerRecordTriples(userID, content,time.getTime(),correct as false)
     }
     const triples = tmp as string
-    const transaction: Transaction = {
-        subj: null,
-        pred: null,
-        obj: null,
-        location: location,
-        body: triples,
-        action: "UPDATE"
-    }
-    await ExecTransaction(transaction,prefixes)
-    await commitTransaction(location)
+    await execTransaction(BodyAction.UPDATE,location,prefixes,triples)
+    await execTransaction(BodyLessAction.COMMIT,location)
 }
 
 export async function writeAttempt(repo: string, userID: string, content: string, correct: false): Promise<void>
@@ -44,17 +34,9 @@ export async function writeAttempt(repo: string, userID: string, content: string
             tmp = createLearnerRecordTriples(userID, content,time,correct as false)
         }
         const triples = tmp as string
-        const transaction: Transaction = {
-            subj: null,
-            pred: null,
-            obj: null,
-            location: location,
-            body: triples,
-            action: "UPDATE"
-        }
-        await ExecTransaction(transaction,prefixes)
+        await execTransaction(BodyAction.UPDATE,location,prefixes,triples)
     }
-    await commitTransaction(location)
+    await execTransaction(BodyLessAction.COMMIT,location)
 }
 
 export async function waitFor(callback: () => Promise<void>, timeout = 5000, waitPeriod = 250): Promise<void>{

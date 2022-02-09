@@ -3,9 +3,7 @@ import {Request, Response} from "express"
 import {Response as FetchResponse} from "node-fetch"
 import { getPrefixes } from "../util/QueryGenerators/SparqlQueryGenerator"
 import startTransaction from "../util/transaction/startTransaction"
-import ExecTransaction from "../util/transaction/ExecTransaction"
-import commitTransaction from "../util/transaction/commitTransaction"
-import {Transaction} from "../util/transaction/Transaction"
+import {execTransaction, BodyAction, BodyLessAction} from "../util/transaction/execTransaction"
 import { Endpoint } from "../server"
 import {ParamsDictionary, Query} from "express-serve-static-core"
 import readline from "readline"
@@ -83,18 +81,10 @@ async function processGetRawData(request: Request<ReqParams,Answer[] | string,Re
     const before = new Date(request.query.before).getTime()
     const since = new Date(request.query.since).getTime()
     startTransaction(ip, repo).then(location => {
-        const transaction: Transaction = {
-            subj: null,
-            pred: null,
-            obj: null,
-            location: location as string,
-            body: getRawDataQuery(userID,content,since,before,prefixes),
-            action: "QUERY"
-        }
-        ExecTransaction(transaction).then((res: FetchResponse) => {
+        execTransaction(BodyAction.QUERY, location, prefixes, getRawDataQuery(userID,content,since,before,prefixes)).then((res: FetchResponse) => {
             const pass = new PassThrough()
             response.setHeader("Content-Type","application/json")
-            commitTransaction(location as string).catch(() => {})
+            execTransaction(BodyLessAction.COMMIT,location).catch(() => {})
             const readWrite = readline.createInterface({input: res.body})
             let firstLine = true
             let secondLine = true

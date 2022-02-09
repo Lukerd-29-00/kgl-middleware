@@ -5,9 +5,7 @@ import Joi from "joi"
 import {Request, Response} from "express"
 import { parseQueryOutput } from "../util/QueryOutputParsing/ParseContent"
 import startTransaction from "../util/transaction/startTransaction"
-import ExecTransaction from "../util/transaction/ExecTransaction"
-import commitTransaction from "../util/transaction/commitTransaction"
-import { Transaction } from "../util/transaction/Transaction"
+import {execTransaction, BodyAction, BodyLessAction} from "../util/transaction/execTransaction"
 import { Endpoint } from "../server"
 
 /**The route that calls this middleware */
@@ -102,16 +100,8 @@ async function processUserStats(request: Request<ReqParams,string,Record<string,
     }
     const query = getNumberAttemptsQuery(userID,prefixes,since,before)
     startTransaction(ip, repo).then(location => {
-        const transaction: Transaction = {
-            subj: null,
-            pred: null,
-            obj: null,
-            action: "QUERY",
-            body: query,
-            location: location
-        }
-        ExecTransaction(transaction, prefixes).then(res => {
-            commitTransaction(location).catch(() => {})
+        execTransaction(BodyAction.QUERY,location,prefixes,query).then(res => {
+            execTransaction(BodyLessAction.COMMIT,location).catch(() => {})
             response.setHeader("Content-Type","application/json")
             parseQueryOutput(readline.createInterface({input: res.body, output: response}),{stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true"}).then(output => {
                 response.locals.stream = output[0]

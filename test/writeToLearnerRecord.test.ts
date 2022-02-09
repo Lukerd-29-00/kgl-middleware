@@ -4,10 +4,8 @@ import { ip, prefixes } from "../src/config"
 import supertest from "supertest"
 import writeToLearnerRecord from "../src/endpoints/writeToLearnerRecord"
 import startTransaction from "../src/util/transaction/startTransaction"
-import ExecTransaction from "../src/util/transaction/ExecTransaction"
-import commitTransaction from "../src/util/transaction/commitTransaction"
+import {execTransaction, BodyAction, BodyLessAction} from "../src/util/transaction/ExecTransaction"
 import {getPrefixes} from "../src/util/QueryGenerators/SparqlQueryGenerator"
-import { Transaction } from "../src/util/transaction/Transaction"
 import fetch from "node-fetch"
 import express from "express"
 import { Server } from "http"
@@ -63,16 +61,8 @@ async function findUnexpectedStatements(location: Resource, statements: Answer[]
 
 async function makeQuery(body: string): Promise<string>{
     const transactionLocation = await startTransaction(ip, repo)
-    const transaction: Transaction = {
-        location: transactionLocation,
-        subj: null,
-        pred: null,
-        obj: null,
-        action: "QUERY",
-        body
-    }
-    const res = await ExecTransaction(transaction,prefixes)
-    await commitTransaction(transactionLocation)
+    const res = await execTransaction(BodyAction.QUERY,transactionLocation,prefixes,body)
+    await execTransaction(BodyLessAction.COMMIT,transactionLocation)
     return await res.text()
 }
 

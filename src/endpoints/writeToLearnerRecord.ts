@@ -1,9 +1,7 @@
 import { Request, Response } from "express"
 import startTransaction from "../util/transaction/startTransaction"
-import ExecTransaction from "../util/transaction/ExecTransaction"
-import { Transaction } from "../util/transaction/Transaction"
-import rollback from "../util/transaction/Rollback"
-import commitTransaction from "../util/transaction/commitTransaction"
+import {execTransaction, BodyAction, BodyLessAction} from "../util/transaction/execTransaction"
+import rollback from "../util/transaction/rollback"
 import Joi from "joi"
 import { Endpoint } from "../server"
 import {ParamsDictionary, Query} from "express-serve-static-core"
@@ -86,8 +84,8 @@ async function processWriteToLearnerRecord(request: Request<ReqParams,string,Arr
         }else{
             triples = createLearnerRecordTriples(request.params.userID,request.params.content,new Date(request.body.timestamp).getTime(),false)
         }
-        ExecTransaction({location, body: triples as string, subj: null, pred: null, obj: null, action: "UPDATE"},prefixes).then(() => {
-            commitTransaction(location).then(() => {
+        execTransaction(BodyAction.UPDATE,location,prefixes,triples).then(() => {
+            execTransaction(BodyLessAction.COMMIT,location).then(() => {
                 response.status(202)
                 next()
             }).catch(e => {
@@ -118,10 +116,10 @@ async function processWriteToLearnerRecord(request: Request<ReqParams,string,Arr
                 tmp2 = createLearnerRecordTriples(userID, content, timestamp,false)
             }
             const triples = tmp2 as string
-            promises.push(writeToLearnerRecord(location, prefixes, triples))
+            promises.push(writeToLearnerRecord(location,prefixes,triples))
         }
         Promise.all(promises).then(() => {
-            commitTransaction(location).then(() => {
+            execTransaction(BodyLessAction.COMMIT,location).then(() => {
                 response.status(202)
                 next()
             }).catch((e) => {
@@ -140,8 +138,7 @@ async function processWriteToLearnerRecord(request: Request<ReqParams,string,Arr
 }
 
 async function writeToLearnerRecord(location: string, prefixes: Array<[string, string]>, triples: string): Promise<void> {
-    const transaction: Transaction = { subj: null, pred: null, obj: null, body: triples, action: "UPDATE", location }
-    await ExecTransaction(transaction, prefixes)
+    await execTransaction(BodyAction.UPDATE,location,prefixes,triples)
 }
 const endpoint: Endpoint<ReqParams,string,ReqBody[],Query> = { method: "put",schema: {body: bodySchema}, route, process: processWriteToLearnerRecord }
 export default endpoint
