@@ -190,7 +190,7 @@ describe("writeToLearnerRecord", () => {
                 .then(() => {
                     expect(mockDB.start).toHaveBeenCalled()
                     expect(mockDB.rollback).toHaveBeenCalled()
-                    done()
+					done()
                 }).catch((e) => {
                     done(e)
                 })

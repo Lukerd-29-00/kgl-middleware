@@ -84,24 +84,7 @@ async function processWriteToLearnerRecord(request: Request<ReqParams,string,Arr
         }else{
             triples = createLearnerRecordTriples(request.params.userID,request.params.content,new Date(request.body.timestamp).getTime(),false)
         }
-        execTransaction(BodyAction.UPDATE,location,prefixes,triples).then(() => {
-            execTransaction(BodyLessAction.COMMIT,location).then(() => {
-                response.status(202)
-                next()
-            }).catch(e => {
-                rollback(location).then(() => {
-                    next(e)
-                }).catch(e2 => {
-                    next(Error(`Failed rollback: ${e2} after error: ${e}`))
-                })
-            })
-        }).catch(e => {
-            rollback(location).then(() => {
-                next(e)
-            }).catch(e2 => {
-                next(Error(`Failed rollback: ${e2} after error: ${e}`))
-            })
-        })
+        promises.push(writeToLearnerRecord(location,prefixes,triples))
     }else{
         for(const statement of request.body){
             const userID = request.params.userID
@@ -118,22 +101,28 @@ async function processWriteToLearnerRecord(request: Request<ReqParams,string,Arr
             const triples = tmp2 as string
             promises.push(writeToLearnerRecord(location,prefixes,triples))
         }
-        Promise.all(promises).then(() => {
-            execTransaction(BodyLessAction.COMMIT,location).then(() => {
-                response.status(202)
-                next()
-            }).catch((e) => {
-                next(e)
-            })
-        }).catch((e: Error) => {
-            rollback(location).then(() => {
-                next(e)
-            }).catch(e2 => {
-                const err = Error(`Failed rollback: ${e2} after error: ${e}`)
-                next(err)
-            })
-        })
+        
     }
+	Promise.all(promises).then(() => {
+		execTransaction(BodyLessAction.COMMIT,location).then(() => {
+			response.status(202)
+			next()
+		}).catch((e) => {
+			rollback(location).then(() => {
+				next(e)
+			}).catch(e2 => {
+				const err = Error(`Failed rollback: ${e2} after error: ${e}`)
+				next(err)
+			})
+		})
+	}).catch((e: Error) => {
+		rollback(location).then(() => {
+			next(e)
+		}).catch(e2 => {
+			const err = Error(`Failed rollback: ${e2} after error: ${e}`)
+			next(err)
+		})
+	})
 
 }
 
