@@ -15,15 +15,11 @@ const route = "/active"
  * @async
  */
 async function processActive(request: Request<ParamsDictionary,string,Record<string,string | number | boolean | undefined>,Query>, response: Response<string>, next: (e?: Error) => void, ip: string, defaultRepo: string): Promise<void>{
-    fetch(`${ip}/repositories/${defaultRepo}/size`).then(probe => {
+    fetch(`${ip}/repositories/${defaultRepo}/size`).then(async probe => {
         if(!probe.ok){
-            probe.text().then(() => {
-                const e = new Error("Could not find graphdb")
-                next(e)
-            }).catch(e => {
-                next(e)
+            return await probe.text().then(() => {
+                next(Error("Could not find graphdb"))
             })
-
         }else{
             response.status(204)
             next()
