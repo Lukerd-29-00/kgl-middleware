@@ -9,7 +9,12 @@ interface MockDB{
 interface Qstring extends Query{
     action: string
 }
-export default function getMockDB(ip: string, server: Express, repo:string, start: boolean, rollback: boolean, exec: boolean, startHandler?: RequestHandler, rollbackHandler?: RequestHandler, execHandler?: RequestHandler): MockDB{
+interface Handlers{
+	startHandler?: RequestHandler,
+	execHandler?: RequestHandler,
+	rollbackHandler?: RequestHandler
+}
+export default function getMockDB(ip: string, server: Express, repo:string, start: boolean, rollback: boolean, exec: boolean, handlers?: Handlers): MockDB{
     const mockTransaction = "ab642438bc4aacdvq"
     const transactions = `/repositories/${repo}/transactions`
     const location = `${transactions}/${mockTransaction}`
@@ -23,11 +28,11 @@ export default function getMockDB(ip: string, server: Express, repo:string, star
     if(start){
         output.server.post(transactions, (request, response, next) => {
             output.start()
-            if(startHandler === undefined){
+            if(!handlers || handlers.startHandler === undefined){
                 response.header("location",`${ip}${location}`)
                 response.send()
             }else{
-                startHandler(request,response,next)
+                handlers.startHandler(request,response,next)
             }
 
         })
@@ -35,10 +40,10 @@ export default function getMockDB(ip: string, server: Express, repo:string, star
     if(rollback){
         output.server.delete(location,(request,response,next)=>{
             output.rollback()
-            if(rollbackHandler === undefined){
+            if(!handlers || handlers.rollbackHandler === undefined){
                 response.send()
             }else{
-                rollbackHandler(request,response,next)
+                handlers.rollbackHandler(request,response,next)
             }
 
         })
@@ -46,7 +51,7 @@ export default function getMockDB(ip: string, server: Express, repo:string, star
     if(exec){
         output.server.put(location, (request: Request<ParamsDictionary,string,string,Qstring>,response,next)=>{
             output.exec(request.body.toString(),request.query.action.toString())
-            if(execHandler === undefined){
+            if(!handlers || handlers.execHandler === undefined){
                 if(request.query.action !== "COMMIT"){
                     response.send()
                 }else{
@@ -54,7 +59,7 @@ export default function getMockDB(ip: string, server: Express, repo:string, star
                     response.send()
                 }
             }else{
-                execHandler(request,response,next)
+                handlers.execHandler(request,response,next)
             }
             
         })

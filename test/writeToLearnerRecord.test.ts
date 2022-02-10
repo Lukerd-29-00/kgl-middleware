@@ -197,10 +197,10 @@ describe("writeToLearnerRecord", () => {
         })
     })
     it("Should still send a server error if it fails the rollback", done => {
-        const mockDB = getMockDB(mockIp,express(),repo,true,true,false,undefined,(request, response) => {
+        const mockDB = getMockDB(mockIp,express(),repo,true,true,false,{execHandler: (request, response) => {
             response.status(500)
             response.send()
-        })
+        }})
         server = mockDB.server.listen(port, () => {
             const test = supertest(app)
             test.put(route).set("Date",timestamp.toUTCString()).send(body).expect(500)
@@ -242,10 +242,10 @@ describe("writeToLearnerRecord", () => {
     it("Should still return the same error if the rollback fails after failing to commit", done => {
         const mockServer = express()
         mockServer.use(express.raw({ type: "application/sparql-update" }))
-        const mockDB = getMockDB(mockIp,mockServer,repo,true,true,true,undefined,(request, response) => {
+        const mockDB = getMockDB(mockIp,mockServer,repo,true,true,true,{execHandler: (request, response) => {
             response.status(500)
             response.send()
-        })
+        }})
         server = mockDB.server.listen(port, () => {
             const test = supertest(getApp(mockIp, repo, prefixes, endpoints))
             test.put(writeToLearnerRecord.route).send(body).expect(500)

@@ -83,6 +83,7 @@ async function processGetRawData(request: Request<ReqParams,Answer[] | string,Re
     startTransaction(ip, repo).then(location => {
         execTransaction(BodyAction.QUERY, location, prefixes, getRawDataQuery(userID,content,since,before,prefixes)).then((res: FetchResponse) => {
             const pass = new PassThrough()
+			let err = false
             response.setHeader("Content-Type","application/json")
             execTransaction(BodyLessAction.COMMIT,location).catch(() => {})
             const readWrite = readline.createInterface({input: res.body})
@@ -104,7 +105,10 @@ async function processGetRawData(request: Request<ReqParams,Answer[] | string,Re
                 }
                 const match = data.toString().match(/^(.+),(.+),(.+)/)
                 if(match === null){
-                    throw Error("Invalid response from graphdb")
+                	next(Error("Invalid response from graphdb"))
+					err = true
+					readWrite.close()
+					return
                 }
                 const obj = JSON.stringify({timestamp: parseInt(match[1],10), correct: match[2] === "true" ? true : false, responseTime: isNaN(parseInt(match[3],10)) ? undefined : parseInt(match[3],10)})
                 length += obj.length
@@ -114,11 +118,14 @@ async function processGetRawData(request: Request<ReqParams,Answer[] | string,Re
                     })
                 })
             })
+			
             readWrite.on("close", () => {
-                response.locals.stream = pass
-                response.locals.append = length > 0 ? "]" : "[]"
-                response.locals.length = length
-                next()
+				if(!err){
+					response.locals.stream = pass
+					response.locals.append = length > 0 ? "]" : "[]"
+					response.locals.length = length
+					next()
+				}
             })
 
         }).catch((e: Error) => {
