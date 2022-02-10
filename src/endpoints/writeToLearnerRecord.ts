@@ -103,17 +103,10 @@ async function processWriteToLearnerRecord(request: Request<ReqParams,string,Arr
         }
         
     }
-	Promise.all(promises).then(() => {
-		execTransaction(BodyLessAction.COMMIT,location).then(() => {
+	Promise.all(promises).then(async () => {
+		return await execTransaction(BodyLessAction.COMMIT,location).then(() => {
 			response.status(202)
 			next()
-		}).catch((e) => {
-			rollback(location).then(() => {
-				next(e)
-			}).catch(e2 => {
-				const err = Error(`Failed rollback: ${e2} after error: ${e}`)
-				next(err)
-			})
 		})
 	}).catch((e: Error) => {
 		rollback(location).then(() => {

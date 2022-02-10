@@ -167,6 +167,12 @@ describe("writeToLearnerRecord", () => {
         responseTime,
         timestamp: timestamp.toUTCString()
     }
+	const getMockServer = () => {
+		const mockServer = express()
+		mockServer.use(express.raw({type: "application/sparql-update"}))
+		return mockServer
+
+	} 
     const route = writeToLearnerRecord.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
     it("Should send a server error if it cannot start a transaction", done => {
         const mockDB = getMockDB(mockIp,express(),repo,false,false,false)
@@ -183,13 +189,14 @@ describe("writeToLearnerRecord", () => {
         
     })
     it("Should send a server error and attempt a rollback if it cannot execute a transaction", done => {
-        const mockDB = getMockDB(mockIp,express(),repo,true,true,false)
+        const mockDB = getMockDB(mockIp,getMockServer(),repo,true,true,false)
         server = mockDB.server.listen(port, () => {
             const test = supertest(app)
-            test.put(writeToLearnerRecord.route).set("Date",timestamp.toUTCString()).send(body).expect(500)
+            test.put(writeToLearnerRecord.route).send(body).expect(500)
                 .then(() => {
                     expect(mockDB.start).toHaveBeenCalled()
                     expect(mockDB.rollback).toHaveBeenCalled()
+					expect(mockDB.exec).toHaveBeenCalled()
 					done()
                 }).catch((e) => {
                     done(e)
@@ -197,67 +204,57 @@ describe("writeToLearnerRecord", () => {
         })
     })
     it("Should still send a server error if it fails the rollback", done => {
-        const mockDB = getMockDB(mockIp,express(),repo,true,true,false,{execHandler: (request, response) => {
-            response.status(500)
-            response.send()
-        }})
+        const mockDB = getMockDB(mockIp,getMockServer(),repo,true,false,false)
         server = mockDB.server.listen(port, () => {
             const test = supertest(app)
-            test.put(route).set("Date",timestamp.toUTCString()).send(body).expect(500)
+            test.put(route).send(body).expect(500)
                 .then(() => {
-                    try{
-                        expect(mockDB.start).toHaveBeenCalled()
-                        expect(mockDB.rollback).toHaveBeenCalled()
-                        done()
-                    }catch(e){
-                        done(e)
-                    }
+					expect(mockDB.start).toHaveBeenCalled()
+					expect(mockDB.rollback).toHaveBeenCalled()
+					expect(mockDB.exec).toHaveBeenCalled()
+					done()
                 }).catch((e) => {
                     done(e)
                 })
         })
     })
     it("Should send a server error and attempt a rollback if commiting the transaction fails", done => {
-        const mockServer = express()
-        const timestamp = new Date()
-        mockServer.use(express.raw({type: "application/sparql-update"}))
-        const mockDB = getMockDB(mockIp,mockServer,repo,true,true,true)
+        const mockDB = getMockDB(mockIp,getMockServer(),repo,true,true,true,{execHandler:(request, response, next) => {
+			if(request.query.action === "COMMIT"){
+				next(Error("We're pretending something went wrong with Graphdb here"))
+			}else{
+				response.end()
+			}
+		}})
         server = mockDB.server.listen(port, () => {
             const test = supertest(app)
-            test.put(route).set("Date", timestamp.toUTCString()).send(body).expect(500)
+            test.put(route).send(body).expect(500)
                 .then(() => {
-                    try{
-                        expect(mockDB.start).toHaveBeenCalled()
-                        expect(mockDB.rollback).toHaveBeenCalled()
-                        expect(mockDB.exec).toHaveBeenCalled()
-                        done()
-                    }catch(e){
-                        done(e)
-                    }    
+					expect(mockDB.start).toHaveBeenCalled()
+					expect(mockDB.rollback).toHaveBeenCalled()
+					expect(mockDB.exec).toHaveBeenCalledTimes(2)
+					done()
                 }).catch((e) => {
                     done(e)
                 })
         })
     })
     it("Should still return the same error if the rollback fails after failing to commit", done => {
-        const mockServer = express()
-        mockServer.use(express.raw({ type: "application/sparql-update" }))
-        const mockDB = getMockDB(mockIp,mockServer,repo,true,true,true,{execHandler: (request, response) => {
-            response.status(500)
-            response.send()
-        }})
+        const mockDB = getMockDB(mockIp,getMockServer(),repo,true,true,true,{execHandler:(request, response, next) => {
+			if(request.query.action === "COMMIT"){
+				next(Error("We're pretending something went wrong with Graphdb here"))
+			}else{
+				response.end()
+			}
+		}})
         server = mockDB.server.listen(port, () => {
             const test = supertest(getApp(mockIp, repo, prefixes, endpoints))
             test.put(writeToLearnerRecord.route).send(body).expect(500)
                 .then(() => {
-                    try{
-                        expect(mockDB.start).toHaveBeenCalled()
-                        expect(mockDB.rollback).toHaveBeenCalled()
-                        expect(mockDB.exec).toHaveBeenCalled()
-                        done()
-                    }catch(e){
-                        done(e)
-                    }
+					expect(mockDB.start).toHaveBeenCalled()
+					expect(mockDB.rollback).toHaveBeenCalled()
+					expect(mockDB.exec).toHaveBeenCalled()
+					done()
                 }).catch((e) => {
                     done(e)
                 })
