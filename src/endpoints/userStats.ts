@@ -103,7 +103,7 @@ async function processUserStats(request: Request<ReqParams,string,Record<string,
         execTransaction(BodyAction.QUERY,location,prefixes,query).then(res => {
             execTransaction(BodyLessAction.COMMIT,location).catch(() => {})
             response.setHeader("Content-Type","application/json")
-            parseQueryOutput(readline.createInterface({input: res.body, output: response}),{stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true"}).then(output => {
+            parseQueryOutput(readline.createInterface({input: res.body}),{stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true"}).then(output => {
                 response.locals.stream = output[0]
                 response.locals.length = output[1]
                 next()

@@ -185,6 +185,7 @@ export async function parseQueryOutput(response: Interface, options: ParseQueryO
         }
         newWrite("\n}")
         await Promise.all(writes) //Make sure all the data is finished writing before returning!
+		pass.end()
         return [pass, length]
     }
 }

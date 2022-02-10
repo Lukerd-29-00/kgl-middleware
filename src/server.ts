@@ -9,7 +9,7 @@ import express, { Express, Request, Response } from "express"
 import morgan from "morgan"
 import Joi, { Schema } from "joi"
 import {ParamsDictionary, Query} from "express-serve-static-core"
-import {PassThrough} from "stream"
+import {Readable} from "stream"
 
 type plainOrArrayOf<T> = Array<T> | T
 
@@ -36,39 +36,20 @@ interface RequestSchema{
  * @param response The response to send back
  */
 async function send(request: Request, response: Response): Promise<void>{ //eslint-disable-line
-    const stream = response.locals.stream as PassThrough | undefined
-    let length = response.locals.length || 0 
-    if(stream !== undefined){
+    const stream = response.locals.stream as Readable | undefined
+    let length = response.locals.length
+    if(stream !== undefined && response.locals.length){
         if(request.method === "HEAD"){
             response.status(204)
         }
-        const sender = () => {
-            const writes = new Array<Promise<void>>()
-            if(response.locals.append !== undefined){
-                length += response.locals.append.length
-            }
-            response.setHeader("Content-Length",length)
-            stream.pause()
-            stream.on("data", data => {
-                writes.push(new Promise<void>(resolve => {
-                    response.write(data, () => {
-                        resolve()
-                    })
-                }))
-                
-            })
-            stream.read()
-            stream.end()
-            stream.destroy()
-            Promise.all(writes).then(() => {
-                response.end()
-            })
-        }
-        if(response.locals.append !== undefined){
-            stream.write(response.locals.append,sender)
-        }else{
-            sender()
-        }
+		if(response.locals.append !== undefined){
+			length += response.locals.append.length
+		}
+		stream.once("close",() =>{
+			response.end(response.locals.append)
+		})
+		response.setHeader("Content-Length",length)
+		stream.pipe(response,{end: false})
     }else{
         if(response.statusCode === 200){
             response.status(204)
