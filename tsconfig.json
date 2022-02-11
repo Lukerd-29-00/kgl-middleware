@@ -1,17 +1,19 @@
 {
-    "compilerOptions": {
-      "esModuleInterop": true,
-      "sourceMap": true,
-      "strict": true,
-      "noImplicitAny": true,
-      "types": [
-        "@types/jest",
-        "@types/node",
-        "@types/express",
-        "@types/node-fetch"
-      ],
-      "lib": ["es2020.string"],
-      "downlevelIteration": true
-    },
-    "target": "es2020"
-  }
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "types": [
+      "@types/jest",
+      "@types/node",
+      "@types/express",
+      "@types/node-fetch"
+    ],
+    "lib": [
+      "es2020.string"
+    ],
+    "downlevelIteration": true
+  },
+  "target": "es2020"
+}
