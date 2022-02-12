@@ -42,14 +42,14 @@ async function send(request: Request, response: Response): Promise<void>{ //esli
         if(request.method === "HEAD"){
             response.status(204)
         }
-		if(response.locals.append !== undefined){
-			length += response.locals.append.length
-		}
-		stream.once("close",() =>{
-			response.end(response.locals.append)
-		})
-		response.setHeader("Content-Length",length)
-		stream.pipe(response,{end: false})
+        if(response.locals.append !== undefined){
+            length += response.locals.append.length
+        }
+        stream.once("close",() =>{
+            response.end(response.locals.append)
+        })
+        response.setHeader("Content-Length",length)
+        stream.pipe(response,{end: false})
     }else{
         if(response.statusCode === 200){
             response.status(204)
