@@ -10,13 +10,13 @@ jobs:
     strategy:
       matrix:
         node-version: [16.x]
-      steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-nodejs@v2
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-nodejs@v2
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: npm
+    - run: npm ci
+    - run: npm run lint
       
 
