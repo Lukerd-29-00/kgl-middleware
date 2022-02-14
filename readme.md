@@ -1,6 +1,9 @@
 # Knowledge Graphs For Learners REST API
 This is the source code for a nodejs-based REST API that can be utilized to query or add data from KGL games to a [graphdb](https://www.ontotext.com/products/graphdb/) database. This API serves as an intermediary that prevents accidental use of terms that are invalid or do not exist in the ontologies this API expects, in order to ensure interoperability between games.
 
+## Warning
+This API currently has no security features; do not use this for anything but toy data in this state!
+
 ## API
 This API stores statements in rdf triple format in graphdb. The data is uploaded in [Turtle](https://www.w3.org/TR/turtle/) format. Every time a user answers a question, the following data will be stored at users/{their id}/data/{the iri for the concept}:
 1. Did they get the question correct or not?
