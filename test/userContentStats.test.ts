@@ -10,7 +10,7 @@ import getMockDB from "./mockDB"
 import express from "express"
 import {mean, std} from "mathjs"
 const repo = "userContentStatsTest"
-const port = 7203
+const port = 7204
 
 function expectError(actual: number, expected: number, threshold = 0.1): void{
     const error = Math.abs(actual - expected)/Math.abs(actual)
@@ -20,7 +20,7 @@ function expectError(actual: number, expected: number, threshold = 0.1): void{
 async function expectStats(test: supertest.SuperTest<supertest.Test>, userID: string, content: string, expectedMean: number, expectedStdev: number, interval?: TimeInterval): Promise<void>{
     for(const calcMean of [true, false]){
         for(const calcStdev of [true, false]){
-            const output = await queryStats(userContentStats.route,test,userID,{content,...interval, mean: calcMean, stdev: calcStdev}) as ResBody
+            const output = (await queryStats(userContentStats.route,test,userID,{content,...interval, mean: calcMean, stdev: calcStdev}) as unknown) as ResBody
             if(calcMean){
                 expect(output).toHaveProperty("mean")
                 expectError(output.mean as number, expectedMean)
@@ -138,9 +138,6 @@ describe("userContentStats", () => {
         const res = await queryStats(userContentStats.route,getTest(),userID,{content,mean:true,stdev:true})
         expect(res).toHaveProperty("stdev",null)
         expect(res).toHaveProperty("mean",null)
-    })
-    it("Should send back a 400 error if the Date header is malformed", async () => {
-        await getTest().get(userContentStats.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))).set("Date","junk").expect(400)
     })
     afterEach(async () => {
         await fetch(`${ip}/repositories/${repo}/statements`, {

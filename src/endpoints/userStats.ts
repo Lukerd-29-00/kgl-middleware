@@ -1,23 +1,22 @@
 import {getPrefixes} from "../util/QueryGenerators/SparqlQueryGenerator"
-import {Query, ParamsDictionary} from "express-serve-static-core"
 import readline from "readline"
 import Joi from "joi"
 import {Request, Response} from "express"
 import { parseQueryOutput } from "../util/QueryOutputParsing/ParseContent"
 import startTransaction from "../util/transaction/startTransaction"
 import {execTransaction, BodyAction, BodyLessAction} from "../util/transaction/execTransaction"
-import { Endpoint } from "../server"
+import { EmptyObject, Endpoint, Locals, Method, Optional } from "../server"
 
 /**The route that calls this middleware */
 const route = "/users/:userID/stats"
 
 /**The path parameters for this resource */
-export interface ReqParams extends ParamsDictionary{
+export interface ReqParams extends Record<string,string>{
     userID: string
 }
 
 /**The query parameters for this resource */
-export interface ReqQuery extends Query{
+export interface ReqQuery extends Record<string,Optional<string>>{
     since?: string,
     before?: string,
     stdev?: string,
@@ -81,7 +80,7 @@ export function getNumberAttemptsQuery(userID: string, prefixes: [string, string
  * @param prefixes The prefixes to use in the SPARQL query
  * @async
  */
-async function processUserStats(request: Request<ReqParams,string,Record<string,string>,ReqQuery> , response: Response,next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>): Promise<void> {
+async function processUserStats(request: Request<ReqParams,string,EmptyObject,ReqQuery> , response: Response<string, Locals>,next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>): Promise<void> {
     const userID = request.params.userID
     let before = new Date().getTime()
     if(request.query.before !== undefined){
@@ -100,21 +99,22 @@ async function processUserStats(request: Request<ReqParams,string,Record<string,
     }
     const query = getNumberAttemptsQuery(userID,prefixes,since,before)
     startTransaction(ip, repo).then(location => {
-        execTransaction(BodyAction.QUERY,location,prefixes,query).then(res => {
+        return execTransaction(BodyAction.QUERY,location,prefixes,query).then(res => {
             execTransaction(BodyLessAction.COMMIT,location).catch(() => {})
             response.setHeader("Content-Type","application/json")
-            parseQueryOutput(readline.createInterface({input: res.body}),{stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true"}).then(output => {
-                response.locals.stream = output[0]
-                response.locals.length = output[1]
+            return parseQueryOutput(readline.createInterface({input: res.body}),response.locals.stream,{stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true"}).then(() => {
                 next()
             })
-        }).catch((e: Error) => {
-            next(e)
         })
     }).catch((e: Error) => {
         next(e)
     })
 }
 
-const endpoint: Endpoint<ReqParams,string,Record<string,string>,ReqQuery> = { method: "get", schema: {query: querySchema}, route: route, process: processUserStats }
+const endpoint: Endpoint<ReqParams,string,EmptyObject,ReqQuery,Locals> = { 
+	method: Method.GET, 
+	schema: {query: querySchema},
+	route: route,
+	process: processUserStats
+}
 export default endpoint
