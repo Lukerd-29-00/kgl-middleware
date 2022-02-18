@@ -84,30 +84,30 @@ async function processGetRawData(request: Request<ReqParams,string,EmptyObject,R
             response.setHeader("Content-Type","application/json")
             execTransaction(BodyLessAction.COMMIT,location).catch(() => {})
             const readWrite = readline.createInterface({input: res.body})
-			response.locals.stream.write("[")
-			//This skips the first line of the response, which is the variable names.
+            response.locals.stream.write("[")
+            //This skips the first line of the response, which is the variable names.
             readWrite.once("line",async () => { 
-				//This causes commas to be added after the first object is written.
-				readWrite.once("line",() => { 
-					readWrite.prependListener("line",() => {
-						response.locals.stream.write(",")
-					})
-				})
-				//This is writing the actual data to pass.
-				readWrite.on("line",(data: Buffer) => {
-					const match = data.toString().match(/^(.+),(.+),(.+)/)
-					if(match === null){
-						next(Error("Invalid response from graphdb"))
-						readWrite.close()
-						return
-					}
-					const obj = JSON.stringify({timestamp: parseInt(match[1],10), correct: match[2] === "true" ? true : false, responseTime: isNaN(parseInt(match[3],10)) ? undefined : parseInt(match[3],10)})
-					response.locals.stream.write(obj)
-				})
-			})
+                //This causes commas to be added after the first object is written.
+                readWrite.once("line",() => { 
+                    readWrite.prependListener("line",() => {
+                        response.locals.stream.write(",")
+                    })
+                })
+                //This is writing the actual data to pass.
+                readWrite.on("line",(data: Buffer) => {
+                    const match = data.toString().match(/^(.+),(.+),(.+)/)
+                    if(match === null){
+                        next(Error("Invalid response from graphdb"))
+                        readWrite.close()
+                        return
+                    }
+                    const obj = JSON.stringify({timestamp: parseInt(match[1],10), correct: match[2] === "true" ? true : false, responseTime: isNaN(parseInt(match[3],10)) ? undefined : parseInt(match[3],10)})
+                    response.locals.stream.write(obj)
+                })
+            })
             readWrite.once("close", () => {
-				response.locals.stream.end("]")
-				next()
+                response.locals.stream.end("]")
+                next()
             })
         }).catch((e: Error) => {
             next(e)

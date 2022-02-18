@@ -83,7 +83,7 @@ function calculateStats(output: ResBody, stats: ParseLineOutput, options: ParseQ
 }
 
 export async function parseQueryOutput(data: Interface, stream: Writable, options: ParseQueryOptions): Promise<void>{
-	if(options.content !== undefined){
+    if(options.content !== undefined){
         const stats: ParseLineOutput = {
             sum: options.mean ? 0 : NaN,
             runningStdev: {
@@ -96,26 +96,26 @@ export async function parseQueryOutput(data: Interface, stream: Writable, option
             attempts: 0
         }
         data.once("line",() => {
-			data.on("line", (line: string) => {
-				ParseLine(line,stats,output,options)
-			})
-		})
+            data.on("line", (line: string) => {
+                ParseLine(line,stats,output,options)
+            })
+        })
         await events.once(data,"close")
         calculateStats(output,stats,options)
         const outputString = JSON.stringify(output)
         stream.end(outputString)
     }else{
-		const promise = async (data: Buffer | string) => {
-			return new Promise<void>(resolve => {
-				stream.write(data,() => {
-					resolve()
-				})
-			})
-		}
+        const promise = async (data: Buffer | string) => {
+            return new Promise<void>(resolve => {
+                stream.write(data,() => {
+                    resolve()
+                })
+            })
+        }
         const writes = new Array<Promise<void>>()
-		const write = (data: string | Buffer) => {
-			writes.push(promise(data))
-		}
+        const write = (data: string | Buffer) => {
+            writes.push(promise(data))
+        }
 
         let currentContent = ""
         let firstLine = true

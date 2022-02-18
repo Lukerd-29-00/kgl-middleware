@@ -29,9 +29,9 @@ async function processActive(request: Request<EmptyObject,EmptyObject,EmptyObjec
 }
 
 const endpoint: Endpoint<EmptyObject,EmptyObject,EmptyObject,EmptyObject,Locals> = {
-	schema: {}, 
-	route, 
-	process: processActive,
-	method: Method.GET
+    schema: {}, 
+    route, 
+    process: processActive,
+    method: Method.GET
 }
 export default endpoint

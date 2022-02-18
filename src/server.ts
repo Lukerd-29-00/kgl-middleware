@@ -18,29 +18,29 @@ export type Optional<T> = T | undefined
 export type EmptyObject = Record<string,undefined>
 
 export enum Method{
-	GET = "get",
-	PUT = "put",
-	DELETE = "delete",
+    GET = "get",
+    PUT = "put",
+    DELETE = "delete",
 }
 
 /**This is a specific type of middleware, intended to retrieve the desired data or write it to the database. Places the data into a PassThrough stream under response.locals.stream, the number of bytes in the stream under response.locals.length, and any characters to be added to the stream before reading in the response.locals.append variable. */
 type processor<
-	P extends Record<string,string> | EmptyObject,
-	S extends plainOrArrayOf<RawData | Record<string,RawData>> | EmptyObject,
-	R extends plainOrArrayOf<RawData | Record<string, Optional<RawData>>> | EmptyObject,
-	Q extends Record<string,Optional<RawData>> | EmptyObject,
-	L extends Locals
+    P extends Record<string,string> | EmptyObject,
+    S extends plainOrArrayOf<RawData | Record<string,RawData>> | EmptyObject,
+    R extends plainOrArrayOf<RawData | Record<string, Optional<RawData>>> | EmptyObject,
+    Q extends Record<string,Optional<RawData>> | EmptyObject,
+    L extends Locals
 > 
 = ((request: Request<P,S,R,Q>, response: Response<S,L>,next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>) => Promise<void>) 
 | ((request: Request<Record<string,P>,S,R,Record<string,Q>>, response: Response<S,L>, next: (e?: Error) => void, ip: string, repo: string) => Promise<void>)
 
 /**This holds all the data required to determine what to do if a user queries the route field */
 export interface Endpoint<
-	P extends Record<string,string> | EmptyObject,
-	S extends plainOrArrayOf<RawData | Record<string,RawData>> | EmptyObject,
-	R extends plainOrArrayOf<Record<string, Optional<RawData>>> | EmptyObject,
-	Q extends Record<string,Optional<RawData>> | EmptyObject,
-	L extends Locals
+    P extends Record<string,string> | EmptyObject,
+    S extends plainOrArrayOf<RawData | Record<string,RawData>> | EmptyObject,
+    R extends plainOrArrayOf<Record<string, Optional<RawData>>> | EmptyObject,
+    Q extends Record<string,Optional<RawData>> | EmptyObject,
+    L extends Locals
 >{
     schema: RequestSchema,
     route: string,
@@ -49,7 +49,7 @@ export interface Endpoint<
 }
 
 export interface Locals{
-	stream: LengthTrackingDuplex
+    stream: LengthTrackingDuplex
 }
 
 interface RequestSchema{
@@ -63,31 +63,31 @@ interface RequestSchema{
  */
 async function send(request: Request, response: Response<any,Locals>): Promise<void>{ //eslint-disable-line
     if(response.locals.stream === undefined){
-		throw Error("Error: response text must be placed into a readable stream in response.locals.stream!")
-	}
-	const stream = response.locals.stream as LengthTrackingDuplex
-	let length = 0
-	if(response.statusCode === 202 || response.statusCode === 204){
-		response.locals.stream.end()
-	}
-	if(!stream.writableEnded){
-		await events.once(response.locals.stream,"finish")
-	}
-	length = stream.bytesWritten
+        throw Error("Error: response text must be placed into a readable stream in response.locals.stream!")
+    }
+    const stream = response.locals.stream as LengthTrackingDuplex
+    let length = 0
+    if(response.statusCode === 202 || response.statusCode === 204){
+        response.locals.stream.end()
+    }
+    if(!stream.writableEnded){
+        await events.once(response.locals.stream,"finish")
+    }
+    length = stream.bytesWritten
     if(length){
         if(request.method === "HEAD"){
             response.status(204)
         }
         response.setHeader("Content-Length",length)
-		response.once("finish", () => {
-			response.locals.stream.destroy()
-		})
+        response.once("finish", () => {
+            response.locals.stream.destroy()
+        })
         stream.pipe(response)
     }else{
         if(response.statusCode === 200){
             response.status(204)
         }
-		response.locals.stream.destroy()
+        response.locals.stream.destroy()
         response.end()
     }
 }
@@ -117,10 +117,10 @@ function checkRequest(request: Request, response: Response<unknown,Locals>, next
             return
         }
     }
-	response.locals.stream = new PassThroughLength()
-	response.locals.stream.once("error",(e: Error) => {
-		next(e)
-	})
+    response.locals.stream = new PassThroughLength()
+    response.locals.stream.once("error",(e: Error) => {
+        next(e)
+    })
     next()
 }
 
@@ -148,10 +148,10 @@ export default function getApp<E extends Endpoint<any,any,any,any,L> = Endpoint<
     //Use the json body parser
     app.use(express.json())
     app.use(express.urlencoded({ extended: true }))
-	app.use((err: Error, request: Request, response: Response, next: (err?: Error) => void) => {
-		response.locals.stream.destroy()
-		next(err)
-	})
+    app.use((err: Error, request: Request, response: Response, next: (err?: Error) => void) => {
+        response.locals.stream.destroy()
+        next(err)
+    })
     
     //Map the various routes to endpoints
     const routes = new Map<string, Responder[]>()
@@ -178,9 +178,9 @@ export default function getApp<E extends Endpoint<any,any,any,any,L> = Endpoint<
             route[responder.method](handler)
             route[responder.method](send)
             if(responder.method == "get"){
-				route.head((request,response: Response<unknown,Locals>,next) => {
-					checkRequest(request,response,next,responder.schema)
-				})
+                route.head((request,response: Response<unknown,Locals>,next) => {
+                    checkRequest(request,response,next,responder.schema)
+                })
                 route.head(handler)
                 route.head(send)
             }

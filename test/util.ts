@@ -23,26 +23,26 @@ export async function writeAttemptTimed(repo: string, userID: string, content: s
 }
 
 function linkToPrereq(content: string, prereq: string){
-	return `<${content}> cco:has_part <${prereq}>`
+    return `<${content}> cco:has_part <${prereq}>`
 }
 
 function isArray(possibleArray: Array<string> | string): possibleArray is Array<string>{
-	return (possibleArray as Array<string>).push != undefined
+    return (possibleArray as Array<string>).push != undefined
 }
 
 export async function addContent(repo: string, content: string, prereqs: string[]): Promise<void>
 export async function addContent(repo: string, content: string, ...prereqs: string[]): Promise<void>
 export async function addContent(repo: string, content: string, ...prereqs: string[] | string[][]): Promise<void>{
-	const location = await startTransaction(ip, repo)
-	const promises = new Array<Promise<void>>()
-	if(prereqs.length > 0 && isArray(prereqs[0])){
-		prereqs = prereqs[0]
-	}
-	for(const prereq of (prereqs as string[])){
-		promises.push(execTransaction(BodyAction.UPDATE,location,prefixes,linkToPrereq(content,prereq)).then())
-	}
-	await Promise.all(promises)
-	await execTransaction(BodyLessAction.COMMIT,location)
+    const location = await startTransaction(ip, repo)
+    const promises = new Array<Promise<void>>()
+    if(prereqs.length > 0 && isArray(prereqs[0])){
+        prereqs = prereqs[0]
+    }
+    for(const prereq of (prereqs as string[])){
+        promises.push(execTransaction(BodyAction.UPDATE,location,prefixes,linkToPrereq(content,prereq)).then())
+    }
+    await Promise.all(promises)
+    await execTransaction(BodyLessAction.COMMIT,location)
 }
 
 export async function writeAttempt(repo: string, userID: string, content: string, correct: false): Promise<void>
@@ -124,8 +124,8 @@ export async function queryStats(route: string, test: supertest.SuperTest<supert
         route = route.replace(":content",encodeURIComponent(kwargs.content))
     }
     if(kwargs === undefined){
-		const res = await test.get(route).expect(200)
-		expect(res.headers).toHaveProperty("content-type","application/json")
+        const res = await test.get(route).expect(200)
+        expect(res.headers).toHaveProperty("content-type","application/json")
         return res.body
     }else{
         let url = route
@@ -140,8 +140,8 @@ export async function queryStats(route: string, test: supertest.SuperTest<supert
                 queryMarker = "&"
             }
         }
-		const res = await test.get(url).expect(200)
-		expect(res.headers).toHaveProperty("content-type","application/json")
+        const res = await test.get(url).expect(200)
+        expect(res.headers).toHaveProperty("content-type","application/json")
         return res.body
     }
 }
@@ -159,16 +159,16 @@ export async function queryWrite(test: supertest.SuperTest<supertest.Test>, user
 }
 
 export async function expectEqualHeaders(test: supertest.SuperTest<supertest.Test>, content: string, headReq: (test: supertest.SuperTest<supertest.Test>, content: string) => Promise<Record<string,unknown>>, getHeaders: (test: supertest.SuperTest<supertest.Test>,content: string) => Promise<Record<string,unknown>>): Promise<void>{
-	const [headers, realHeaders] = await Promise.all([
-		headReq(test,content),
-		getHeaders(test,content)
-	])
-	await Promise.all([
-		new Promise(() => {
-			for(const entry of Object.entries(headers)) expect(realHeaders).toHaveProperty(entry[0],entry[1])
-		}),
-		new Promise(() => {
-			for(const entry of Object.entries(realHeaders)) expect(headers).toHaveProperty(entry[0])
-		})
-	])
+    const [headers, realHeaders] = await Promise.all([
+        headReq(test,content),
+        getHeaders(test,content)
+    ])
+    await Promise.all([
+        new Promise(() => {
+            for(const entry of Object.entries(headers)) expect(realHeaders).toHaveProperty(entry[0],entry[1])
+        }),
+        new Promise(() => {
+            for(const entry of Object.entries(realHeaders)) expect(headers).toHaveProperty(entry[0])
+        })
+    ])
 }

@@ -10,9 +10,9 @@ interface Qstring extends Query{
     action: string
 }
 interface Handlers{
-	startHandler?: RequestHandler,
-	execHandler?: RequestHandler,
-	rollbackHandler?: RequestHandler
+    startHandler?: RequestHandler,
+    execHandler?: RequestHandler,
+    rollbackHandler?: RequestHandler
 }
 export default function getMockDB(ip: string, server: Express, repo:string, start: boolean, rollback: boolean, exec: boolean, handlers?: Handlers): MockDB{
     const mockTransaction = "ab642438bc4aacdvq"

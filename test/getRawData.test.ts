@@ -43,9 +43,9 @@ async function queryRaw(test: supertest.SuperTest<supertest.Test>, userID: strin
     url = url.replace(":userID",userID).replace(":content",encodeURIComponent(content))
     url += `?since=${since}&before=${before}`
     const res: Array<Answer> = (await test.get(url).expect(200).catch(e => {
-		console.log(e)
-		throw e
-	})).body
+        console.log(e)
+        throw e
+    })).body
     const {error} = schema === undefined ? Joi.array().required().items(answerSchema).validate(res) : schema.validate(res)
     expect(error).toBeUndefined()
     return res as Answer[]
@@ -59,7 +59,7 @@ describe("getRawData",() => {
     const before = new Date("2/14/2022")
     it("Should return an empty array if no data is found", async () => {
         const body = await queryRaw(test,userID,content,new Date(0).toUTCString(),new Date().toUTCString())
-		expect(body).toHaveLength(0)
+        expect(body).toHaveLength(0)
     })
     it("Should retrieve all the data between since and before, inclusive.", async () => {
         const time = new Date("1/15/2022")

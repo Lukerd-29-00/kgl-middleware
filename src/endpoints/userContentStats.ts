@@ -92,7 +92,7 @@ async function processUserContentStats(request: Request<ReqParams,string,EmptyOb
             execTransaction(BodyLessAction.COMMIT,location).catch(() => {})
             response.setHeader("Content-Type","application/json")
             parseQueryOutput(readline.createInterface({input: res.body}), response.locals.stream, {stdev: request.query.stdev === "true", mean: request.query.mean === "true", content: true}).then(() => {        
-				next()
+                next()
             })
         }).catch((e: Error) => {
             next(e)
@@ -103,9 +103,9 @@ async function processUserContentStats(request: Request<ReqParams,string,EmptyOb
 }
 
 const endpoint: Endpoint<ReqParams,string,EmptyObject,ReqQuery,Locals> = { 
-	method: Method.GET,
-	schema: {query: querySchema},
-	route: route,
-	process: processUserContentStats
+    method: Method.GET,
+    schema: {query: querySchema},
+    route: route,
+    process: processUserContentStats
 }
 export default endpoint

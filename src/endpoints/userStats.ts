@@ -112,9 +112,9 @@ async function processUserStats(request: Request<ReqParams,string,EmptyObject,Re
 }
 
 const endpoint: Endpoint<ReqParams,string,EmptyObject,ReqQuery,Locals> = { 
-	method: Method.GET, 
-	schema: {query: querySchema},
-	route: route,
-	process: processUserStats
+    method: Method.GET, 
+    schema: {query: querySchema},
+    route: route,
+    process: processUserStats
 }
 export default endpoint

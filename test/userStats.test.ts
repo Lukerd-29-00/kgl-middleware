@@ -18,14 +18,14 @@ describe("userStats", () => {
     const content = "http://aribtrarywebsite/TestContent"
     const content2 = "http://aribtrarywebsite/TestContent2"
     const resTime = 100
-	const test = supertest(getApp(ip, repo, prefixes,[userStats])) //This can be shared because the API follows REST, and should therefore be stateless.
+    const test = supertest(getApp(ip, repo, prefixes,[userStats])) //This can be shared because the API follows REST, and should therefore be stateless.
     const query = async (test: supertest.SuperTest<supertest.Test>, interval?: TimeInterval) => {
         return await queryStats(userStats.route,test,userID,interval !== undefined ? {...interval} : undefined) as Record<string,unknown>
     }
     it("Should return an empty array if no content field is specified and no questions have been answered by the user", async () => {
         const res = await query(test)
-		expect(joi.object().validate(res).error).toBeUndefined()
-		expect(Object.entries(res as Record<string,unknown>)).toHaveLength(0)
+        expect(joi.object().validate(res).error).toBeUndefined()
+        expect(Object.entries(res as Record<string,unknown>)).toHaveLength(0)
     })
     it("Should return an object for each subject the user has answered a question for if no content is supplied", async () => {
         await writeAttempt(repo,userID,content,true,1,resTime)
