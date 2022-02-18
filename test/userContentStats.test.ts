@@ -139,6 +139,9 @@ describe("userContentStats", () => {
         expect(res).toHaveProperty("stdev",null)
         expect(res).toHaveProperty("mean",null)
     })
+    it("Should send back a 400 error if the Date header is malformed", async () => {
+        await getTest().get(userContentStats.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))).set("Date","junk").expect(400)
+    })
     afterEach(async () => {
         await fetch(`${ip}/repositories/${repo}/statements`, {
             method: "DELETE",

@@ -124,7 +124,8 @@ function checkRequest(request: Request, response: Response<unknown,Locals>, next
 }
 
 interface Responder{
-    method: "get" | "put" | "post" | "delete"
+    method: Method
+    //Any is used here because the getApp function doesn't do any input validation or request handling, so it doesn't need to worry about the types of the input at all.
     process: processor<any,any,any,any,any> //eslint-disable-line
     schema: RequestSchema   
 }
@@ -176,7 +177,7 @@ export default function getApp<E extends Endpoint<any,any,any,any,L> = Endpoint<
             }
             route[responder.method](handler)
             route[responder.method](send)
-            if(responder.method == "get"){
+            if(responder.method == Method.GET){
                 route.head((request,response: Response<unknown,Locals>,next) => {
                     checkRequest(request,response,next,responder.schema)
                 })
