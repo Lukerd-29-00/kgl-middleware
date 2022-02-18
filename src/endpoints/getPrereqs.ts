@@ -13,8 +13,6 @@ interface ReqParams extends Record<string,string>{
     content: string
 }
 
-
-
 async function queryPrerequisites(ip: string, repo: string, prefixes: [string, string][], target: string, writeTo: LengthTrackingDuplex): Promise<void>{
     const location = await startTransaction(ip, repo)
     const query = SparqlQueryGenerator({query: `<${target}> cco:has_part ?o`, targets: ["?o"]},prefixes)

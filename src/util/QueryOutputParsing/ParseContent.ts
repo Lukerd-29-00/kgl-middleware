@@ -1,7 +1,6 @@
 import {Interface} from "readline"
 import events from "events"
-import { PassThrough, Writable } from "stream"
-import { promisify } from "util"
+import { Writable } from "stream"
 export interface ResBody{
     correct: number,
     attempts: number,

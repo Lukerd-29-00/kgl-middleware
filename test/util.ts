@@ -4,8 +4,6 @@ import {execTransaction, BodyAction, BodyLessAction} from "../src/util/transacti
 import {createLearnerRecordTriples} from "../src/endpoints/writeToLearnerRecord"
 import {ip, prefixes} from "../src/config"
 import writeToLearnerRecord from "../src/endpoints/writeToLearnerRecord"
-import getPrereqs from "../src/endpoints/getPrereqs"
-import { string } from "joi"
 
 export async function writeAttemptTimed(repo: string, userID: string, content: string, time: Date, correct: false): Promise<void>
 export async function writeAttemptTimed(repo: string, userID: string, content: string, time: Date, correct: true, responseTime: number): Promise<void>
@@ -26,18 +24,9 @@ function linkToPrereq(content: string, prereq: string){
     return `<${content}> cco:has_part <${prereq}>`
 }
 
-function isArray(possibleArray: Array<string> | string): possibleArray is Array<string>{
-    return (possibleArray as Array<string>).push != undefined
-}
-
-export async function addContent(repo: string, content: string, prereqs: string[]): Promise<void>
-export async function addContent(repo: string, content: string, ...prereqs: string[]): Promise<void>
-export async function addContent(repo: string, content: string, ...prereqs: string[] | string[][]): Promise<void>{
+export async function addContent(repo: string, content: string, ...prereqs: string[]): Promise<void>{
     const location = await startTransaction(ip, repo)
     const promises = new Array<Promise<void>>()
-    if(prereqs.length > 0 && isArray(prereqs[0])){
-        prereqs = prereqs[0]
-    }
     for(const prereq of (prereqs as string[])){
         promises.push(execTransaction(BodyAction.UPDATE,location,prefixes,linkToPrereq(content,prereq)).then())
     }

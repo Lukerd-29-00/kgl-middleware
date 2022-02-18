@@ -12,10 +12,6 @@ const repo = "getPrereqsTest"
 
 const port = 7201
 
-function isArray(possibleArray: Array<string> | string): possibleArray is Array<string>{
-    return (possibleArray as Array<string>).push != undefined
-}
-
 export async function queryPrereqs(test: supertest.SuperTest<supertest.Test>, content: string): Promise<unknown>{
     const route = getPrereqs.route.replace(":content",encodeURIComponent(content))
     return (await test.get(route).expect(200)).body
@@ -32,18 +28,15 @@ async function getPrereqHeaders(test: supertest.SuperTest<supertest.Test>,conten
 }
 
 
-
-function expectItems(arr: unknown, ...items: string[]): void
-function expectItems(arr: unknown, items: string[]): void
-function expectItems(arr: unknown, ...items: string[] | string[][]): void{
+function expectItems(arr: unknown, ...items: string[]): void{
     const schema = joi.array()
-    if(items.length > 0 && joi.array().validate(items[0]).error === undefined) items = items[0] as string[]
-    schema.items.apply(schema,(items as string[]).map((item: string) => {
+    schema.items(schema,...items.map((item: string) => {
         return joi.string().valid(item).required()
     }))
     const {error} = schema.validate(arr)
     expect(error).toBeUndefined()
 }
+
 describe("getPrereqs", () => {
     const test = supertest(getApp(ip,repo,prefixes,[getPrereqs]))
     const testContent = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent"

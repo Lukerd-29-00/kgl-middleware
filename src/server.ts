@@ -9,7 +9,6 @@ import express, { Express, Request, Response } from "express"
 import morgan from "morgan"
 import Joi, { Schema } from "joi"
 import PassThroughLength, { LengthTrackingDuplex } from "./util/streams/PassThroughLength"
-import { promisify } from "util"
 import events from "events"
 
 type plainOrArrayOf<T> = Array<T> | T
