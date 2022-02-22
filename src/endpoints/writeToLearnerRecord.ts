@@ -12,14 +12,14 @@ const bodySchema = Joi.object({
     timestamp: Joi.number().integer().required().unit("milliseconds"),
     correct: Joi.boolean().required(),
     userID: Joi.string().required(),
-    content: Joi.string().required()
+    standardLearnerContent: Joi.string().required()
 })
 
 interface ReqBody extends Record<string,RawData>{
     timestamp: number,
     correct: boolean,
     userID: string,
-    content: string
+    standardLearnerContent: string
 }
 
 function getTriples(userID: string, content: string, timestamp: number, correct: boolean): string{
@@ -49,7 +49,7 @@ function getTriples(userID: string, content: string, timestamp: number, correct:
 
 async function processWriteToLearnerRecord(request: Request<EmptyObject,string,ReqBody,EmptyObject,EmptyObject>,response: Response<string,Locals>,next: (err?: Error) => void, ip: string, repo: string, log: Logger | null, prefixes: [string, string][]): Promise<void>{
     const location = await startTransaction(ip,repo)
-    execTransaction(BodyAction.UPDATE,location,prefixes,getTriples(request.body.userID,request.body.content,request.body.timestamp,request.body.correct)).then(() => {
+    execTransaction(BodyAction.UPDATE,location,prefixes,getTriples(request.body.userID,request.body.standardLearnerContent,request.body.timestamp,request.body.correct)).then(() => {
         return execTransaction(BodyLessAction.COMMIT,location).then(() => {
             response.locals.stream.end()
             next()

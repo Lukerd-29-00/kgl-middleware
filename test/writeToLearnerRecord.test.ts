@@ -2,7 +2,7 @@ import endpoints from "../src/endpoints/endpoints"
 import getApp from "../src/server"
 import { ip, prefixes } from "../src/config"
 import supertest from "supertest"
-import writeToLearnerRecord from "../src/endpoints/writeRawData"
+import writeToLearnerRecord from "../src/endpoints/writeToLearnerRecord"
 import startTransaction from "../src/util/transaction/startTransaction"
 import {execTransaction, BodyAction, BodyLessAction} from "../src/util/transaction/ExecTransaction"
 import {getPrefixes} from "../src/util/QueryGenerators/SparqlQueryGenerator"
@@ -13,7 +13,7 @@ import getMockDB from "./mockDB"
 import { queryWrite, waitFor } from "./util"
 
 const repo = "writeToLearnerRecordTest"
-const port = 7205
+const port = 7206
 
 interface Resource{
     userID: string,
@@ -23,7 +23,13 @@ interface Resource{
 interface Answer{
     correct: boolean,
     timestamp: number,
-    responseTime?: number,
+}
+
+interface ReqBody{
+    correct: boolean,
+    timestamp: number,
+    userID: string,
+    standardLearnerContent: string
 }
 
 function findStatementQuery(location: Resource, statement: Answer): string{
@@ -32,16 +38,13 @@ function findStatementQuery(location: Resource, statement: Answer): string{
         cco:Person_${location.userID} cco:agent_in ?a .
         ?a cco:has_object <${location.content}> ;
            cco:occurs_on / cco:is_tokenized_by "${statement.timestamp}"^^xsd:integer ;
-           cco:is_measured_by_nominal / cco:is_tokenized_by "${statement.correct}"^^xsd:boolean ;`
-    output += statement.correct ? `cco:is_measured_by_ordinal / cco:is_tokenized_by "${statement.responseTime}"^^xsd:integer .}` : "}"
+           cco:is_measured_by_nominal / cco:is_tokenized_by "${statement.correct}"^^xsd:boolean .}`
     return output
 }
 
 function getFilter(statement: Answer): string{
-    let output = `FILTER NOT EXISTS {
-        ?a cco:occurs_on / cco:is_tokenized_by "${statement.timestamp}"^^xsd:integer ;
-        cco:is_measured_by_nominal / cco:is_tokenized_by "${statement.correct}"^^xsd:boolean ;`
-    output += statement.correct ? `cco:is_measured_by_ordinal / cco:is_tokenized_by "${statement.responseTime}"^^xsd:integer .}` : "}"
+    let output = `FILTER NOT EXISTS { ?a cco:occurs_on / cco:is_tokenized_by "${statement.timestamp}"^^xsd:integer ;
+    cco:is_measured_by_nominal / cco:is_tokenized_by "${statement.correct}"^^xsd:boolean  .}`
     return output
 }
 
@@ -82,187 +85,31 @@ async function expectStatements(expected: Map<Resource, Answer[]>): Promise<void
     await Promise.all(promises)
 }
 
-describe("writeToLearnerRecord", () => {
-    const app = getApp(ip, repo, prefixes, endpoints)
+async function postToWrite(test: supertest.SuperTest<supertest.Test>, body: ReqBody): Promise<void>{
+    await test.post(writeToLearnerRecord.route).set("content-type","application/json").send(body).expect(202)
+}
+
+describe("writeToLearnerRecord",() => {
+    const test = supertest(getApp(ip,repo,prefixes,[writeToLearnerRecord]))
     const userID = "1234"
     const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent"
-    const responseTime = 100
-    it("Should allow you to say that a person got something right", async () => {
-        const time = new Date()
+    it("Should allow you to add a statement to the learner record", async () => {
+        const timestamp = new Date().getTime()
+        await postToWrite(test,{
+            correct: true,
+            timestamp,
+            userID,
+            standardLearnerContent: content
+        })
         const expected = new Map<Resource,Answer[]>()
-        expected.set({userID,content},[{correct: true, responseTime, timestamp: new Date(time.toUTCString()).getTime()}])
-        const test = supertest(app)
-        await queryWrite(test,userID,content,time,true,responseTime)
-        await waitFor(async () => {
-            expectStatements(expected)
-        })  
-    })
-    it("Should allow you to say that a person got something wrong", async () => {
-        const time = new Date()
-        const expected = new Map<Resource,Answer[]>()
-        expected.set({userID,content},[{correct: false, timestamp: new Date(time.toUTCString()).getTime()}])
-        const test = supertest(app)
-        await queryWrite(test,userID,content,time,false)
-        await waitFor(async () => {
-            expectStatements(expected)
-        },40000)
-    },40000)
-    it("Should be able to handle several concurrent requests", async () => {
-        const timestamp = new Date()
-        const expected = new Map<Resource,Answer[]>()
-        const answers = [
-            {correct: false, responseTime, timestamp: new Date(timestamp.toUTCString()).getTime()},
-            {correct: true, responseTime, timestamp: new Date(timestamp.toUTCString()).getTime()}
-        ]
-        expected.set({userID,content},answers)
-        const test = supertest(app)
-        await Promise.all([
-            queryWrite(test,userID,content,timestamp,true,responseTime),
-            queryWrite(test,userID,content,timestamp,false)
-        ])
+        expected.set({userID, content},[{correct: true, timestamp}])
         await waitFor(async () => {
             expectStatements(expected)
         })
-    })
-    it("Should allow you to upload an array of answers", async () => {
-        const timestamp = new Date()
-        const expected = new Map<Resource,Answer[]>()
-        const answers = [
-            {correct: false, timestamp: timestamp.getTime()},
-            {correct: true, timestamp: timestamp.getTime(), responseTime: 100},
-            {correct: false, timestamp: new Date().getTime()}
-        ]
-        expected.set({userID,content},answers)
-        const test = supertest(app)
-        const route = writeToLearnerRecord.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
-        await test.put(route).set("Content-Type","application/json").send(answers).expect(202)
-        await waitFor(async () => {
-            expectStatements(expected)
-        })
-        
-    })
-    it("Should send back a 400 error if the date header is malformed", async () => {
-        const test = supertest(app)
-        const body = {correct: false}
-        const route = writeToLearnerRecord.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
-        await test.put(route).set("Date",new Date().toUTCString() + "junk").send(body).expect(400)
     })
     afterEach(async () => {
         await fetch(`${ip}/repositories/${repo}/statements`, {
             method: "DELETE",
         })
-    })
-})
-
-describe("writeToLearnerRecord", () => {
-    let server: null | Server = null
-    const mockIp=`http://localhost:${port}`
-    const userID = "1234"
-    const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent2"
-    const timestamp = new Date()
-    const responseTime = 100
-    const app = getApp(mockIp,repo,prefixes,[writeToLearnerRecord])
-    const body = {
-        correct: true,
-        responseTime,
-        timestamp: timestamp.toUTCString()
-    }
-    const getMockServer = () => {
-        const mockServer = express()
-        mockServer.use(express.raw({type: "application/sparql-update"}))
-        return mockServer
-
-    } 
-    const route = writeToLearnerRecord.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
-    it("Should send a server error if it cannot start a transaction", done => {
-        const mockDB = getMockDB(mockIp,express(),repo,false,false,false)
-        server = mockDB.server.listen(port, () => {
-            const test = supertest(app)
-            test.put(route).send(body).expect(500).end(err => {
-                if(err !== undefined){
-                    done(err)
-                }else{
-                    done()
-                }
-            })
-        })
-        
-    })
-    it("Should send a server error and attempt a rollback if it cannot execute a transaction", done => {
-        const mockDB = getMockDB(mockIp,getMockServer(),repo,true,true,false)
-        server = mockDB.server.listen(port, () => {
-            const test = supertest(app)
-            test.put(writeToLearnerRecord.route).send(body).expect(500)
-                .then(() => {
-                    expect(mockDB.start).toHaveBeenCalled()
-                    expect(mockDB.rollback).toHaveBeenCalled()
-                    expect(mockDB.exec).toHaveBeenCalled()
-                    done()
-                }).catch((e) => {
-                    done(e)
-                })
-        })
-    })
-    it("Should still send a server error if it fails the rollback", done => {
-        const mockDB = getMockDB(mockIp,getMockServer(),repo,true,false,false)
-        server = mockDB.server.listen(port, () => {
-            const test = supertest(app)
-            test.put(route).send(body).expect(500)
-                .then(() => {
-                    expect(mockDB.start).toHaveBeenCalled()
-                    expect(mockDB.rollback).toHaveBeenCalled()
-                    expect(mockDB.exec).toHaveBeenCalled()
-                    done()
-                }).catch((e) => {
-                    done(e)
-                })
-        })
-    })
-    it("Should send a server error and attempt a rollback if commiting the transaction fails", done => {
-        const mockDB = getMockDB(mockIp,getMockServer(),repo,true,true,true,{execHandler:(request, response, next) => {
-            if(request.query.action === "COMMIT"){
-                next(Error("We're pretending something went wrong with Graphdb here"))
-            }else{
-                response.end()
-            }
-        }})
-        server = mockDB.server.listen(port, () => {
-            const test = supertest(app)
-            test.put(route).send(body).expect(500)
-                .then(() => {
-                    expect(mockDB.start).toHaveBeenCalled()
-                    expect(mockDB.rollback).toHaveBeenCalled()
-                    expect(mockDB.exec).toHaveBeenCalledTimes(2)
-                    done()
-                }).catch((e) => {
-                    done(e)
-                })
-        })
-    })
-    it("Should still return the same error if the rollback fails after failing to commit", done => {
-        const mockDB = getMockDB(mockIp,getMockServer(),repo,true,true,true,{execHandler:(request, response, next) => {
-            if(request.query.action === "COMMIT"){
-                next(Error("We're pretending something went wrong with Graphdb here"))
-            }else{
-                response.end()
-            }
-        }})
-        server = mockDB.server.listen(port, () => {
-            const test = supertest(getApp(mockIp, repo, prefixes, endpoints))
-            test.put(writeToLearnerRecord.route).send(body).expect(500)
-                .then(() => {
-                    expect(mockDB.start).toHaveBeenCalled()
-                    expect(mockDB.rollback).toHaveBeenCalled()
-                    expect(mockDB.exec).toHaveBeenCalled()
-                    done()
-                }).catch((e) => {
-                    done(e)
-                })
-        })
-    })
-    afterEach(async () => {
-        if (server) {
-            await server.close()
-        }
     })
 })
