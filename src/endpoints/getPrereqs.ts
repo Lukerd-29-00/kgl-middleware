@@ -18,6 +18,11 @@ async function queryPrerequisites(ip: string, repo: string, prefixes: [string, s
     const location = await startTransaction(ip, repo)
     const query = SparqlQueryGenerator({query: `<${target}> cco:has_part ?o`, targets: ["?o"]},prefixes)
     const res = await execTransaction(BodyAction.QUERY,location,prefixes,query).catch(e => {
+        rollback(location).catch(e => {
+            if(log){
+                log.error("error: ",{message: e.message})
+            }
+        })
         throw e
     })
     execTransaction(BodyLessAction.COMMIT,location).catch(() => {
