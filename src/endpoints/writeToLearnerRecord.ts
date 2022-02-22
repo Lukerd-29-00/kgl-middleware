@@ -11,20 +11,20 @@ const route = "/writeToLearnerRecord"
 const bodySchema = Joi.object({
     timestamp: Joi.number().integer().required().unit("milliseconds"),
     correct: Joi.boolean().required(),
-    userId: Joi.string().required(),
+    userID: Joi.string().required(),
     content: Joi.string().required()
 })
 
 interface ReqBody extends Record<string,RawData>{
     timestamp: number,
     correct: boolean,
-    userId: string,
+    userID: string,
     content: string
 }
 
-function getTriples(userId: string, content: string, timestamp: number, correct: boolean): string{
+function getTriples(userID: string, content: string, timestamp: number, correct: boolean): string{
     const id = uuid()
-    const person = `cco:Person_${userId}`
+    const person = `cco:Person_${userID}`
     const act = `cco:Act_Learning_${id}`
     const timeNominal = `cco:Reference_Time_Act_Learning_${id}`
     const correctNominal = `cco:Correct_Nominal_Act_Learning_${id}`
@@ -49,7 +49,7 @@ function getTriples(userId: string, content: string, timestamp: number, correct:
 
 async function processWriteToLearnerRecord(request: Request<EmptyObject,string,ReqBody,EmptyObject,EmptyObject>,response: Response<string,Locals>,next: (err?: Error) => void, ip: string, repo: string, log: Logger | null, prefixes: [string, string][]): Promise<void>{
     const location = await startTransaction(ip,repo)
-    execTransaction(BodyAction.UPDATE,location,prefixes,getTriples(request.body.userId,request.body.content,request.body.timestamp,request.body.correct)).then(() => {
+    execTransaction(BodyAction.UPDATE,location,prefixes,getTriples(request.body.userID,request.body.content,request.body.timestamp,request.body.correct)).then(() => {
         return execTransaction(BodyLessAction.COMMIT,location).then(() => {
             response.locals.stream.end()
             next()
@@ -60,7 +60,7 @@ async function processWriteToLearnerRecord(request: Request<EmptyObject,string,R
 }
 
 const endpoint: Endpoint<EmptyObject,string,ReqBody,EmptyObject,Locals> = {
-    method: Method.PUT,
+    method: Method.POST,
     route,
     process: processWriteToLearnerRecord,
     schema: {body: bodySchema}

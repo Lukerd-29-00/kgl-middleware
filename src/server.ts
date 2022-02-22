@@ -20,6 +20,7 @@ export enum Method{
     GET = "get",
     PUT = "put",
     DELETE = "delete",
+    POST = "post"
 }
 
 /**This is a specific type of middleware, intended to retrieve the desired data or write it to the database. Places the data into a PassThrough stream under response.locals.stream, the number of bytes in the stream under response.locals.length, and any characters to be added to the stream before reading in the response.locals.append variable. */
@@ -78,8 +79,7 @@ async function send(request: Request, response: Response<any,Locals>): Promise<v
             response.status(204)
         }
         response.setHeader("Content-Length",length)
-        response.locals.stream.destroy()
-        response.end()
+        response.locals.stream.pipe(response)
     }else{
         if(request.method === "GET"){
             response.status(204)
