@@ -78,13 +78,13 @@ async function send(request: Request, response: Response<any,Locals>): Promise<v
             response.status(204)
         }
         response.setHeader("Content-Length",length)
-        response.once("finish", () => {
-            response.locals.stream.destroy()
-        })
-        stream.pipe(response)
+        response.locals.stream.destroy()
+        response.end()
     }else{
-        if(response.statusCode === 200){
+        if(request.method === "GET"){
             response.status(204)
+        }else{
+            response.status(202)
         }
         response.locals.stream.destroy()
         response.end()
