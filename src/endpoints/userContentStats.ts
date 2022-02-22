@@ -7,6 +7,7 @@ import {execTransaction, BodyAction, BodyLessAction} from "../util/transaction/e
 import {ParamsDictionary} from "express-serve-static-core"
 import { parseQueryOutput } from "../util/QueryOutputParsing/ParseContent"
 import { querySchema } from "./userStats"
+import { Logger } from "winston"
 
 const route = "/users/:userID/stats/:content"
 
@@ -68,7 +69,7 @@ export function getNumberAttemptsQuery(userID: string, prefixes: [string, string
  * @param prefixes The prefixes used for SPARQL queries
  * @async
  */
-async function processUserContentStats(request: Request<ReqParams,string,EmptyObject,ReqQuery> , response: Response<string,Locals>, next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>): Promise<void> {
+async function processUserContentStats(request: Request<ReqParams,string,EmptyObject,ReqQuery> , response: Response<string,Locals>, next: (e?: Error) => void, ip: string, repo: string, log: Logger | null, prefixes: Array<[string, string]>): Promise<void> {
     const userID = request.params.userID
     let before = new Date().getTime()
     if(request.query.before !== undefined){
@@ -89,7 +90,11 @@ async function processUserContentStats(request: Request<ReqParams,string,EmptyOb
     const query = getNumberAttemptsQuery(userID,prefixes,since,before,request.params.content)
     startTransaction(ip, repo).then((location) => {
         execTransaction(BodyAction.QUERY, location, prefixes, query).then(res => {
-            execTransaction(BodyLessAction.COMMIT,location).catch(() => {})
+            execTransaction(BodyLessAction.COMMIT,location).catch(e => {
+                if(log){
+                    log.error("error: ",{message: e.message})
+                }
+            })
             response.setHeader("Content-Type","application/json")
             parseQueryOutput(readline.createInterface({input: res.body}), response.locals.stream, {stdev: request.query.stdev === "true", mean: request.query.mean === "true", content: true}).then(() => {        
                 next()

@@ -5,11 +5,12 @@
  *  Casey Rock 
  *  July 30, 2021
  */
-import express, { Express, Request, Response } from "express"
-import morgan from "morgan"
+import express, { Express, Handler, Request, Response } from "express"
+import winston from "winston"
 import Joi, { Schema } from "joi"
 import PassThroughLength, { LengthTrackingDuplex } from "./util/streams/PassThroughLength"
 import events from "events"
+import { IncomingMessage, ServerResponse } from "http"
 
 type plainOrArrayOf<T> = Array<T> | T
 export type RawData = number | boolean | string
@@ -30,8 +31,8 @@ type processor<
     Q extends Record<string,Optional<RawData>> | EmptyObject,
     L extends Locals
 > 
-= ((request: Request<P,S,R,Q>, response: Response<S,L>,next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>) => Promise<void>) 
-| ((request: Request<Record<string,P>,S,R,Record<string,Q>>, response: Response<S,L>, next: (e?: Error) => void, ip: string, repo: string) => Promise<void>)
+= ((request: Request<P,S,R,Q>, response: Response<S,L>,next: (e?: Error) => void, ip: string, repo: string, log: winston.Logger | null, prefixes: Array<[string, string]>) => Promise<void>) 
+| ((request: Request<Record<string,P>,S,R,Record<string,Q>>, response: Response<S,L>, next: (e?: Error) => void, ip: string, repo: string, log: winston.Logger | null) => Promise<void>)
 
 /**This holds all the data required to determine what to do if a user queries the route field */
 export interface Endpoint<
@@ -130,6 +131,11 @@ interface Responder{
     schema: RequestSchema   
 }
 
+export interface Logger{
+    middleware?: Handler
+    main: winston.Logger
+}
+
 /**Constructs an Express object from a list of Endpoint objects that executes checkRequest on the endpoints' schemas, their processors, and then send for each endpoint.  
  * @param ip The URL to the desired Graphdb server
  * @param repo The graphdb repository to interact with
@@ -138,20 +144,15 @@ interface Responder{
  * @param log Whether or not to log requests to the console.
  * @returns an Express object that will host the desired Endpoint objects.
  */
-export default function getApp<E extends Endpoint<any,any,any,any,L> = Endpoint<any,any,any,any,Locals>, L extends Locals = Locals>(ip: string, repo: string, prefixes: Array<[string, string]>, endpoints: Array<E>, log?: boolean): Express { //eslint-disable-line
+export default function getApp<E extends Endpoint<any,any,any,any,L> = Endpoint<any,any,any,any,Locals>, L extends Locals = Locals>(ip: string, repo: string, prefixes: Array<[string, string]>, endpoints: Array<E>, log?: Logger): Express { //eslint-disable-line
     const app = express()
     //Use the morgan logging library to log requests if desired
-    if (log) {
-        app.use(morgan("combined"))
-    }
+    
 
     //Use the json body parser
     app.use(express.json())
     app.use(express.urlencoded({ extended: true }))
-    app.use((err: Error, request: Request, response: Response, next: (err?: Error) => void) => {
-        response.locals.stream.destroy()
-        next(err)
-    })
+
     
     //Map the various routes to endpoints
     const routes = new Map<string, Responder[]>()
@@ -173,7 +174,7 @@ export default function getApp<E extends Endpoint<any,any,any,any,L> = Endpoint<
                 checkRequest(request,response,next,responder.schema)
             })
             const handler = (request: Request, response: Response, next: (e?: Error) => void) => {
-                responder.process(request,response,next,ip,repo,prefixes)
+                responder.process(request,response,next,ip,repo,log === undefined ? null : log.main,prefixes)
             }
             route[responder.method](handler)
             route[responder.method](send)
@@ -186,7 +187,15 @@ export default function getApp<E extends Endpoint<any,any,any,any,L> = Endpoint<
             }
         }
     }
+    if (log && log.middleware) {
+        app.use(log.middleware)
+    }
     app.use("/",router)
+    app.use((err: Error, request: Request, response: Response, next: (err?: Error) => void) => {
+        response.locals.stream.destroy()
+        next(err)
+    })
+    app.disable("x-powered-by")
     return app
 }
 

@@ -5,6 +5,7 @@ import rollback from "../util/transaction/rollback"
 import Joi from "joi"
 import { EmptyObject, Endpoint, Locals, Method, RawData } from "../server"
 import {v4 as uuid} from "uuid"
+import { Logger } from "winston"
 
 
 const ReqBodySchema = Joi.object({
@@ -68,7 +69,7 @@ function isReqBody(body: ReqBody | Array<ReqBody>): body is ReqBody{
     return (body as ReqBody).correct !== undefined
 }
 
-async function processWriteToLearnerRecord(request: Request<ReqParams,string,Array<ReqBody> | ReqBody,EmptyObject>, response: Response<string,Locals>, next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>): Promise<void> {
+async function processWriteToLearnerRecord(request: Request<ReqParams,string,Array<ReqBody> | ReqBody,EmptyObject>, response: Response<string,Locals>, next: (e?: Error) => void, ip: string, repo: string, log: Logger | null, prefixes: Array<[string, string]>): Promise<void> {
     const promises = new Array<Promise<void>>()
     const location = await startTransaction(ip, repo).catch((e: Error) => {
         next(e)

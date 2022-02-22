@@ -7,6 +7,7 @@ import {execTransaction, BodyAction, BodyLessAction} from "../util/transaction/e
 import { EmptyObject, Endpoint, Locals, Method } from "../server"
 import {ParamsDictionary} from "express-serve-static-core"
 import readline from "readline"
+import { Logger } from "winston"
 /**A schema that the query parameters need to follow. */
 const querySchema = Joi.object({
     since: Joi.date().required().max(Joi.ref("before")),
@@ -74,7 +75,7 @@ function getRawDataQuery(userID: string, content: string, since: number, before:
  * @param prefixes The prefixes that any SPARQL queries may use
  * @async
  */
-async function processGetRawData(request: Request<ReqParams,string,EmptyObject,ReqQuery>,response: Response<string,Locals>, next: (e?: Error) => void,ip: string, repo: string, prefixes: Array<[string ,string]>): Promise<void>{
+async function processGetRawData(request: Request<ReqParams,string,EmptyObject,ReqQuery>,response: Response<string,Locals>, next: (e?: Error) => void,ip: string, repo: string, log: Logger | null, prefixes: Array<[string ,string]>): Promise<void>{
     const userID = request.params.userID
     const content = request.params.content
     const before = new Date(request.query.before).getTime()
@@ -82,7 +83,11 @@ async function processGetRawData(request: Request<ReqParams,string,EmptyObject,R
     startTransaction(ip, repo).then(location => {
         execTransaction(BodyAction.QUERY, location, prefixes, getRawDataQuery(userID,content,since,before,prefixes)).then((res: FetchResponse) => {
             response.setHeader("Content-Type","application/json")
-            execTransaction(BodyLessAction.COMMIT,location).catch(() => {})
+            execTransaction(BodyLessAction.COMMIT,location).catch(e => {
+                if(log){
+                    log.error("error: ",{message: e.message})
+                }
+            })
             const readWrite = readline.createInterface({input: res.body})
             response.locals.stream.write("[")
             //This skips the first line of the response, which is the variable names.

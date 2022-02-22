@@ -1,6 +1,7 @@
 import { Request, Response } from "express"
 import fetch from "node-fetch"
 import { EmptyObject, Endpoint, Locals, Method} from "../server"
+import {Logger} from "winston"
 
 const route = "/active"
 

@@ -6,6 +6,7 @@ import { parseQueryOutput } from "../util/QueryOutputParsing/ParseContent"
 import startTransaction from "../util/transaction/startTransaction"
 import {execTransaction, BodyAction, BodyLessAction} from "../util/transaction/execTransaction"
 import { EmptyObject, Endpoint, Locals, Method, Optional } from "../server"
+import { Logger } from "winston"
 
 /**The route that calls this middleware */
 const route = "/users/:userID/stats"
@@ -80,7 +81,7 @@ export function getNumberAttemptsQuery(userID: string, prefixes: [string, string
  * @param prefixes The prefixes to use in the SPARQL query
  * @async
  */
-async function processUserStats(request: Request<ReqParams,string,EmptyObject,ReqQuery> , response: Response<string, Locals>,next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>): Promise<void> {
+async function processUserStats(request: Request<ReqParams,string,EmptyObject,ReqQuery> , response: Response<string, Locals>,next: (e?: Error) => void, ip: string, repo: string, log: Logger | null, prefixes: Array<[string, string]>): Promise<void> {
     const userID = request.params.userID
     let before = new Date().getTime()
     if(request.query.before !== undefined){
@@ -100,7 +101,11 @@ async function processUserStats(request: Request<ReqParams,string,EmptyObject,Re
     const query = getNumberAttemptsQuery(userID,prefixes,since,before)
     startTransaction(ip, repo).then(location => {
         return execTransaction(BodyAction.QUERY,location,prefixes,query).then(res => {
-            execTransaction(BodyLessAction.COMMIT,location).catch(() => {})
+            execTransaction(BodyLessAction.COMMIT,location).catch(e => {
+                if(log){
+                    log.error("error: ", {message: e.message})
+                }
+            })
             response.setHeader("Content-Type","application/json")
             return parseQueryOutput(readline.createInterface({input: res.body}),response.locals.stream,{stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true"}).then(() => {
                 next()
