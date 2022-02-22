@@ -7,39 +7,38 @@ import userStats from "../src/endpoints/userStats"
 import express from "express"
 import {Server} from "http"
 import getMockDB from "./mockDB"
+import joi from "joi"
 import { getNumberAttemptsQuery } from "../src/endpoints/userStats"
 
 const repo = "userStatsTest"
-const port = 7204
+const port = 7205
 
 describe("userStats", () => {
     const userID = "1234"
     const content = "http://aribtrarywebsite/TestContent"
     const content2 = "http://aribtrarywebsite/TestContent2"
     const resTime = 100
-    const getTest = (IP?: string) => {
-        return supertest(getApp(IP ? IP : ip, repo, prefixes,[userStats]))
-    }
+    const test = supertest(getApp(ip, repo, prefixes,[userStats])) //This can be shared because the API follows REST, and should therefore be stateless.
     const query = async (test: supertest.SuperTest<supertest.Test>, interval?: TimeInterval) => {
-        return await queryStats(userStats.route,test,userID,interval !== undefined ? {...interval} : undefined)
+        return await queryStats(userStats.route,test,userID,interval !== undefined ? {...interval} : undefined) as Record<string,unknown>
     }
-    it("Should return an empty object if no content field is specified and no questions have been answered by the user", async () => {
-        expect(Object.entries(await query(getTest()))).toHaveLength(0)
+    it("Should return an empty array if no content field is specified and no questions have been answered by the user", async () => {
+        const res = await query(test)
+        expect(joi.object().validate(res).error).toBeUndefined()
+        expect(Object.entries(res as Record<string,unknown>)).toHaveLength(0)
     })
     it("Should return an object for each subject the user has answered a question for if no content is supplied", async () => {
         await writeAttempt(repo,userID,content,true,1,resTime)
         await writeAttempt(repo,userID,content2,false)
-        const test = getTest()
         await waitFor(async () => {
             const body = await query(test)
             expect(body).toHaveProperty(content)
             expect(body).toHaveProperty(content2)
-            expect(Object.entries(body)).toHaveLength(2)
-        },400000)
-    },600000)
+            expect(Object.entries(body as Record<string,unknown>)).toHaveLength(2)
+        })
+    })
     it("Should count the number of attempts in each object correctly", async () => {
         await writeAttempt(repo,userID,content,true,2,resTime)
-        const test = getTest()
         await waitFor(async () => {
             const body = await query(test)
             expect(body[content]).toHaveProperty("attempts",2)
@@ -52,7 +51,6 @@ describe("userStats", () => {
         expect((await query(test))[content]).toHaveProperty("attempts",2)
     })
     it("Should track the number of correct answers in each object correctly", async () => {
-        const test = getTest()
         await writeAttempt(repo,userID,content,false)
         await waitFor(async () => {
             expect((await query(test))[content]).toHaveProperty("correct",0)
@@ -72,7 +70,6 @@ describe("userStats", () => {
         expect((await query(test))[content]).toHaveProperty("correct",1)
     })
     it("Should be able to narrow down queries between timestamps", async () => {
-        const test = getTest()
         const since = new Date("1/7/2021")
         const before = new Date("1/12/2021")
         const content3 = `${content}3`
@@ -138,7 +135,6 @@ describe("userStats", () => {
         ])
     },20000)
     it("Should send back a 400 error if the Date header is malformed and there is no before query parameter", async () => {
-        const test = getTest()
         await test.get(userStats.route).set("Date","Wed, 02 Mar 2022 05:00:00 GMTjunk").expect(400)
         await test.get(userStats.route).set("Date","Wed, 02 Mar 2022 05:00:00 GMTjunk").expect(400)
     })
@@ -147,9 +143,8 @@ describe("userStats", () => {
             writeAttempt(repo,userID,content,true,1,100),
             writeAttempt(repo,userID,content2,true,1,100)
         ])
-        const test = getTest()
         await waitFor(async () => {
-            const body = await queryStats(userStats.route,test,userID,{stdev:true})
+            const body = await queryStats(userStats.route,test,userID,{stdev:true}) as Record<string,unknown>
             expect(body).toHaveProperty(content)
             expect(body).toHaveProperty(content2)
             expect(body[content]).toHaveProperty("stdev",null)
@@ -160,7 +155,6 @@ describe("userStats", () => {
         await fetch(`${ip}/repositories/${repo}/statements`, {
             method: "DELETE",
         })
-        const test = getTest()
         await waitFor(async () => {
             expect(Object.entries(await query(test))).toHaveLength(0)
         })

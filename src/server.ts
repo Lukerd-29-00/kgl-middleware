@@ -5,25 +5,50 @@
  *  Casey Rock 
  *  July 30, 2021
  */
-import express, { Express, Request, Response } from "express"
-import morgan from "morgan"
+import express, { Express, Handler, Request, Response } from "express"
+import winston from "winston"
 import Joi, { Schema } from "joi"
-import {ParamsDictionary, Query} from "express-serve-static-core"
-import {Readable} from "stream"
+import PassThroughLength, { LengthTrackingDuplex } from "./util/streams/PassThroughLength"
+import events from "events"
 
 type plainOrArrayOf<T> = Array<T> | T
+export type RawData = number | boolean | string
+export type Optional<T> = T | undefined
+export type EmptyObject = Record<string,undefined>
+
+export enum Method{
+    GET = "get",
+    PUT = "put",
+    DELETE = "delete",
+}
 
 /**This is a specific type of middleware, intended to retrieve the desired data or write it to the database. Places the data into a PassThrough stream under response.locals.stream, the number of bytes in the stream under response.locals.length, and any characters to be added to the stream before reading in the response.locals.append variable. */
-type processor<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends plainOrArrayOf<Record<string, string | number | boolean | undefined>>,Q extends Query> = 
-((request: Request<P,S,R,Q>, response: Response<S>,next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>) => Promise<void>) 
-| ((request: Request<P,S,R,Q>, response: Response, next: (e?: Error) => void, ip: string, repo: string) => Promise<void>)
+type processor<
+    P extends Record<string,string> | EmptyObject,
+    S extends plainOrArrayOf<RawData | Record<string,RawData>> | EmptyObject,
+    R extends plainOrArrayOf<RawData | Record<string, Optional<RawData>>> | EmptyObject,
+    Q extends Record<string,Optional<RawData>> | EmptyObject,
+    L extends Locals
+> 
+= ((request: Request<P,S,R,Q>, response: Response<S,L>,next: (e?: Error) => void, ip: string, repo: string, log: winston.Logger | null, prefixes: Array<[string, string]>) => Promise<void>) 
+| ((request: Request<Record<string,P>,S,R,Record<string,Q>>, response: Response<S,L>, next: (e?: Error) => void, ip: string, repo: string, log: winston.Logger | null) => Promise<void>)
 
 /**This holds all the data required to determine what to do if a user queries the route field */
-export interface Endpoint<P extends ParamsDictionary,S extends plainOrArrayOf<string | number | Record<string,unknown> | undefined>,R extends plainOrArrayOf<Record<string, string | number | boolean | undefined>>,Q extends Query>{
+export interface Endpoint<
+    P extends Record<string,string> | EmptyObject,
+    S extends plainOrArrayOf<RawData | Record<string,RawData>> | EmptyObject,
+    R extends plainOrArrayOf<Record<string, Optional<RawData>>> | EmptyObject,
+    Q extends Record<string,Optional<RawData>> | EmptyObject,
+    L extends Locals
+>{
     schema: RequestSchema,
     route: string,
-    method: "put" | "post" | "delete" | "get",
-    process: processor<P,S,R,Q>
+    method: Method,
+    process: processor<P,S,R,Q,L>
+}
+
+export interface Locals{
+    stream: LengthTrackingDuplex
 }
 
 interface RequestSchema{
@@ -35,25 +60,33 @@ interface RequestSchema{
  * @param request The original request
  * @param response The response to send back
  */
-async function send(request: Request, response: Response): Promise<void>{ //eslint-disable-line
-    const stream = response.locals.stream as Readable | undefined
-    let length = response.locals.length
-    if(stream !== undefined && response.locals.length){
+async function send(request: Request, response: Response<any,Locals>): Promise<void>{ //eslint-disable-line
+    if(response.locals.stream === undefined){
+        throw Error("Error: response text must be placed into a readable stream in response.locals.stream!")
+    }
+    const stream = response.locals.stream as LengthTrackingDuplex
+    let length = 0
+    if(response.statusCode === 202 || response.statusCode === 204){
+        response.locals.stream.end()
+    }
+    if(!stream.writableEnded){
+        await events.once(response.locals.stream,"finish")
+    }
+    length = stream.bytesWritten
+    if(length){
         if(request.method === "HEAD"){
             response.status(204)
         }
-        if(response.locals.append !== undefined){
-            length += response.locals.append.length
-        }
-        stream.once("close",() =>{
-            response.end(response.locals.append)
-        })
         response.setHeader("Content-Length",length)
-        stream.pipe(response,{end: false})
+        response.once("finish", () => {
+            response.locals.stream.destroy()
+        })
+        stream.pipe(response)
     }else{
         if(response.statusCode === 200){
             response.status(204)
         }
+        response.locals.stream.destroy()
         response.end()
     }
 }
@@ -65,7 +98,7 @@ async function send(request: Request, response: Response): Promise<void>{ //esli
  * @param response The Express response object used to reply to the user.
  * @param endpoint The endpoint that triggered the error.
  */
-function checkRequest(request: Request, response: Response, next: () => void, schema: RequestSchema): void {
+function checkRequest(request: Request, response: Response<unknown,Locals>, next: (e?: Error) => void, schema: RequestSchema): void {
     schema = {body: schema.body === undefined ? Joi.object({}) : schema.body, query: schema.query === undefined ? Joi.object({}) : schema.query}
     if(schema.body !== undefined){
         const { error } = schema.body.validate(request.body,{dateFormat: "utc"})
@@ -83,13 +116,23 @@ function checkRequest(request: Request, response: Response, next: () => void, sc
             return
         }
     }
+    response.locals.stream = new PassThroughLength()
+    response.locals.stream.once("error",(e: Error) => {
+        next(e)
+    })
     next()
 }
 
 interface Responder{
-    method: "get" | "put" | "post" | "delete"
-    process: processor<any,any,any,any> //eslint-disable-line
+    method: Method
+    //Any is used here because the getApp function doesn't do any input validation or request handling, so it doesn't need to worry about the types of the input at all.
+    process: processor<any,any,any,any,any> //eslint-disable-line
     schema: RequestSchema   
+}
+
+export interface Logger{
+    middleware?: Handler
+    main: winston.Logger
 }
 
 /**Constructs an Express object from a list of Endpoint objects that executes checkRequest on the endpoints' schemas, their processors, and then send for each endpoint.  
@@ -100,16 +143,15 @@ interface Responder{
  * @param log Whether or not to log requests to the console.
  * @returns an Express object that will host the desired Endpoint objects.
  */
-export default function getApp<E extends Endpoint<any,any,any,any> = Endpoint<any,any,any,any>>(ip: string, repo: string, prefixes: Array<[string, string]>, endpoints: Array<E>, log?: boolean): Express { //eslint-disable-line
+export default function getApp<E extends Endpoint<any,any,any,any,L> = Endpoint<any,any,any,any,Locals>, L extends Locals = Locals>(ip: string, repo: string, prefixes: Array<[string, string]>, endpoints: Array<E>, log?: Logger): Express { //eslint-disable-line
     const app = express()
     //Use the morgan logging library to log requests if desired
-    if (log) {
-        app.use(morgan("combined"))
-    }
+    
 
     //Use the json body parser
     app.use(express.json())
     app.use(express.urlencoded({ extended: true }))
+
     
     //Map the various routes to endpoints
     const routes = new Map<string, Responder[]>()
@@ -127,21 +169,32 @@ export default function getApp<E extends Endpoint<any,any,any,any> = Endpoint<an
     for(const entry of routes.entries()){
         const route = router.route(entry[0])
         for(const responder of entry[1]){
-            route[responder.method]((request: Request, response: Response, next: () => void) => {
+            route[responder.method]((request: Request, response: Response<unknown,Locals>, next: () => void) => {
                 checkRequest(request,response,next,responder.schema)
             })
             const handler = (request: Request, response: Response, next: (e?: Error) => void) => {
-                responder.process(request,response,next,ip,repo,prefixes)
+                responder.process(request,response,next,ip,repo,log === undefined ? null : log.main,prefixes)
             }
             route[responder.method](handler)
             route[responder.method](send)
-            if(responder.method == "get"){
+            if(responder.method == Method.GET){
+                route.head((request,response: Response<unknown,Locals>,next) => {
+                    checkRequest(request,response,next,responder.schema)
+                })
                 route.head(handler)
                 route.head(send)
             }
         }
     }
+    if (log && log.middleware) {
+        app.use(log.middleware)
+    }
     app.use("/",router)
+    app.use((err: Error, request: Request, response: Response, next: (err?: Error) => void) => {
+        response.locals.stream.destroy()
+        next(err)
+    })
+    app.disable("x-powered-by")
     return app
 }
 

@@ -1,6 +1,6 @@
 import {Interface} from "readline"
 import events from "events"
-import { PassThrough } from "stream"
+import { Writable } from "stream"
 export interface ResBody{
     correct: number,
     attempts: number,
@@ -81,15 +81,7 @@ function calculateStats(output: ResBody, stats: ParseLineOutput, options: ParseQ
     }
 }
 
-export async function parseQueryOutput(response: Interface, options: ParseQueryOptions): Promise<[PassThrough, number]>{
-    const pass = new PassThrough()
-    const write = async (data: string) => {
-        return new Promise<void>(resolve => {
-            pass.write(data,() => {
-                resolve()
-            })
-        })
-    }
+export async function parseQueryOutput(data: Interface, stream: Writable, options: ParseQueryOptions): Promise<void>{
     if(options.content !== undefined){
         const stats: ParseLineOutput = {
             sum: options.mean ? 0 : NaN,
@@ -102,26 +94,28 @@ export async function parseQueryOutput(response: Interface, options: ParseQueryO
             correct: 0,
             attempts: 0
         }
-        let firstLine = true
-        response.on("line", (line: string) => {
-            if(firstLine){
-                firstLine = false
-                return
-            }
-            ParseLine(line,stats,output,options)
+        data.once("line",() => {
+            data.on("line", (line: string) => {
+                ParseLine(line,stats,output,options)
+            })
         })
-        await events.once(response,"close")
+        await events.once(data,"close")
         calculateStats(output,stats,options)
         const outputString = JSON.stringify(output)
-        await write(outputString)
-        return [pass, outputString.length]
+        stream.end(outputString)
     }else{
-        const writes = new Array<Promise<void>>()
-        let length = 0
-        const newWrite = (data: string) => {
-            writes.push(write(data))
-            length += data.length
+        const promise = async (data: Buffer | string) => {
+            return new Promise<void>(resolve => {
+                stream.write(data,() => {
+                    resolve()
+                })
+            })
         }
+        const writes = new Array<Promise<void>>()
+        const write = (data: string | Buffer) => {
+            writes.push(promise(data))
+        }
+
         let currentContent = ""
         let firstLine = true
         let firstObject = true
@@ -136,8 +130,8 @@ export async function parseQueryOutput(response: Interface, options: ParseQueryO
             attempts: 0,
             correct: 0
         }
-        newWrite("{\n")
-        response.on("line",(data: Buffer) => {
+        stream.write("{")
+        data.on("line",(data: Buffer) => {
             if(firstLine){
                 firstLine = false
                 return
@@ -151,12 +145,12 @@ export async function parseQueryOutput(response: Interface, options: ParseQueryO
                 if(currentContent !== "" && !firstObject){
                     calculateStats(currentOutput,stats,options)
                     const newString = `,\n"${currentContent}": ${JSON.stringify(currentOutput)}`
-                    newWrite(newString)
+                    write(newString)
                 }else if(currentContent !== ""){
                     firstObject = false
                     calculateStats(currentOutput,stats,options)
                     const newString = `"${currentContent}": ${JSON.stringify(currentOutput)}`
-                    newWrite(newString)
+                    write(newString)
                 }
                 currentContent = match[1]
                 stats = {
@@ -173,19 +167,18 @@ export async function parseQueryOutput(response: Interface, options: ParseQueryO
             }
             ParseLine(line,stats,currentOutput,options)
         })
-        await events.once(response,"close")
+        await events.once(data,"close")
         if(currentContent !== "" && !firstObject){
             calculateStats(currentOutput,stats,options)
-            const newString = `,\n"${currentContent}": ${JSON.stringify(currentOutput)}`
-            newWrite(newString)
+            const newString = `,"${currentContent}": ${JSON.stringify(currentOutput)}`
+            write(newString)
         }else if(currentContent !== ""){
             calculateStats(currentOutput,stats,options)
             const newString = `"${currentContent}": ${JSON.stringify(currentOutput)}`
-            newWrite(newString)
+            write(newString)
         }
-        newWrite("\n}")
-        await Promise.all(writes) //Make sure all the data is finished writing before returning!
-        pass.end()
-        return [pass, length]
+        write("}")
+        await Promise.all(writes) //Make sure all the data is finished writing before ending the writable stream!
+        stream.end()
     }
 }

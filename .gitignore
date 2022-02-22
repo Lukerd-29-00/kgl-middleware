@@ -6,3 +6,4 @@ coverage
 setup/input
 config.ttl
 notes.txt
+log/*.log

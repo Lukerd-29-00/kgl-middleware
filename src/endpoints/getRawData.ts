@@ -4,10 +4,10 @@ import {Response as FetchResponse} from "node-fetch"
 import { getPrefixes } from "../util/QueryGenerators/SparqlQueryGenerator"
 import startTransaction from "../util/transaction/startTransaction"
 import {execTransaction, BodyAction, BodyLessAction} from "../util/transaction/execTransaction"
-import { Endpoint } from "../server"
-import {ParamsDictionary, Query} from "express-serve-static-core"
+import { EmptyObject, Endpoint, Locals, Method } from "../server"
+import {ParamsDictionary} from "express-serve-static-core"
 import readline from "readline"
-import { PassThrough } from "stream"
+import { Logger } from "winston"
 /**A schema that the query parameters need to follow. */
 const querySchema = Joi.object({
     since: Joi.date().required().max(Joi.ref("before")),
@@ -21,7 +21,7 @@ export interface ReqParams extends ParamsDictionary{
 }
 
 /**The query parameters for this resource */
-export interface ReqQuery extends Query{
+export interface ReqQuery extends Record<string, string>{
     before: string,
     since: string
 }
@@ -75,59 +75,45 @@ function getRawDataQuery(userID: string, content: string, since: number, before:
  * @param prefixes The prefixes that any SPARQL queries may use
  * @async
  */
-async function processGetRawData(request: Request<ReqParams,Answer[] | string,Record<string,string | boolean | number>,ReqQuery>,response: Response<Answer[] | string>, next: (e?: Error) => void,ip: string, repo: string, prefixes: Array<[string ,string]>): Promise<void>{
+async function processGetRawData(request: Request<ReqParams,string,EmptyObject,ReqQuery>,response: Response<string,Locals>, next: (e?: Error) => void,ip: string, repo: string, log: Logger | null, prefixes: Array<[string ,string]>): Promise<void>{
     const userID = request.params.userID
     const content = request.params.content
     const before = new Date(request.query.before).getTime()
     const since = new Date(request.query.since).getTime()
     startTransaction(ip, repo).then(location => {
         execTransaction(BodyAction.QUERY, location, prefixes, getRawDataQuery(userID,content,since,before,prefixes)).then((res: FetchResponse) => {
-            const pass = new PassThrough()
-            let err = false
             response.setHeader("Content-Type","application/json")
-            execTransaction(BodyLessAction.COMMIT,location).catch(() => {})
+            execTransaction(BodyLessAction.COMMIT,location).catch(e => {
+                if(log){
+                    log.error("error: ",{message: e.message})
+                }
+            })
             const readWrite = readline.createInterface({input: res.body})
-            let firstLine = true
-            let secondLine = true
-            let length = 0
-            readWrite.on("line",async (data: Buffer) => {
-                if(firstLine){
-                    firstLine = false
-                    return
-                }
-                if(!secondLine){
-                    pass.write(",\n")
-                    length += 2
-                }else{
-                    secondLine = false
-                    pass.write("[")
-                    length += 1
-                }
-                const match = data.toString().match(/^(.+),(.+),(.+)/)
-                if(match === null){
-                    next(Error("Invalid response from graphdb"))
-                    err = true
-                    readWrite.close()
-                    return
-                }
-                const obj = JSON.stringify({timestamp: parseInt(match[1],10), correct: match[2] === "true" ? true : false, responseTime: isNaN(parseInt(match[3],10)) ? undefined : parseInt(match[3],10)})
-                length += obj.length
-                return new Promise<void>(resolve => {
-                    pass.write(obj,() => {
-                        resolve()
+            response.locals.stream.write("[")
+            //This skips the first line of the response, which is the variable names.
+            readWrite.once("line",async () => { 
+                //This causes commas to be added after the first object is written.
+                readWrite.once("line",() => { 
+                    readWrite.prependListener("line",() => {
+                        response.locals.stream.write(",")
                     })
                 })
+                //This is writing the actual data to pass.
+                readWrite.on("line",(data: Buffer) => {
+                    const match = data.toString().match(/^(.+),(.+),(.+)/)
+                    if(match === null){
+                        next(Error("Invalid response from graphdb"))
+                        readWrite.close()
+                        return
+                    }
+                    const obj = JSON.stringify({timestamp: parseInt(match[1],10), correct: match[2] === "true" ? true : false, responseTime: isNaN(parseInt(match[3],10)) ? undefined : parseInt(match[3],10)})
+                    response.locals.stream.write(obj)
+                })
             })
-			
-            readWrite.on("close", () => {
-                if(!err){
-                    response.locals.stream = pass
-                    response.locals.append = length > 0 ? "]" : "[]"
-                    response.locals.length = length
-                    next()
-                }
+            readWrite.once("close", () => {
+                response.locals.stream.end("]")
+                next()
             })
-
         }).catch((e: Error) => {
             next(e)
         })
@@ -138,11 +124,11 @@ async function processGetRawData(request: Request<ReqParams,Answer[] | string,Re
 
 const route = "/users/:userID/data/:content"
 
-const endpoint: Endpoint<ReqParams,Answer[] | string,Record<string, string | boolean | number>,ReqQuery> = {
+const endpoint: Endpoint<ReqParams,string,EmptyObject,ReqQuery,Locals> = {
     route,
     schema: {query: querySchema},
     process: processGetRawData,
-    method: "get"
+    method: Method.GET
 }
 
 export default endpoint

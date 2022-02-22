@@ -3,9 +3,9 @@ import startTransaction from "../util/transaction/startTransaction"
 import {execTransaction, BodyAction, BodyLessAction} from "../util/transaction/execTransaction"
 import rollback from "../util/transaction/rollback"
 import Joi from "joi"
-import { Endpoint } from "../server"
-import {ParamsDictionary, Query} from "express-serve-static-core"
+import { EmptyObject, Endpoint, Locals, Method, RawData } from "../server"
 import {v4 as uuid} from "uuid"
+import { Logger } from "winston"
 
 
 const ReqBodySchema = Joi.object({
@@ -21,12 +21,12 @@ const bodySchema = Joi.alternatives(Joi.array().items(ReqBodySchema),ReqBodySche
 
 const route = "/users/:userID/data/:content"
 
-export interface ReqParams extends ParamsDictionary{
+export interface ReqParams extends Record<string,string>{
     userID: string
     content: string
 }
 
-export interface ReqBody extends Record<string, string | number | boolean | undefined>{
+export interface ReqBody extends Record<string, RawData>{
     responseTime: number,
     correct: boolean,
     timestamp: string
@@ -69,11 +69,12 @@ function isReqBody(body: ReqBody | Array<ReqBody>): body is ReqBody{
     return (body as ReqBody).correct !== undefined
 }
 
-async function processWriteToLearnerRecord(request: Request<ReqParams,string,Array<ReqBody> | ReqBody,Query>, response: Response<string>, next: (e?: Error) => void, ip: string, repo: string, prefixes: Array<[string, string]>): Promise<void> {
+async function processWriteToLearnerRecord(request: Request<ReqParams,string,Array<ReqBody> | ReqBody,EmptyObject>, response: Response<string,Locals>, next: (e?: Error) => void, ip: string, repo: string, log: Logger | null, prefixes: Array<[string, string]>): Promise<void> {
     const promises = new Array<Promise<void>>()
-    const location = await startTransaction(ip, repo).catch(e => {
+    const location = await startTransaction(ip, repo).catch((e: Error) => {
         next(e)
     })
+    //Terminate the function if starting the transaction failed.
     if(location === undefined){
         return
     }
@@ -122,5 +123,9 @@ async function processWriteToLearnerRecord(request: Request<ReqParams,string,Arr
 async function writeToLearnerRecord(location: string, prefixes: Array<[string, string]>, triples: string): Promise<void> {
     await execTransaction(BodyAction.UPDATE,location,prefixes,triples)
 }
-const endpoint: Endpoint<ReqParams,string,ReqBody[],Query> = { method: "put",schema: {body: bodySchema}, route, process: processWriteToLearnerRecord }
+const endpoint: Endpoint<ReqParams,string,ReqBody[] | ReqBody,EmptyObject,Locals> = { 
+    method: Method.PUT,
+    schema: {body: bodySchema},
+    route, process: processWriteToLearnerRecord 
+}
 export default endpoint

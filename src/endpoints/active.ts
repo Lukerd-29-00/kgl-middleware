@@ -1,7 +1,6 @@
 import { Request, Response } from "express"
 import fetch from "node-fetch"
-import { Endpoint } from "../server"
-import {ParamsDictionary, Query} from "express-serve-static-core"
+import { EmptyObject, Endpoint, Locals, Method} from "../server"
 
 const route = "/active"
 
@@ -14,7 +13,7 @@ const route = "/active"
  * @param defaultRepo The desired repository
  * @async
  */
-async function processActive(request: Request<ParamsDictionary,string,Record<string,string | number | boolean | undefined>,Query>, response: Response<string>, next: (e?: Error) => void, ip: string, defaultRepo: string): Promise<void>{
+async function processActive(request: Request<EmptyObject,EmptyObject,EmptyObject,EmptyObject>, response: Response<never,Locals>, next: (e?: Error) => void, ip: string, defaultRepo: string): Promise<void>{
     fetch(`${ip}/repositories/${defaultRepo}/size`).then(async probe => {
         if(!probe.ok){
             return await probe.text().then(() => {
@@ -26,10 +25,13 @@ async function processActive(request: Request<ParamsDictionary,string,Record<str
         }
     }).catch((e: Error) => {
         next(e)
-    })
-
-    
+    })    
 }
 
-const endpoint: Endpoint<ParamsDictionary,string,Record<string,string | number | boolean | undefined>,Query> = {schema: {}, route, process: processActive, method: "get"}
+const endpoint: Endpoint<EmptyObject,EmptyObject,EmptyObject,EmptyObject,Locals> = {
+    schema: {}, 
+    route, 
+    process: processActive,
+    method: Method.GET
+}
 export default endpoint

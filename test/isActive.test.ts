@@ -5,7 +5,7 @@ import express, {Response} from "express"
 import { Server } from "http"
 import {ip} from "../src/config"
 
-const port = 7202
+const port = 7203
 const repo = "isActiveTest"
 
 describe("active", () => {
