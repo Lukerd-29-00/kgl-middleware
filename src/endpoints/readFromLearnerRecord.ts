@@ -1,15 +1,12 @@
-import { Request, Response } from "express";
-import { Logger } from "winston";
-import { EmptyObject, Endpoint, Locals, Method } from "../server";
-import { getPrefixes } from "../util/QueryGenerators/SparqlQueryGenerator";
-import { LengthTrackingDuplex } from "../util/streams/PassThroughLength";
-import { createInterface } from "readline";
-import { Readable } from "stream";
-import { resolveNaptr } from "dns";
-import startTransaction from "../util/transaction/startTransaction";
-import { BodyAction, BodyLessAction, execTransaction } from "../util/transaction/execTransaction";
-import { emit } from "process";
-import Joi from "joi";
+import { Request, Response } from "express"
+import { Logger } from "winston"
+import { EmptyObject, Endpoint, Locals, Method } from "../server"
+import { getPrefixes } from "../util/QueryGenerators/SparqlQueryGenerator"
+import { LengthTrackingDuplex } from "../util/streams/PassThroughLength"
+import { createInterface } from "readline"
+import startTransaction from "../util/transaction/startTransaction"
+import { BodyAction, BodyLessAction, execTransaction } from "../util/transaction/execTransaction"
+import Joi from "joi"
 const route = "/readFromLearnerRecord"
 
 const bodySchema = Joi.object({
@@ -47,7 +44,7 @@ function parseReadOutput(writeTo: LengthTrackingDuplex, data: NodeJS.ReadableStr
             }
             const correctCount = parseInt(match[2],10)
             const answerCount = parseInt(match[3],10)
-            if(answerCount === NaN || correctCount === NaN){
+            if(isNaN(answerCount) || isNaN(correctCount)){
                 throw Error("error: invalid response from graphdb")
             }
             writeTo.write(`"${match[1]}": ${JSON.stringify({correct: correctCount, answers: answerCount})}`)

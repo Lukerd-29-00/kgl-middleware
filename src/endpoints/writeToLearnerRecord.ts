@@ -1,8 +1,8 @@
 import { Request, Response } from "express"
 import Joi from "joi"
-import { Logger, stream } from "winston"
+import { Logger } from "winston"
 import { EmptyObject, Endpoint, Locals, Method, RawData } from "../server"
-import {v4 as uuid} from 'uuid'
+import {v4 as uuid} from "uuid"
 import startTransaction from "../util/transaction/startTransaction"
 import { BodyAction, BodyLessAction, execTransaction } from "../util/transaction/execTransaction"
 
