@@ -13,7 +13,7 @@ import getMockDB from "./mockDB"
 import { queryWrite, waitFor } from "./util"
 
 const repo = "writeRawDataTest"
-const port = 7205
+const port = 7207
 
 interface Resource{
     userID: string,

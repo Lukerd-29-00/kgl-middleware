@@ -8,6 +8,7 @@ import {ParamsDictionary} from "express-serve-static-core"
 import { parseQueryOutput } from "../util/QueryOutputParsing/ParseContent"
 import { querySchema } from "./userStats"
 import { Logger } from "winston"
+import rollback from "../util/transaction/rollback"
 
 const route = "/users/:userID/stats/:content"
 
@@ -94,13 +95,22 @@ async function processUserContentStats(request: Request<ReqParams,string,EmptyOb
                 if(log){
                     log.error("error: ",{message: e.message})
                 }
+                rollback(location).catch(e => {
+                    if(log){
+                        log.error("error: ",{message: e.message})
+                    }
+                })
             })
             response.setHeader("Content-Type","application/json")
             parseQueryOutput(readline.createInterface({input: res.body}), response.locals.stream, {stdev: request.query.stdev === "true", mean: request.query.mean === "true", content: true}).then(() => {        
                 next()
             })
         }).catch((e: Error) => {
-            next(e)
+            rollback(location).then(() => {
+                next(e)
+            }).catch(e => {
+                next(e)
+            })
         })
     }).catch((e: Error) => {
         next(e)

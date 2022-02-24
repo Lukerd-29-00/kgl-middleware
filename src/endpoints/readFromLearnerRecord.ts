@@ -7,6 +7,7 @@ import { createInterface } from "readline"
 import startTransaction from "../util/transaction/startTransaction"
 import { BodyAction, BodyLessAction, execTransaction } from "../util/transaction/execTransaction"
 import Joi from "joi"
+import rollback from "../util/transaction/rollback"
 const route = "/readFromLearnerRecord"
 
 const bodySchema = Joi.object({
@@ -56,7 +57,12 @@ function parseReadOutput(writeTo: LengthTrackingDuplex, data: NodeJS.ReadableStr
 }
 
 async function processReadFromLearnerRecord(request: Request<EmptyObject,string,ReqBody,EmptyObject,EmptyObject>,response: Response<string,Locals>, next: (err?: Error) => void, ip: string, repo: string, log: Logger | null, prefixes: [string, string][]): Promise<void>{
-    const location = await startTransaction(ip,repo)
+    const location = await startTransaction(ip,repo).catch(e => {
+        next(e)
+    })
+    if(location === undefined){
+        return
+    }
     response.setHeader("Content-Type","application/json")
     execTransaction(BodyAction.QUERY,location,prefixes,getReadQuery(request.body.userID,prefixes)).then(res => {
         res.body.once("error",e => {
@@ -67,11 +73,20 @@ async function processReadFromLearnerRecord(request: Request<EmptyObject,string,
             if(log){
                 log.error("error: ",{message: e.message})
             }
+            rollback(location).catch(e => {
+                if(log){
+                    log.error("error: ",{message: e.message})
+                }
+            })
         })
         parseReadOutput(response.locals.stream,res.body)
         next()
     }).catch(e => {
-        next(e)
+        rollback(location).then(() => {
+            next(e)
+        }).catch(e => {
+            next(e)
+        })
     })
 }
 

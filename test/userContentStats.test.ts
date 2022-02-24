@@ -9,8 +9,9 @@ import {Server} from "http"
 import getMockDB from "./mockDB"
 import express from "express"
 import {mean, std} from "mathjs"
+import readBehavior from "./readErrorBehavior"
 const repo = "userContentStatsTest"
-const port = 7204
+const port = 7205
 
 function expectError(actual: number, expected: number, threshold = 0.1): void{
     const error = Math.abs(actual - expected)/Math.abs(actual)
@@ -153,61 +154,10 @@ describe("userContentStats", () => {
     })
 })
 
-describe("userStats", () => {
-    let server: Server | null = null
+describe("userContentStats", () => {
     const userID = "1234"
     const mockIp = `http://localhost:${port}`
-    const defaultURL = userContentStats.route.replace(":userID",userID)
-    const getTest = () => {
-        return supertest(getApp(mockIp, repo, prefixes,[userContentStats]))
-    }
-    it("Should send back a server error if starting a transaction fails", async () => {
-        const test = getTest()
-        await test.get(defaultURL).expect(500)
-    })
-    it("Should send back a server error and attempt a rollback if executing the transaction fails", done => {
-        const mockDB = getMockDB(mockIp,express(),repo,true,false,false)
-        server = mockDB.server.listen(port,() => {
-            const test = getTest()
-            test.get(defaultURL).expect(500)
-                .then(() => {
-                    try{
-                        expect(mockDB.start).toHaveBeenCalled()
-                        done()
-                    }catch(e){
-                        done(e)
-                    }
-                }).catch((e) => {
-                    done(e)
-                })
-        })
-    })
-    it("Should not send a server error if committing the transaction fails", done => {
-        const test = getTest()
-        const mockServer = express()
-        mockServer.use(express.raw({type: "application/sparql-query"}))
-        const mockDB = getMockDB(mockIp,mockServer,repo,true,false,true)
-        server = mockDB.server.listen(port,() => {
-            const timestamp = new Date()
-            test.get(defaultURL).set("Date",timestamp.toUTCString()).expect(200)
-                .then(() => {
-                    try{
-                        expect(mockDB.start).toHaveBeenCalled()
-                        expect(mockDB.exec).toHaveBeenCalled()
-                        waitFor(async () => {
-                            expect(mockDB.exec).toHaveBeenCalledTimes(2)
-                        }).then(done)
-                    }catch(e){
-                        done(e)
-                    }
-                }).catch((e) => {
-                    done(e)
-                })
-        })
-    })
-    afterEach(async () => {
-        if(server !== null){
-            await server.close()
-        }
-    })
+    const route = userContentStats.route.replace(":userID",userID)
+    const test = supertest(getApp(mockIp,repo,prefixes,[userContentStats]))
+    readBehavior(route,repo,port,test)
 })

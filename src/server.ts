@@ -11,7 +11,7 @@ import Joi, { Schema } from "joi"
 import PassThroughLength, { LengthTrackingDuplex } from "./util/streams/PassThroughLength"
 import events from "events"
 
-type plainOrArrayOf<T> = Array<T> | T
+export type plainOrArrayOf<T> = Array<T> | T
 export type RawData = number | boolean | string
 export type Optional<T> = T | undefined
 export type EmptyObject = Record<string,undefined>

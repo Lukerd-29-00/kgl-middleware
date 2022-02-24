@@ -13,7 +13,7 @@ import getMockDB from "./mockDB"
 import { queryWrite, waitFor } from "./util"
 
 const repo = "writeToLearnerRecordTest"
-const port = 7206
+const port = 7208
 
 interface Resource{
     userID: string,
