@@ -6,7 +6,8 @@ import getApp from "../src/server"
 import userStats from "../src/endpoints/userStats"
 import joi from "joi"
 import readBehavior from "./readErrorBehavior"
-
+import express from "express"
+import getMockDB from "./mockDB"
 const repo = "userStatsTest"
 const port = 7206
 
@@ -19,10 +20,10 @@ describe("userStats", () => {
     const query = async (test: supertest.SuperTest<supertest.Test>, interval?: TimeInterval) => {
         return await queryStats(userStats.route,test,userID,interval !== undefined ? {...interval} : undefined) as Record<string,unknown>
     }
-    it("Should return an empty array if no content field is specified and no questions have been answered by the user", async () => {
+    it("Should return an empty object if no content field is specified and no questions have been answered by the user", async () => {
         const res = await query(test)
         expect(joi.object().validate(res).error).toBeUndefined()
-        expect(Object.entries(res as Record<string,unknown>)).toHaveLength(0)
+        expect(Object.entries(res)).toHaveLength(0)
     })
     it("Should return an object for each subject the user has answered a question for if no content is supplied", async () => {
         await writeAttempt(repo,userID,content,true,1,resTime)
@@ -31,7 +32,7 @@ describe("userStats", () => {
             const body = await query(test)
             expect(body).toHaveProperty(content)
             expect(body).toHaveProperty(content2)
-            expect(Object.entries(body as Record<string,unknown>)).toHaveLength(2)
+            expect(Object.entries(body)).toHaveLength(2)
         })
     })
     it("Should count the number of attempts in each object correctly", async () => {

@@ -7,6 +7,8 @@ import fetch from "node-fetch"
 import {ResBody} from "../src/util/QueryOutputParsing/ParseContent"
 import {mean, std} from "mathjs"
 import readBehavior from "./readErrorBehavior"
+import express from "express"
+import getMockDB from "./mockDB"
 const repo = "userContentStatsTest"
 const port = 7205
 
@@ -26,9 +28,7 @@ describe("userContentStats", () => {
     const userID = "1234"
     const content = "http://aribtrarywebsite/TestContent"
     const resTime = 100
-    const getTest = (IP?: string) => {
-        return supertest(getApp(IP ? IP : ip, repo, prefixes,[userContentStats]))
-    }
+    const test = supertest(getApp(ip,repo,prefixes,[userContentStats]))
     const query = async (test: supertest.SuperTest<supertest.Test>, interval?: TimeInterval) => {
         if(interval !== undefined){
             return await queryStats(userContentStats.route,test,userID,{content,since:interval.since,before:interval.before})
@@ -36,7 +36,7 @@ describe("userContentStats", () => {
         return await queryStats(userContentStats.route,test,userID,{content})
     }
     it("Should return zero attempts if no attempts at the desired content have been made", async () => {
-        expect(await query(getTest())).toHaveProperty("attempts",0)
+        expect(await query(test)).toHaveProperty("attempts",0)
     })
     it("Should ignore data concerning different content", async () => {
         await Promise.all([
@@ -44,12 +44,11 @@ describe("userContentStats", () => {
             writeAttempt(repo,userID,content,false),
         ])
     })
-    it("Should correctly report the number of attempts made at a particular subject, regardless of correctness", async () => {
+    it("Should correctly report the number of attempts made at a particular subject", async () => {
         await Promise.all([
             writeAttempt(repo,userID,content,true,2,resTime),
             writeAttempt(repo,userID,content,false),
         ])
-        const test = getTest()
         await waitFor(async () => {
             expect(await query(test)).toHaveProperty("attempts",3)
         })
@@ -62,7 +61,6 @@ describe("userContentStats", () => {
         })
     })
     it("Should correctly report the number of correct answers for a particular subject", async () => {
-        const test = getTest()
         expect(await query(test)).toHaveProperty("correct",0)
         await writeAttempt(repo,userID, content, true,3,resTime)
         await waitFor(async () => {
@@ -75,7 +73,6 @@ describe("userContentStats", () => {
         expect(await query(test)).toHaveProperty("correct", 3)
     })
     it("Should be able to narrow down queries between timestamps", async () => {
-        const test = getTest()
         const since = new Date("1/7/2021")
         const before = new Date("1/12/2021")
         await Promise.all([
@@ -117,31 +114,29 @@ describe("userContentStats", () => {
                 writeAttemptTimed(repo,userID,content,new Date(),true,value)
             }))
             await waitFor(async () => {
-                await expectMean(getTest(),userID,content,mean(resTimes),std(resTimes,"uncorrected"))
+                await expectMean(test,userID,content,mean(resTimes),std(resTimes,"uncorrected"))
             })
 
             await fetch(`${ip}/repositories/${repo}/statements`, {
                 method: "DELETE",
             })
-            const test = getTest()
             await waitFor(async () => {
                 expect(await query(test)).toHaveProperty("attempts",0)
             })
         }
     })
     it("Should return a statistic as null if calculating it would result in division by zero", async () => {
-        const res = await queryStats(userContentStats.route,getTest(),userID,{content,mean:true,stdev:true})
+        const res = await queryStats(userContentStats.route,test,userID,{content,mean:true,stdev:true})
         expect(res).toHaveProperty("mean",null)
         expect(res).toHaveProperty("stdev",null)
     })
     it("Should send back a 400 error if the Date header is malformed", async () => {
-        await getTest().get(userContentStats.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))).set("Date","junk").expect(400)
+        await test.get(userContentStats.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))).set("Date","junk").expect(400)
     })
     afterEach(async () => {
         await fetch(`${ip}/repositories/${repo}/statements`, {
             method: "DELETE",
         })
-        const test = getTest()
         await waitFor(async () => {
             expect(await query(test)).toHaveProperty("attempts",0)
         })

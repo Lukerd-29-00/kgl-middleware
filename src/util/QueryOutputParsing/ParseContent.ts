@@ -82,6 +82,7 @@ function calculateStats(output: ResBody, stats: ParseLineOutput, options: ParseQ
 }
 
 export async function parseQueryOutput(data: Interface, stream: Writable, options: ParseQueryOptions): Promise<void>{
+    let errOccured = false
     if(options.content !== undefined){
         const stats: ParseLineOutput = {
             sum: options.mean ? 0 : NaN,
@@ -96,13 +97,23 @@ export async function parseQueryOutput(data: Interface, stream: Writable, option
         }
         data.once("line",() => {
             data.on("line", (line: string) => {
-                ParseLine(line,stats,output,options)
+                try{
+                    ParseLine(line,stats,output,options)
+                }catch(e){
+                    stream.emit("error",e)
+                    data.close()
+                    errOccured = true
+                    return
+                }
+                
             })
         })
         await events.once(data,"close")
-        calculateStats(output,stats,options)
-        const outputString = JSON.stringify(output)
-        stream.end(outputString)
+        if(!errOccured){
+            calculateStats(output,stats,options)
+            const outputString = JSON.stringify(output)
+            stream.end(outputString)
+        }
     }else{
         const promise = async (data: Buffer | string) => {
             return new Promise<void>(resolve => {
@@ -111,6 +122,7 @@ export async function parseQueryOutput(data: Interface, stream: Writable, option
                 })
             })
         }
+
         const writes = new Array<Promise<void>>()
         const write = (data: string | Buffer) => {
             writes.push(promise(data))
@@ -131,15 +143,18 @@ export async function parseQueryOutput(data: Interface, stream: Writable, option
             correct: 0
         }
         stream.write("{")
-        data.on("line",(data: Buffer) => {
+        data.on("line",(lineBuffer: Buffer) => {
             if(firstLine){
                 firstLine = false
                 return
             }
-            const line = data.toString()
+            const line = lineBuffer.toString()
             const match = line.match(/^(.+),(.+),(.+)$/)
             if(match === null){
-                throw Error("invalid response from graphdb")
+                stream.emit("error",Error("invalid response from graphdb"))
+                data.close()
+                errOccured = true
+                return
             }
             if(match[1] !== currentContent){
                 if(currentContent !== "" && !firstObject){
@@ -168,17 +183,19 @@ export async function parseQueryOutput(data: Interface, stream: Writable, option
             ParseLine(line,stats,currentOutput,options)
         })
         await events.once(data,"close")
-        if(currentContent !== "" && !firstObject){
-            calculateStats(currentOutput,stats,options)
-            const newString = `,"${currentContent}": ${JSON.stringify(currentOutput)}`
-            write(newString)
-        }else if(currentContent !== ""){
-            calculateStats(currentOutput,stats,options)
-            const newString = `"${currentContent}": ${JSON.stringify(currentOutput)}`
-            write(newString)
+        if(!errOccured){
+            if(currentContent !== "" && !firstObject){
+                calculateStats(currentOutput,stats,options)
+                const newString = `,"${currentContent}": ${JSON.stringify(currentOutput)}`
+                write(newString)
+            }else if(currentContent !== ""){
+                calculateStats(currentOutput,stats,options)
+                const newString = `"${currentContent}": ${JSON.stringify(currentOutput)}`
+                write(newString)
+            }
+            write("}")
+            await Promise.all(writes) //Make sure all the data is finished writing before ending the writable stream!
+            stream.end()
         }
-        write("}")
-        await Promise.all(writes) //Make sure all the data is finished writing before ending the writable stream!
-        stream.end()
     }
 }

@@ -1,8 +1,7 @@
-import endpoints from "../src/endpoints/endpoints"
 import getApp from "../src/server"
 import { ip, prefixes } from "../src/config"
 import supertest from "supertest"
-import writeToLearnerRecord from "../src/endpoints/writeRawData"
+import writeRawData from "../src/endpoints/writeRawData"
 import startTransaction from "../src/util/transaction/startTransaction"
 import {execTransaction, BodyAction, BodyLessAction} from "../src/util/transaction/ExecTransaction"
 import {getPrefixes} from "../src/util/QueryGenerators/SparqlQueryGenerator"
@@ -83,7 +82,7 @@ async function expectStatements(expected: Map<Resource, Answer[]>): Promise<void
 }
 
 describe("writeToLearnerRecord", () => {
-    const app = getApp(ip, repo, prefixes, endpoints)
+    const test = supertest(getApp(ip, repo, prefixes, [writeRawData]))
     const userID = "1234"
     const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent"
     const responseTime = 100
@@ -91,7 +90,6 @@ describe("writeToLearnerRecord", () => {
         const time = new Date()
         const expected = new Map<Resource,Answer[]>()
         expected.set({userID,content},[{correct: true, responseTime, timestamp: new Date(time.toUTCString()).getTime()}])
-        const test = supertest(app)
         await queryWrite(test,userID,content,time,true,responseTime)
         await waitFor(async () => {
             expectStatements(expected)
@@ -101,12 +99,11 @@ describe("writeToLearnerRecord", () => {
         const time = new Date()
         const expected = new Map<Resource,Answer[]>()
         expected.set({userID,content},[{correct: false, timestamp: new Date(time.toUTCString()).getTime()}])
-        const test = supertest(app)
         await queryWrite(test,userID,content,time,false)
         await waitFor(async () => {
             expectStatements(expected)
-        },40000)
-    },40000)
+        })
+    })
     it("Should be able to handle several concurrent requests", async () => {
         const timestamp = new Date()
         const expected = new Map<Resource,Answer[]>()
@@ -115,7 +112,6 @@ describe("writeToLearnerRecord", () => {
             {correct: true, responseTime, timestamp: new Date(timestamp.toUTCString()).getTime()}
         ]
         expected.set({userID,content},answers)
-        const test = supertest(app)
         await Promise.all([
             queryWrite(test,userID,content,timestamp,true,responseTime),
             queryWrite(test,userID,content,timestamp,false)
@@ -133,8 +129,7 @@ describe("writeToLearnerRecord", () => {
             {correct: false, timestamp: new Date().getTime()}
         ]
         expected.set({userID,content},answers)
-        const test = supertest(app)
-        const route = writeToLearnerRecord.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
+        const route = writeRawData.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
         await test.put(route).set("Content-Type","application/json").send(answers).expect(202)
         await waitFor(async () => {
             expectStatements(expected)
@@ -142,9 +137,8 @@ describe("writeToLearnerRecord", () => {
         
     })
     it("Should send back a 400 error if the date header is malformed", async () => {
-        const test = supertest(app)
         const body = {correct: false}
-        const route = writeToLearnerRecord.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
+        const route = writeRawData.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
         await test.put(route).set("Date",new Date().toUTCString() + "junk").send(body).expect(400)
     })
     afterEach(async () => {
@@ -161,7 +155,7 @@ describe("writeToLearnerRecord", () => {
     const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent2"
     const timestamp = new Date()
     const responseTime = 100
-    const app = getApp(mockIp,repo,prefixes,[writeToLearnerRecord])
+    const test = supertest(getApp(mockIp,repo,prefixes,[writeRawData]))
     const body = {
         correct: true,
         responseTime,
@@ -173,11 +167,10 @@ describe("writeToLearnerRecord", () => {
         return mockServer
 
     } 
-    const route = writeToLearnerRecord.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
+    const route = writeRawData.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))
     it("Should send a server error if it cannot start a transaction", done => {
         const mockDB = getMockDB(mockIp,express(),repo,false,false,false)
         server = mockDB.server.listen(port, () => {
-            const test = supertest(app)
             test.put(route).send(body).expect(500).end(err => {
                 if(err !== undefined){
                     done(err)
@@ -191,8 +184,7 @@ describe("writeToLearnerRecord", () => {
     it("Should send a server error and attempt a rollback if it cannot execute a transaction", done => {
         const mockDB = getMockDB(mockIp,getMockServer(),repo,true,true,false)
         server = mockDB.server.listen(port, () => {
-            const test = supertest(app)
-            test.put(writeToLearnerRecord.route).send(body).expect(500)
+            test.put(route).send(body).expect(500)
                 .then(() => {
                     expect(mockDB.start).toHaveBeenCalled()
                     expect(mockDB.rollback).toHaveBeenCalled()
@@ -206,7 +198,6 @@ describe("writeToLearnerRecord", () => {
     it("Should still send a server error if it fails the rollback", done => {
         const mockDB = getMockDB(mockIp,getMockServer(),repo,true,false,false)
         server = mockDB.server.listen(port, () => {
-            const test = supertest(app)
             test.put(route).send(body).expect(500)
                 .then(() => {
                     expect(mockDB.start).toHaveBeenCalled()
@@ -227,7 +218,6 @@ describe("writeToLearnerRecord", () => {
             }
         }})
         server = mockDB.server.listen(port, () => {
-            const test = supertest(app)
             test.put(route).send(body).expect(500)
                 .then(() => {
                     expect(mockDB.start).toHaveBeenCalled()
@@ -248,8 +238,7 @@ describe("writeToLearnerRecord", () => {
             }
         }})
         server = mockDB.server.listen(port, () => {
-            const test = supertest(getApp(mockIp, repo, prefixes, endpoints))
-            test.put(writeToLearnerRecord.route).send(body).expect(500)
+            test.put(route).send(body).expect(500)
                 .then(() => {
                     expect(mockDB.start).toHaveBeenCalled()
                     expect(mockDB.rollback).toHaveBeenCalled()

@@ -6,7 +6,9 @@ import {ip, prefixes} from "../src/config"
 import {waitFor, writeAttemptTimed} from "./util"
 import fetch from "node-fetch"
 import readBehavior from "./readErrorBehavior"
-const port = 7202
+import express from "express"
+import getMockDB from "./mockDB"
+const port = 7203
 const repo = "getRawDataTest"
 
 function getSchemaForAnswer(timestamp: Date, correct: false): Joi.ObjectSchema<Answer>
@@ -100,4 +102,27 @@ describe("getRawData", () => {
     const route = getRawData.route.replace(":userID",userID).replace(":content",encodeURIComponent(content)) + `?since=${since.toUTCString()}&before=${before.toUTCString()}`
     const test = supertest(getApp(mockIp, repo, prefixes,[getRawData]))
     readBehavior(route,repo,port,test)
+
+    it("Should return a 500 error if graphdb sends an invalid response", done => {
+        const expServer = express()
+        expServer.use(express.raw({type: "application/sparql-query"}))
+        const mockDB = getMockDB(mockIp,expServer,repo,true,true,true,{execHandler: (req, res) => {
+            if(req.query.action === "COMMIT"){
+                res.send()
+            }else{
+                res.send("invalid data\nhere")
+            }
+        }})
+        const server = mockDB.server.listen(port, () => {
+            test.get(route).expect(500).then(() => {
+                expect(mockDB.start).toHaveBeenCalled()
+                expect(mockDB.exec).toHaveBeenCalled()
+                server.close()
+                done()
+            }).catch(e => {
+                server.close()
+                done(e)
+            })
+        })
+    })
 })

@@ -106,6 +106,26 @@ export default function readBehavior(route: string, repo: string, port: number, 
             })
         })
     })
+    it("Should return a 500 error if graphdb sends an invalid response", done => {
+        const expServer = express()
+        expServer.use(express.raw({type: "application/sparql-query"}))
+        const mockDB = getMockDB(mockIp,expServer,repo,true,true,true,{execHandler: (req, res) => {
+            if(req.query.action === "COMMIT"){
+                res.send()
+            }else{
+                res.send("invalid data\nhere")
+            }
+        }})
+        const server = mockDB.server.listen(port, () => {
+            test.get(route).expect(500).then(() => {
+                server.close()
+                done()
+            }).catch(e => {
+                server.close()
+                done(e)
+            })
+        })
+    },4000000)
     afterEach(async () => {
         await server?.close()
     })

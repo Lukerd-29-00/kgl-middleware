@@ -4,7 +4,7 @@
   "description": "MiddleWare software for KGL",
   "main": "./src/start.ts",
   "scripts": {
-    "test": "jest --watchAll userContentStats.test.ts -t \"Should be able to correctly calculate the mean and standard deviation of the response times\"",
+    "test": "jest --watchAll",
     "test:cov": "jest --coverage --watchAll ",
     "start": "ts-node ./src/start.ts",
     "lint": "eslint ./src ./test --ext .ts --max-warnings 0",
