@@ -8,7 +8,7 @@ import fetch from "node-fetch"
 import readBehavior from "./readErrorBehavior"
 const repo = "getPrereqsTest"
 
-const port = 7201
+const port = 7202
 
 export async function queryPrereqs(test: supertest.SuperTest<supertest.Test>, content: string): Promise<unknown>{
     const route = getPrereqs.route.replace(":content",encodeURIComponent(content))

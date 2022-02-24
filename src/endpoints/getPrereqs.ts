@@ -7,7 +7,7 @@ import { LengthTrackingDuplex } from "../util/streams/PassThroughLength"
 import { EmptyObject, Endpoint, Locals, Method } from "../server"
 import SparqlQueryGenerator from "../util/QueryGenerators/SparqlQueryGenerator"
 import { Logger } from "winston"
-
+import Joi from "joi"
 const route = "/content/:content/prerequisites"
 
 interface ReqParams extends Record<string,string>{
@@ -45,6 +45,12 @@ async function queryPrerequisites(ip: string, repo: string, prefixes: [string, s
             writeTo.write(",")	
         }else{
             secondLine = false
+        }
+        const {error} = Joi.string().uri().required().validate(line)
+        if(error !== undefined){
+            writeTo.emit("error",Error(`Graphdb sent back an invalid string: ${error.message}`))
+            lines.close()
+            return
         }
         writeTo.write(`"${line}"`)
     })

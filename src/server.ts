@@ -70,8 +70,15 @@ async function send(request: Request, response: Response<any,Locals>): Promise<v
     if(response.statusCode === 202 || response.statusCode === 204){
         response.locals.stream.end()
     }
+    let err = false
     if(!stream.writableEnded){
-        await events.once(response.locals.stream,"finish")
+        await events.once(response.locals.stream,"finish").catch(() => {
+            //This happens if response.locals.stream is destroyed before finishing
+            err = true
+        })
+    }
+    if(err){
+        return
     }
     length = stream.bytesWritten
     if(length){
@@ -191,6 +198,9 @@ export default function getApp<E extends Endpoint<any,any,any,any,L> = Endpoint<
     }
     app.use("/",router)
     app.use((err: Error, request: Request, response: Response, next: (err?: Error) => void) => {
+        response.on("error",e => {
+            console.dir(e)
+        })
         response.locals.stream.destroy()
         next(err)
     })

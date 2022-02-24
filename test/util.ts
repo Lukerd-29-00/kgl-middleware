@@ -154,7 +154,11 @@ export async function expectEqualHeaders(test: supertest.SuperTest<supertest.Tes
     ])
     await Promise.all([
         new Promise(() => {
-            for(const entry of Object.entries(headers)) expect(realHeaders).toHaveProperty(entry[0],entry[1])
+            for(const entry of Object.entries(headers)) {
+                if(entry[0] !== "date"){
+                    expect(realHeaders).toHaveProperty(entry[0],entry[1]) 
+                }
+            }
         }),
         new Promise(() => {
             for(const entry of Object.entries(realHeaders)) expect(headers).toHaveProperty(entry[0])

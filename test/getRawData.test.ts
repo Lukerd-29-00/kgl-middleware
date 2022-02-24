@@ -6,7 +6,7 @@ import {ip, prefixes} from "../src/config"
 import {waitFor, writeAttemptTimed} from "./util"
 import fetch from "node-fetch"
 import readBehavior from "./readErrorBehavior"
-const port = 7202
+const port = 7203
 const repo = "getRawDataTest"
 
 function getSchemaForAnswer(timestamp: Date, correct: false): Joi.ObjectSchema<Answer>
