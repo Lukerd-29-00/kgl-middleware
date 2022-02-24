@@ -6,8 +6,6 @@ import getApp from "../src/server"
 import userStats from "../src/endpoints/userStats"
 import joi from "joi"
 import readBehavior from "./readErrorBehavior"
-import express from "express"
-import getMockDB from "./mockDB"
 const repo = "userStatsTest"
 const port = 7206
 

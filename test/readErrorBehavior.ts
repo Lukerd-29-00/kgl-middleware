@@ -116,16 +116,14 @@ export default function readBehavior(route: string, repo: string, port: number, 
                 res.send("invalid data\nhere")
             }
         }})
-        const server = mockDB.server.listen(port, () => {
+        server = mockDB.server.listen(port, () => {
             test.get(route).expect(500).then(() => {
-                server.close()
                 done()
             }).catch(e => {
-                server.close()
                 done(e)
             })
         })
-    },4000000)
+    })
     afterEach(async () => {
         await server?.close()
     })

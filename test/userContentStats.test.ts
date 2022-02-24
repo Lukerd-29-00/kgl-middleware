@@ -7,8 +7,6 @@ import fetch from "node-fetch"
 import {ResBody} from "../src/util/QueryOutputParsing/ParseContent"
 import {mean, std} from "mathjs"
 import readBehavior from "./readErrorBehavior"
-import express from "express"
-import getMockDB from "./mockDB"
 const repo = "userContentStatsTest"
 const port = 7205
 

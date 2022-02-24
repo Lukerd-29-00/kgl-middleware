@@ -65,7 +65,7 @@ describe("readFromLearnerRecord", () => {
         await writeAttempt(repo,userID,content2,false)
         await waitFor(async () => {
             const body = (await query()).body
-            expect((body[content2])).toHaveProperty("attempts",2)
+            expect(body[content2]).toHaveProperty("attempts",2)
         })
         expect((await query()).body[content2]).toHaveProperty("correct",1)
         expect((await query()).body[content]).toHaveProperty("correct",1)
@@ -182,6 +182,24 @@ describe("readFromLearnerRecord", () => {
                 }).catch(e => {
                     done(e)
                 })
+            })
+        })
+    })
+    it("Should return a 500 error if graphdb sends an invalid response", done => {
+        const expServer = express()
+        expServer.use(express.raw({type: "application/sparql-query"}))
+        const mockDB = getMockDB(mockIp,expServer,repo,true,true,true,{execHandler: (req, res) => {
+            if(req.query.action === "COMMIT"){
+                res.send()
+            }else{
+                res.send("invalid data\nhere")
+            }
+        }})
+        server = mockDB.server.listen(port, () => {
+            test.put(readFromLearnerRecord.route).send(body).expect(500).then(() => {
+                done()
+            }).catch(e => {
+                done(e)
             })
         })
     })

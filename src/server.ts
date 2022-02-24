@@ -70,7 +70,7 @@ async function send(request: Request, response: Response<any,Locals>): Promise<v
     if(response.statusCode === 202 || response.statusCode === 204){
         response.locals.stream.end()
     }
-    let err: boolean = false
+    let err = false
     if(!stream.writableEnded){
         await events.once(response.locals.stream,"finish").catch(() => {
             //This happens if response.locals.stream is destroyed before finishing

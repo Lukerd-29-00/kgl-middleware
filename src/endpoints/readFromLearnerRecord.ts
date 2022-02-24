@@ -39,16 +39,18 @@ function parseReadOutput(writeTo: LengthTrackingDuplex, data: NodeJS.ReadableStr
             })
         })
         rl.on("line",line => {
-            const match = line.toString().match(/(.+),(.+),(.+)/)
-            if(match === null){
-                throw Error("error: invalid response from graphdb")
+            try{
+                const match = line.toString().match(/(.+),(\d+),(\d+)/)
+                if(match === null){
+                    throw Error("error: invalid response from graphdb")
+                }
+                const correctCount = parseInt(match[2],10)
+                const answerCount = parseInt(match[3],10)
+                writeTo.write(`"${match[1]}": ${JSON.stringify({correct: correctCount, attempts: answerCount})}`)
+            } catch(e){
+                writeTo.emit("error",e)
+                rl.close()
             }
-            const correctCount = parseInt(match[2],10)
-            const answerCount = parseInt(match[3],10)
-            if(isNaN(answerCount) || isNaN(correctCount)){
-                throw Error("error: invalid response from graphdb")
-            }
-            writeTo.write(`"${match[1]}": ${JSON.stringify({correct: correctCount, attempts: answerCount})}`)
         })
     })
     rl.once("close",() => {
@@ -65,10 +67,6 @@ async function processReadFromLearnerRecord(request: Request<EmptyObject,string,
     }
     response.setHeader("Content-Type","application/json")
     execTransaction(BodyAction.QUERY,location,prefixes,getReadQuery(request.body.userID,prefixes)).then(res => {
-        res.body.once("error",e => {
-            response.locals.stream.destroy()
-            next(e)
-        })
         execTransaction(BodyLessAction.COMMIT,location).catch(e => {
             if(log){
                 log.error("error: ",{message: e.message})
