@@ -1,9 +1,9 @@
 import supertest from "supertest"
 import startTransaction from "../src/util/transaction/startTransaction"
 import {execTransaction, BodyAction, BodyLessAction} from "../src/util/transaction/ExecTransaction"
-import {createLearnerRecordTriples} from "../src/endpoints/writeToLearnerRecord"
+import {createLearnerRecordTriples} from "../src/endpoints/writeRawData"
 import {ip, prefixes} from "../src/config"
-import writeToLearnerRecord from "../src/endpoints/writeToLearnerRecord"
+import writeToLearnerRecord from "../src/endpoints/writeRawData"
 
 export async function writeAttemptTimed(repo: string, userID: string, content: string, time: Date, correct: false): Promise<void>
 export async function writeAttemptTimed(repo: string, userID: string, content: string, time: Date, correct: true, responseTime: number): Promise<void>

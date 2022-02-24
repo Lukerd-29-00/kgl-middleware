@@ -11,7 +11,7 @@ import Joi, { Schema } from "joi"
 import PassThroughLength, { LengthTrackingDuplex } from "./util/streams/PassThroughLength"
 import events from "events"
 
-type plainOrArrayOf<T> = Array<T> | T
+export type plainOrArrayOf<T> = Array<T> | T
 export type RawData = number | boolean | string
 export type Optional<T> = T | undefined
 export type EmptyObject = Record<string,undefined>
@@ -20,6 +20,7 @@ export enum Method{
     GET = "get",
     PUT = "put",
     DELETE = "delete",
+    POST = "post"
 }
 
 /**This is a specific type of middleware, intended to retrieve the desired data or write it to the database. Places the data into a PassThrough stream under response.locals.stream, the number of bytes in the stream under response.locals.length, and any characters to be added to the stream before reading in the response.locals.append variable. */
@@ -78,13 +79,12 @@ async function send(request: Request, response: Response<any,Locals>): Promise<v
             response.status(204)
         }
         response.setHeader("Content-Length",length)
-        response.once("finish", () => {
-            response.locals.stream.destroy()
-        })
-        stream.pipe(response)
+        response.locals.stream.pipe(response)
     }else{
-        if(response.statusCode === 200){
+        if(request.method === "GET"){
             response.status(204)
+        }else{
+            response.status(202)
         }
         response.locals.stream.destroy()
         response.end()

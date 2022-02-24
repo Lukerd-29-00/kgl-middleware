@@ -4,14 +4,11 @@ import supertest from "supertest"
 import { queryStats, TimeInterval, waitFor, writeAttempt, writeAttemptTimed } from "./util"
 import getApp from "../src/server"
 import userStats from "../src/endpoints/userStats"
-import express from "express"
-import {Server} from "http"
-import getMockDB from "./mockDB"
 import joi from "joi"
-import { getNumberAttemptsQuery } from "../src/endpoints/userStats"
+import readBehavior from "./readErrorBehavior"
 
 const repo = "userStatsTest"
-const port = 7205
+const port = 7206
 
 describe("userStats", () => {
     const userID = "1234"
@@ -162,61 +159,9 @@ describe("userStats", () => {
 })
 
 describe("userStats", () => {
-    let server: Server | null = null
     const userID = "1234"
     const mockIp = `http://localhost:${port}`
-    const defaultURL = userStats.route.replace(":userID",userID)
-    const getTest = () => {
-        return supertest(getApp(mockIp, repo, prefixes,[userStats]))
-    }
-    it("Should send back a server error if starting a transaction fails", async () => {
-        const test = getTest()
-        await test.get(defaultURL).expect(500)
-    })
-    it("Should send back a server error and attempt a rollback if executing the transaction fails", done => {
-        const mockDB = getMockDB(mockIp,express(),repo,true,false,false)
-        server = mockDB.server.listen(port,() => {
-            const test = getTest()
-            test.get(defaultURL).expect(500)
-                .then(() => {
-                    try{
-                        expect(mockDB.start).toHaveBeenCalled()
-                        done()
-                    }catch(e){
-                        done(e)
-                    }
-                }).catch((e) => {
-                    done(e)
-                })
-        })
-    })
-    it("Should not send a server error if committing the transaction fails", done => {
-        const test = getTest()
-        const mockServer = express()
-        mockServer.use(express.raw({type: "application/sparql-query"}))
-        const mockDB = getMockDB(mockIp,mockServer,repo,true,false,true)
-        server = mockDB.server.listen(port,() => {
-            const timestamp = new Date()
-            test.get(defaultURL).set("Date",timestamp.toUTCString()).expect(200)
-                .then(() => {
-                    try{
-                        expect(mockDB.start).toHaveBeenCalled()
-                        expect(mockDB.exec).toHaveBeenCalled()
-                        expect(mockDB.exec).toHaveBeenCalledWith(getNumberAttemptsQuery(userID,prefixes,new Date(timestamp.toUTCString()).getTime()- 8.64e+7,new Date(timestamp.toUTCString()).getTime()),"QUERY")
-                        waitFor(async () => {
-                            expect(mockDB.exec).toHaveBeenCalledTimes(2)
-                        }).then(done)
-                    }catch(e){
-                        done(e)
-                    }
-                }).catch((e) => {
-                    done(e)
-                })
-        })
-    })
-    afterEach(async () => {
-        if(server !== null){
-            await server.close()
-        }
-    })
+    const route = userStats.route.replace(":userID",userID)
+    const test = supertest(getApp(mockIp, repo, prefixes,[userStats]))
+    readBehavior(route,repo,port,test)
 })

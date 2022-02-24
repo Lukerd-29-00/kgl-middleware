@@ -8,6 +8,7 @@ import { EmptyObject, Endpoint, Locals, Method } from "../server"
 import {ParamsDictionary} from "express-serve-static-core"
 import readline from "readline"
 import { Logger } from "winston"
+import rollback from "../util/transaction/rollback"
 /**A schema that the query parameters need to follow. */
 const querySchema = Joi.object({
     since: Joi.date().required().max(Joi.ref("before")),
@@ -87,6 +88,11 @@ async function processGetRawData(request: Request<ReqParams,string,EmptyObject,R
                 if(log){
                     log.error("error: ",{message: e.message})
                 }
+                rollback(location).catch(e => {
+                    if(log){
+                        log.error("error: ",{message: e.message})
+                    }
+                })
             })
             const readWrite = readline.createInterface({input: res.body})
             response.locals.stream.write("[")
@@ -115,7 +121,11 @@ async function processGetRawData(request: Request<ReqParams,string,EmptyObject,R
                 next()
             })
         }).catch((e: Error) => {
-            next(e)
+            rollback(location).then(() => {
+                next(e)
+            }).catch(e => {
+                next(e)
+            })
         })
     }).catch((e: Error) => {
         next(e)

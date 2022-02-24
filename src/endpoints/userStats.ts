@@ -7,6 +7,7 @@ import startTransaction from "../util/transaction/startTransaction"
 import {execTransaction, BodyAction, BodyLessAction} from "../util/transaction/execTransaction"
 import { EmptyObject, Endpoint, Locals, Method, Optional } from "../server"
 import { Logger } from "winston"
+import rollback from "../util/transaction/rollback"
 
 /**The route that calls this middleware */
 const route = "/users/:userID/stats"
@@ -105,10 +106,21 @@ async function processUserStats(request: Request<ReqParams,string,EmptyObject,Re
                 if(log){
                     log.error("error: ", {message: e.message})
                 }
+                rollback(location).catch(e => {
+                    if(log){
+                        log.error("error: ", {message: e.message})
+                    }
+                })
             })
             response.setHeader("Content-Type","application/json")
             return parseQueryOutput(readline.createInterface({input: res.body}),response.locals.stream,{stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true"}).then(() => {
                 next()
+            })
+        }).catch(e => {
+            rollback(location).then(() => {
+                next(e)
+            }).catch(e => {
+                next(e)
             })
         })
     }).catch((e: Error) => {

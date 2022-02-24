@@ -5,9 +5,7 @@ import getApp from "../src/server"
 import {ip, prefixes} from "../src/config"
 import {waitFor, writeAttemptTimed} from "./util"
 import fetch from "node-fetch"
-import getMockDB from "./mockDB"
-import {Server} from "http"
-import express from "express"
+import readBehavior from "./readErrorBehavior"
 const port = 7202
 const repo = "getRawDataTest"
 
@@ -94,92 +92,12 @@ describe("getRawData",() => {
 })
 
 describe("getRawData", () => {
-    let server: Server | null = null
     const userID = "1234"
     const mockIp = `http://localhost:${port}`
     const content = "http://aribtrarywebsite/TestContent"
     const since = new Date("1/14/2022")
     const before = new Date("2/14/2022")
-    const defaultURL = getRawData.route.replace(":userID",userID).replace(":content",encodeURIComponent(content)) + `?since=${since.toUTCString()}&before=${before.toUTCString()}`
-    const getTest = () => {
-        return supertest(getApp(mockIp, repo, prefixes,[getRawData]))
-    }
-    it("Should send back a server error if starting a transaction fails", async () => {
-        const test = getTest()
-        await test.get(defaultURL).expect(500)
-    })
-    it("Should send back a server error and attempt a rollback if executing the transaction fails", done => {
-        const mockDB = getMockDB(mockIp,express(),repo,true,false,false)
-        server = mockDB.server.listen(port,() => {
-            const test = getTest()
-            test.get(defaultURL).expect(500)
-                .then(() => {
-                    try{
-                        expect(mockDB.start).toHaveBeenCalled()
-                        done()
-                    }catch(e){
-                        done(e)
-                    }
-                }).catch((e) => {
-                    done(e)
-                })
-        })
-    })
-    it("Should not send a server error if committing the transaction fails", done => {
-        const test = getTest()
-        const mockServer = express()
-        mockServer.use(express.raw({type: "application/sparql-query"}))
-        const mockDB = getMockDB(mockIp,mockServer,repo,true,false,true)
-        server = mockDB.server.listen(port,() => {
-            const timestamp = new Date()
-            test.get(defaultURL).set("Date",timestamp.toUTCString()).expect(200)
-                .then(() => {
-                    try{
-                        expect(mockDB.start).toHaveBeenCalled()
-                        expect(mockDB.exec).toHaveBeenCalled()
-                        waitFor(async () => {
-                            expect(mockDB.exec).toHaveBeenCalledTimes(2)
-                        }).then(done)
-                    }catch(e){
-                        done(e)
-                    }
-                }).catch((e) => {
-                    done(e)
-                })
-        })
-    })
-    it("Should send a server error if it gets a response from graphdb that does not match the format requested in the query", done => {
-        const test = getTest()
-        const mockServer = express()
-        mockServer.use(express.raw({type: "application/sparql-query"}))
-        const mockDB = getMockDB(mockIp,mockServer,repo,true,true,true,{execHandler: (request, response) => {
-            if(request.query.action === "COMMIT"){
-                response.end()
-            }else{
-                response.end("invalid data\nhi")
-            }
-        }})
-        server = mockDB.server.listen(port,() => {
-            const timestamp = new Date()
-            test.get(defaultURL).set("Date",timestamp.toUTCString()).expect(500)
-                .then(() => {
-                    try{
-                        expect(mockDB.start).toHaveBeenCalled()
-                        expect(mockDB.exec).toHaveBeenCalled()
-                        waitFor(async () => {
-                            expect(mockDB.exec).toHaveBeenCalledTimes(2)
-                        }).then(done)
-                    }catch(e){
-                        done(e)
-                    }
-                }).catch((e) => {
-                    done(e)
-                })
-        })
-    })
-    afterEach(async () => {
-        if(server !== null){
-            await server.close()
-        }
-    })
+    const route = getRawData.route.replace(":userID",userID).replace(":content",encodeURIComponent(content)) + `?since=${since.toUTCString()}&before=${before.toUTCString()}`
+    const test = supertest(getApp(mockIp, repo, prefixes,[getRawData]))
+    readBehavior(route,repo,port,test)
 })
