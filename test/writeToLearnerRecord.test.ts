@@ -107,9 +107,126 @@ describe("writeToLearnerRecord",() => {
             expectStatements(expected)
         })
     })
+    it("Should allow you to add several statements in parallel", async () => {
+        const timestamp = new Date().getTime()
+        await Promise.all([
+            postToWrite(test,{correct: true, timestamp, userID, standardLearnerContent: content}),
+            postToWrite(test,{correct: false, timestamp, userID, standardLearnerContent: content}),
+            postToWrite(test,{correct: true, timestamp, userID, standardLearnerContent: `${content}2`}),
+            postToWrite(test,{correct: false, timestamp, userID, standardLearnerContent: `${content}2`})
+        
+        ])
+        const expected = new Map<Resource,Answer[]>()
+        expected.set({userID, content},[{correct: true, timestamp},{correct: false,timestamp}])
+        expected.set({userID,content: `${content}2`},[{correct: true, timestamp}, {correct: false, timestamp}])
+        await waitFor(async () => {
+            expectStatements(expected)
+        })
+    })
     afterEach(async () => {
         await fetch(`${ip}/repositories/${repo}/statements`, {
             method: "DELETE",
         })
+    })
+})
+
+describe("writeToLearnerRecord", () => {
+    const getMockServer = () => {
+        const mockServer = express()
+        mockServer.use(express.raw({type: "application/sparql-update"}))
+        return mockServer
+    }
+    const mockIp = `http://localhost:${port}`
+    const userID = "1234"
+    const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent"
+    let server: Server | undefined
+    const test = supertest(getApp(mockIp,repo,prefixes,[writeToLearnerRecord]))
+    const timestamp = new Date().getTime()
+    const body = {standardLearnerContent: content, userID, timestamp, correct: true}
+    it("Should send a server error if it cannot start a transaction", done => {
+        const mockDB = getMockDB(mockIp,express(),repo,false,false,false)
+        server = mockDB.server.listen(port, () => {
+            test.post(writeToLearnerRecord.route).set("Content-Type","application/json").send(body).expect(500).end(err => {
+                if(err !== undefined){
+                    done(err)
+                }else{
+                    done()
+                }
+            })
+        })
+        
+    })
+    it("Should send a server error and attempt a rollback if it cannot execute a transaction", done => {
+        const mockDB = getMockDB(mockIp,getMockServer(),repo,true,true,false)
+        server = mockDB.server.listen(port, () => {
+            test.post(writeToLearnerRecord.route).send(body).expect(500)
+                .then(() => {
+                    expect(mockDB.start).toHaveBeenCalled()
+                    expect(mockDB.rollback).toHaveBeenCalled()
+                    expect(mockDB.exec).toHaveBeenCalled()
+                    done()
+                }).catch((e) => {
+                    done(e)
+                })
+        })
+    })
+    it("Should still send a server error if it fails the rollback", done => {
+        const mockDB = getMockDB(mockIp,getMockServer(),repo,true,false,false)
+        server = mockDB.server.listen(port, () => {
+            test.post(writeToLearnerRecord.route).send(body).expect(500)
+                .then(() => {
+                    expect(mockDB.start).toHaveBeenCalled()
+                    expect(mockDB.rollback).toHaveBeenCalled()
+                    expect(mockDB.exec).toHaveBeenCalled()
+                    done()
+                }).catch((e) => {
+                    done(e)
+                })
+        })
+    })
+    it("Should send a server error and attempt a rollback if commiting the transaction fails", done => {
+        const mockDB = getMockDB(mockIp,getMockServer(),repo,true,true,true,{execHandler:(request, response, next) => {
+            if(request.query.action === "COMMIT"){
+                next(Error("We're pretending something went wrong with Graphdb here"))
+            }else{
+                response.end()
+            }
+        }})
+        server = mockDB.server.listen(port, () => {
+            test.post(writeToLearnerRecord.route).send(body).expect(500)
+                .then(() => {
+                    expect(mockDB.start).toHaveBeenCalled()
+                    expect(mockDB.rollback).toHaveBeenCalled()
+                    expect(mockDB.exec).toHaveBeenCalledTimes(2)
+                    done()
+                }).catch((e) => {
+                    done(e)
+                })
+        })
+    })
+    it("Should still return the same error if the rollback fails after failing to commit", done => {
+        const mockDB = getMockDB(mockIp,getMockServer(),repo,true,true,true,{execHandler:(request, response, next) => {
+            if(request.query.action === "COMMIT"){
+                next(Error("We're pretending something went wrong with Graphdb here"))
+            }else{
+                response.end()
+            }
+        }})
+        server = mockDB.server.listen(port, () => {
+            test.post(writeToLearnerRecord.route).send(body).expect(500)
+                .then(() => {
+                    expect(mockDB.start).toHaveBeenCalled()
+                    expect(mockDB.rollback).toHaveBeenCalled()
+                    expect(mockDB.exec).toHaveBeenCalled()
+                    done()
+                }).catch((e) => {
+                    done(e)
+                })
+        })
+    })
+    afterEach(async () => {
+        if (server) {
+            await server.close()
+        }
     })
 })

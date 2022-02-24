@@ -5,6 +5,7 @@ import { EmptyObject, Endpoint, Locals, Method, RawData } from "../server"
 import {v4 as uuid} from "uuid"
 import startTransaction from "../util/transaction/startTransaction"
 import { BodyAction, BodyLessAction, execTransaction } from "../util/transaction/execTransaction"
+import rollback from "../util/transaction/rollback"
 
 const route = "/writeToLearnerRecord"
 
@@ -48,14 +49,23 @@ function getTriples(userID: string, content: string, timestamp: number, correct:
 }
 
 async function processWriteToLearnerRecord(request: Request<EmptyObject,string,ReqBody,EmptyObject,EmptyObject>,response: Response<string,Locals>,next: (err?: Error) => void, ip: string, repo: string, log: Logger | null, prefixes: [string, string][]): Promise<void>{
-    const location = await startTransaction(ip,repo)
+    const location = await startTransaction(ip,repo).catch(e => {
+        next(e)
+    })
+    if(location === undefined){
+        return
+    }
     execTransaction(BodyAction.UPDATE,location,prefixes,getTriples(request.body.userID,request.body.standardLearnerContent,request.body.timestamp,request.body.correct)).then(() => {
         return execTransaction(BodyLessAction.COMMIT,location).then(() => {
             response.locals.stream.end()
             next()
         })
     }).catch(e => {
-        next(e)
+        rollback(location).then(() => {
+            next(e)
+        }).catch(e => {
+            next(e)
+        })
     })
 }
 
