@@ -1,4 +1,3 @@
-import endpoints from "../src/endpoints/endpoints"
 import getApp from "../src/server"
 import { ip, prefixes } from "../src/config"
 import supertest from "supertest"
@@ -10,7 +9,7 @@ import fetch from "node-fetch"
 import express from "express"
 import { Server } from "http"
 import getMockDB from "./mockDB"
-import { queryWrite, waitFor } from "./util"
+import { waitFor } from "./util"
 
 const repo = "writeToLearnerRecordTest"
 const port = 7208
@@ -43,7 +42,7 @@ function findStatementQuery(location: Resource, statement: Answer): string{
 }
 
 function getFilter(statement: Answer): string{
-    let output = `FILTER NOT EXISTS { ?a cco:occurs_on / cco:is_tokenized_by "${statement.timestamp}"^^xsd:integer ;
+    const output = `FILTER NOT EXISTS { ?a cco:occurs_on / cco:is_tokenized_by "${statement.timestamp}"^^xsd:integer ;
     cco:is_measured_by_nominal / cco:is_tokenized_by "${statement.correct}"^^xsd:boolean  .}`
     return output
 }

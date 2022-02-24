@@ -1,8 +1,8 @@
-import supertest from "supertest";
+import supertest from "supertest"
 import {Server} from "http"
-import getMockDB from "./mockDB";
+import getMockDB from "./mockDB"
 import express from "express"
-import { waitFor } from "./util";
+import { waitFor } from "./util"
 
 export default function readBehavior(route: string, repo: string, port: number, test: supertest.SuperTest<supertest.Test>){
     const mockIp = `http://localhost:${port}`

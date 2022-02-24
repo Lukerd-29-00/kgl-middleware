@@ -4,10 +4,6 @@ import {execTransaction, BodyAction, BodyLessAction} from "../src/util/transacti
 import {createLearnerRecordTriples} from "../src/endpoints/writeRawData"
 import {ip, prefixes} from "../src/config"
 import writeToLearnerRecord from "../src/endpoints/writeRawData"
-import express from "express"
-import getMockDB from "./mockDB"
-import {Server} from "http"
-import { Endpoint, plainOrArrayOf, EmptyObject, RawData, Optional, Locals } from "../src/server"
 
 export async function writeAttemptTimed(repo: string, userID: string, content: string, time: Date, correct: false): Promise<void>
 export async function writeAttemptTimed(repo: string, userID: string, content: string, time: Date, correct: true, responseTime: number): Promise<void>

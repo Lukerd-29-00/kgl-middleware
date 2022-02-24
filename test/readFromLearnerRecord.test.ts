@@ -1,14 +1,13 @@
 import fetch from "node-fetch"
 import {ip, prefixes} from "../src/config"
 import supertest from "supertest"
-import { TimeInterval, waitFor, writeAttempt, writeAttemptTimed } from "./util"
+import { waitFor, writeAttempt } from "./util"
 import getApp from "../src/server"
 import readFromLearnerRecord from "../src/endpoints/readFromLearnerRecord"
 import express from "express"
 import {Server} from "http"
 import getMockDB from "./mockDB"
 import joi from "joi"
-import { getNumberAttemptsQuery } from "../src/endpoints/userStats"
 
 const repo = "readFromLearnerRecordTest"
 const port = 7204
