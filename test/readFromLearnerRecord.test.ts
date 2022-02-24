@@ -64,7 +64,8 @@ describe("readFromLearnerRecord", () => {
         await writeAttempt(repo,userID,content2,true,1,resTime)
         await writeAttempt(repo,userID,content2,false)
         await waitFor(async () => {
-            expect((await query()).body[content2]).toHaveProperty("attempts",2)
+            const body = (await query()).body
+            expect((body[content2])).toHaveProperty("attempts",2)
         })
         expect((await query()).body[content2]).toHaveProperty("correct",1)
         expect((await query()).body[content]).toHaveProperty("correct",1)

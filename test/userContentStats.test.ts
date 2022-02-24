@@ -15,21 +15,11 @@ function expectError(actual: number, expected: number, threshold = 0.1): void{
     expect(error).toBeLessThanOrEqual(threshold)
 }
 
-async function expectStats(test: supertest.SuperTest<supertest.Test>, userID: string, content: string, expectedMean: number, expectedStdev: number, interval?: TimeInterval): Promise<void>{
-    for(const calcMean of [true, false]){
-        for(const calcStdev of [true, false]){
-            const output = (await queryStats(userContentStats.route,test,userID,{content,...interval, mean: calcMean, stdev: calcStdev}) as unknown) as ResBody
-            if(calcMean){
-                expect(output).toHaveProperty("mean")
-                expectError(output.mean as number, expectedMean)
-            }
-            if(calcStdev){
-                expect(output).toHaveProperty("stdev")
-                expectError(output.stdev as number,expectedStdev)
-            }
-        }
-    }
-
+async function expectMean(test: supertest.SuperTest<supertest.Test>, userID: string, content: string, expectedMean: number, expectedStdev: number, interval?: TimeInterval): Promise<void>{
+    const output = (await queryStats(userContentStats.route,test,userID,{content,...interval, mean: true, stdev: true}) as unknown) as ResBody
+    expect(output).toHaveProperty("mean")
+    expectError(output.mean as number, expectedMean)
+    expectError(output.stdev as number,expectedStdev)
 }
 
 describe("userContentStats", () => {
@@ -117,25 +107,32 @@ describe("userContentStats", () => {
             }),
         ])
     },20000)
-    it("Should be able to correctly calculate any combination of the mean and standard deviation of the response times", async () => {
+    it("Should be able to correctly calculate the mean and standard deviation of the response times", async () => {
         for(let j = 0;j < 3; j++){
             const resTimes = new Array<number>()
             for(let i = 0;i < 5;i++){
-                resTimes.push(Math.random()*1000) //Techincally, it is possible for this test to fail on a working program; however, if it is happening regularly, you have a problem.
+                resTimes.push(Math.round(Math.random()*1000)) //Techincally, it is possible for this test to fail on a working program; however, if it is happening regularly, you have a problem.
             }
             await Promise.all(resTimes.map((value: number) => {
                 writeAttemptTimed(repo,userID,content,new Date(),true,value)
             }))
             await waitFor(async () => {
-                await expectStats(getTest(),userID,content,mean(resTimes),std(resTimes,"uncorrected"))
+                await expectMean(getTest(),userID,content,mean(resTimes),std(resTimes,"uncorrected"))
+            })
+
+            await fetch(`${ip}/repositories/${repo}/statements`, {
+                method: "DELETE",
+            })
+            const test = getTest()
+            await waitFor(async () => {
+                expect(await query(test)).toHaveProperty("attempts",0)
             })
         }
-
     })
     it("Should return a statistic as null if calculating it would result in division by zero", async () => {
         const res = await queryStats(userContentStats.route,getTest(),userID,{content,mean:true,stdev:true})
-        expect(res).toHaveProperty("stdev",null)
         expect(res).toHaveProperty("mean",null)
+        expect(res).toHaveProperty("stdev",null)
     })
     it("Should send back a 400 error if the Date header is malformed", async () => {
         await getTest().get(userContentStats.route.replace(":userID",userID).replace(":content",encodeURIComponent(content))).set("Date","junk").expect(400)

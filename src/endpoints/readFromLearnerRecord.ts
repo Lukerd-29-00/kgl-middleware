@@ -48,7 +48,7 @@ function parseReadOutput(writeTo: LengthTrackingDuplex, data: NodeJS.ReadableStr
             if(isNaN(answerCount) || isNaN(correctCount)){
                 throw Error("error: invalid response from graphdb")
             }
-            writeTo.write(`"${match[1]}": ${JSON.stringify({correct: correctCount, answers: answerCount})}`)
+            writeTo.write(`"${match[1]}": ${JSON.stringify({correct: correctCount, attempts: answerCount})}`)
         })
     })
     rl.once("close",() => {
