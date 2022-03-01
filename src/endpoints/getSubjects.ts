@@ -1,16 +1,16 @@
-import { EmptyObject, Locals, Method, Endpoint } from "../server";
+import { EmptyObject, Locals, Method, Endpoint } from "../server"
 import {Request, Response} from "express"
-import startTransaction from "../util/transaction/startTransaction";
-import { BodyAction, BodyLessAction, execTransaction } from "../util/transaction/execTransaction";
-import { getPrefixes } from "../util/QueryGenerators/SparqlQueryGenerator";
-import rollback from "../util/transaction/rollback";
-import { createInterface } from "readline";
-import { extractLines } from "./getPrereqs";
-import { Logger } from "winston";
+import startTransaction from "../util/transaction/startTransaction"
+import { BodyAction, BodyLessAction, execTransaction } from "../util/transaction/execTransaction"
+import { getPrefixes } from "../util/QueryGenerators/SparqlQueryGenerator"
+import rollback from "../util/transaction/rollback"
+import { createInterface } from "readline"
+import { extractLines } from "./getPrereqs"
+import { Logger } from "winston"
 const route = "/content"
 
 function getSubjectsQuery(prefixes: [string, string][]){
-    let output = getPrefixes(prefixes)
+    const output = getPrefixes(prefixes)
     return output +`select ?p where {
         ?p a cco:NamedIndividual .
     }`

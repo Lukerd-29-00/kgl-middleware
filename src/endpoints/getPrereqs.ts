@@ -1,14 +1,13 @@
 import { execTransaction, BodyAction, BodyLessAction } from "../util/transaction/execTransaction"
 import startTransaction from "../util/transaction/startTransaction"
 import rollback from "../util/transaction/rollback"
-import readline, { createInterface, Interface } from "readline"
-import e, {Request, Response} from "express"
+import  { createInterface, Interface } from "readline"
+import {Request, Response} from "express"
 import { LengthTrackingDuplex } from "../util/streams/PassThroughLength"
 import { EmptyObject, Endpoint, Locals, Method } from "../server"
 import SparqlQueryGenerator from "../util/QueryGenerators/SparqlQueryGenerator"
 import { Logger } from "winston"
 import Joi from "joi"
-import { ReadStream } from "fs"
 const route = "/content/:content/prerequisites"
 
 interface ReqParams extends Record<string,string>{
