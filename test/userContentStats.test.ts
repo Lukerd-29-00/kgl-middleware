@@ -8,7 +8,7 @@ import {ResBody} from "../src/util/QueryOutputParsing/ParseContent"
 import {mean, std} from "mathjs"
 import readBehavior from "./readErrorBehavior"
 const repo = "userContentStatsTest"
-const port = 7205
+const port = 7206
 
 function expectError(actual: number, expected: number, threshold = 0.1): void{
     const error = Math.abs(actual - expected)/Math.abs(actual)

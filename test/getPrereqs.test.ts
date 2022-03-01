@@ -1,7 +1,7 @@
 import getPrereqs from "../src/endpoints/getPrereqs"
 import getApp from "../src/server"
 import supertest from "supertest"
-import {addContent, waitFor, expectEqualHeaders} from "./util"
+import {addContent, waitFor, expectEqualHeaders, expectItems} from "./util"
 import {ip, prefixes} from "../src/config"
 import joi from "joi"
 import fetch from "node-fetch"
@@ -23,16 +23,6 @@ async function headPrereqs(test: supertest.SuperTest<supertest.Test>,content: st
 async function getPrereqHeaders(test: supertest.SuperTest<supertest.Test>,content: string): Promise<Record<string, unknown>>{
     const route = getPrereqs.route.replace(":content",encodeURIComponent(content))
     return (await test.get(route).expect(200)).headers
-}
-
-
-function expectItems(arr: unknown, ...items: string[]): void{
-    const schema = joi.array()
-    schema.items(schema,...items.map((item: string) => {
-        return joi.string().valid(item).required()
-    }))
-    const {error} = schema.validate(arr)
-    expect(error).toBeUndefined()
 }
 
 describe("getPrereqs", () => {

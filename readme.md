@@ -18,9 +18,11 @@ The API itself is in a standard REST format. It contains the following resources
 2. /users/{userID}/stats: Some basic statistics about the questions the user has answered about all subjects. Will always at least return how many questions the user has attempted, and how many were correct. Use the mean and stdev query parameters to retrieve the mean and standard deviation of their response times. NOTE: the standard deviation functionality is not yet fully completed: use at your own risk!
 3. /users/{userID}/stats/{content}: The same as above, only the statistics are only reported for a specified subject.
 4. /active: Checks if the graphdb server is responding.
-5. /content/{content}/prerequisites: The prerequisites for a subject. Send a GET request to see a list of prerequisites for the content supplied.
-6. /readFromLearnerRecord: depreciated, present for legacy support. Use /users/{userID}/stats instead.
-7. /writeToLearnerRecord: depreciated, present for legacy support. Make a PUT to /users/{userID}/data/{content} instead.
+5. /content: Returns all subjects in the database.
+6. /content/{content}/prerequisites: The prerequisites for a subject. Send a GET request to see a list of prerequisites for the content supplied.
+7. /readFromLearnerRecord: depreciated, present for legacy support. Use /users/{userID}/stats instead.
+8. /writeToLearnerRecord: depreciated, present for legacy support. Make a PUT to /users/{userID}/data/{content} instead.
+
 
 ### Query details
 

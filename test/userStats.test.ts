@@ -7,7 +7,7 @@ import userStats from "../src/endpoints/userStats"
 import joi from "joi"
 import readBehavior from "./readErrorBehavior"
 const repo = "userStatsTest"
-const port = 7206
+const port = 7207
 
 describe("userStats", () => {
     const userID = "1234"
