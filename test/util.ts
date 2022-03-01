@@ -4,6 +4,7 @@ import {execTransaction, BodyAction, BodyLessAction} from "../src/util/transacti
 import {createLearnerRecordTriples} from "../src/endpoints/writeRawData"
 import {ip, prefixes} from "../src/config"
 import writeToLearnerRecord from "../src/endpoints/writeRawData"
+import joi from "joi"
 
 export async function writeAttemptTimed(repo: string, userID: string, content: string, time: Date, correct: false): Promise<void>
 export async function writeAttemptTimed(repo: string, userID: string, content: string, time: Date, correct: true, responseTime: number): Promise<void>
@@ -22,6 +23,15 @@ export async function writeAttemptTimed(repo: string, userID: string, content: s
 
 function linkToPrereq(content: string, prereq: string){
     return `<${content}> cco:has_part <${prereq}>`
+}
+
+export function expectItems(arr: unknown, ...items: string[]): void{
+    const schema = joi.array()
+    schema.items(schema,...items.map((item: string) => {
+        return joi.string().valid(item).required()
+    }))
+    const {error} = schema.validate(arr)
+    expect(error).toBeUndefined()
 }
 
 export async function addContent(repo: string, content: string, ...prereqs: string[]): Promise<void>{

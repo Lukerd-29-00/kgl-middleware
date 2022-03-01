@@ -2,8 +2,6 @@ name: lint and test
 on:
   pull_request:
     branches: [master]
-  push:
-    branches: [master]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,3 +16,4 @@ jobs:
         cache: npm
     - run: npm ci
     - run: npm run lint
+    - run: npm run test

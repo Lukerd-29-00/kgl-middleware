@@ -10,7 +10,7 @@ import getMockDB from "./mockDB"
 import joi from "joi"
 
 const repo = "readFromLearnerRecordTest"
-const port = 7204
+const port = 7205
 
 
 describe("readFromLearnerRecord", () => {
