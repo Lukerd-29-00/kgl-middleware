@@ -1,4 +1,3 @@
-import { Interface } from "readline"
 import internal, { PassThrough, Duplex } from "stream"
 
 export interface LengthTrackingDuplex extends Duplex{

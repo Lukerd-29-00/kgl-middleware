@@ -10,7 +10,7 @@ import winston from "winston"
 import Joi, { Schema } from "joi"
 import PassThroughLength, { LengthTrackingDuplex } from "./util/streams/PassThroughLength"
 import events from "events"
-import {createGzip, Gzip} from "zlib"
+import {createGzip} from "zlib"
 
 export type plainOrArrayOf<T> = Array<T> | T
 export type RawData = number | boolean | string

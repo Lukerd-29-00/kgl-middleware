@@ -32,7 +32,7 @@ async function processGetSubjects(request: Request<EmptyObject,string,EmptyObjec
                 })
             })
             response.header("Content-Type","application/json")
-            response.header("Content-Security-Policy", `default-src http://localhost:3000; script-src 'none'`)
+            response.header("Content-Security-Policy", "default-src http://localhost:3000; script-src 'none'")
             response.header("Access-Control-Allow-Origin", "http://localhost:3000")
             response.header("Transfer-Encoding","Chunked")
             response.header("Content-Encoding","gzip")
