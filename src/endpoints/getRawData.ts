@@ -84,6 +84,8 @@ async function processGetRawData(request: Request<ReqParams,string,EmptyObject,R
     startTransaction(ip, repo).then(location => {
         execTransaction(BodyAction.QUERY, location, prefixes, getRawDataQuery(userID,content,since,before,prefixes)).then((res: FetchResponse) => {
             response.setHeader("Content-Type","application/json")
+            response.setHeader("Transfer-Encoding","Chunked")
+            response.setHeader("Content-Encoding","gzip")
             execTransaction(BodyLessAction.COMMIT,location).catch(e => {
                 if(log){
                     log.error("error: ",{message: e.message})

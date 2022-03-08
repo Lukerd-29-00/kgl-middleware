@@ -12,7 +12,7 @@ const route = "/content"
 function getSubjectsQuery(prefixes: [string, string][]){
     const output = getPrefixes(prefixes)
     return output +`select ?p where {
-        ?p a cco:NamedIndividual .
+        ?p a owl:NamedIndividual .
     }`
 }
 
@@ -20,10 +20,6 @@ function getSubjectsQuery(prefixes: [string, string][]){
 async function processGetSubjects(request: Request<EmptyObject,string,EmptyObject,EmptyObject,EmptyObject>, response: Response<string,Locals>, next: (err?: Error) => void, ip: string, repo: string, log: Logger | null, prefixes: [string, string][]): Promise<void>{
     startTransaction(ip, repo).then(location => {
         execTransaction(BodyAction.QUERY,location,prefixes,getSubjectsQuery(prefixes)).then(data => {
-            response.header("Content-Type","application/json")
-            const rl = createInterface(data.body)
-            extractLines(rl,response.locals.stream)
-            next()
             execTransaction(BodyLessAction.COMMIT,location).catch(e => {
                 rollback(location).then(() => {
                     if(log){
@@ -35,6 +31,14 @@ async function processGetSubjects(request: Request<EmptyObject,string,EmptyObjec
                     }
                 })
             })
+            response.header("Content-Type","application/json")
+            response.header("Content-Security-Policy", `default-src http://localhost:3000; script-src 'none'`)
+            response.header("Access-Control-Allow-Origin", "http://localhost:3000")
+            response.header("Transfer-Encoding","Chunked")
+            response.header("Content-Encoding","gzip")
+            const rl = createInterface(data.body)
+            extractLines(rl,response.locals.stream)
+            next()
         }).catch(e => {
             rollback(location).then(() => {
                 next(e)

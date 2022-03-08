@@ -12,7 +12,7 @@ const repo = "getSubjectsTest"
 
 async function writeSubject(subject: string): Promise<void>{
     const location = await startTransaction(ip, repo)
-    await execTransaction(BodyAction.UPDATE,location,prefixes,`<${subject}> a cco:NamedIndividual .`)
+    await execTransaction(BodyAction.UPDATE,location,prefixes,`<${subject}> a owl:NamedIndividual .`)
     await execTransaction(BodyLessAction.COMMIT,location)
 }
 
