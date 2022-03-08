@@ -113,6 +113,7 @@ async function processUserStats(request: Request<ReqParams,string,EmptyObject,Re
                 })
             })
             response.setHeader("Content-Type","application/json")
+            response.setHeader("Transfer-Encoding","Chunked")
             return parseQueryOutput(readline.createInterface({input: res.body}),response.locals.stream,{stdev: request.query.stdev === "true", median: request.query.median === "true", mean: request.query.mean === "true"}).then(() => {
                 next()
             })

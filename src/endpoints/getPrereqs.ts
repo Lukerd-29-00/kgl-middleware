@@ -24,17 +24,18 @@ export function extractLines(lines: Interface, writeTo: LengthTrackingDuplex): v
             return
         }
         if(!secondLine){
-            writeTo.write(",")	
+            writeTo.write(",")
         }else{
             secondLine = false
         }
-        const {error} = Joi.string().uri().required().validate(line)
+        const {error} = Joi.string().uri().required().validate(encodeURI(line))
         if(error !== undefined){
             writeTo.emit("error",Error(`Graphdb sent back an invalid string: ${error.message}`))
             lines.close()
             return
         }
         writeTo.write(`"${line}"`)
+
     })
     lines.once("close",() => {
         writeTo.end("]")

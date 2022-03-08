@@ -10,6 +10,7 @@ import winston from "winston"
 import Joi, { Schema } from "joi"
 import PassThroughLength, { LengthTrackingDuplex } from "./util/streams/PassThroughLength"
 import events from "events"
+import {createGzip} from "zlib"
 
 export type plainOrArrayOf<T> = Array<T> | T
 export type RawData = number | boolean | string
@@ -62,39 +63,47 @@ interface RequestSchema{
  * @param response The response to send back
  */
 async function send(request: Request, response: Response<any,Locals>): Promise<void>{ //eslint-disable-line
-    if(response.locals.stream === undefined){
-        throw Error("Error: response text must be placed into a readable stream in response.locals.stream!")
+    if(response.getHeader("Content-Encoding") === "gzip"){
+        response.locals.stream = response.locals.stream.pipe(createGzip())
     }
-    const stream = response.locals.stream as LengthTrackingDuplex
-    let length = 0
-    if(response.statusCode === 202 || response.statusCode === 204){
-        response.locals.stream.end()
-    }
-    let err = false
-    if(!stream.writableEnded){
-        await events.once(response.locals.stream,"finish").catch(() => {
-            //This happens if response.locals.stream is destroyed before finishing
-            err = true
-        })
-    }
-    if(err){
-        return
-    }
-    length = stream.bytesWritten
-    if(length){
-        if(request.method === "HEAD"){
-            response.status(204)
+    if(response.getHeader("Transfer-Encoding") !== "Chunked"){
+        if(response.locals.stream === undefined){
+            throw Error("Error: response text must be placed into a readable stream in response.locals.stream!")
         }
-        response.setHeader("Content-Length",length)
-        response.locals.stream.pipe(response)
-    }else{
-        if(request.method === "GET"){
-            response.status(204)
+        const stream = response.locals.stream as LengthTrackingDuplex
+        let length = 0
+        if(response.statusCode === 202 || response.statusCode === 204){
+            response.locals.stream.end()
+        }
+        let err = false
+        if(!stream.writableEnded){
+            await events.once(response.locals.stream,"finish").catch(e => {
+                //This happens if response.locals.stream is destroyed before finishing
+                err = true
+                console.dir(e)
+            })
+        }
+        if(err){
+            return
+        }
+        length = stream.bytesWritten
+        if(length){
+            if(request.method === "HEAD"){
+                response.status(204)
+            }
+            response.setHeader("Content-Length",length)
+            response.locals.stream.pipe(response)
         }else{
-            response.status(202)
+            if(request.method === "GET"){
+                response.status(204)
+            }else{
+                response.status(202)
+            }
+            response.locals.stream.destroy()
+            response.end()
         }
-        response.locals.stream.destroy()
-        response.end()
+    }else{
+        response.locals.stream.pipe(response)
     }
 }
 
