@@ -80,7 +80,6 @@ async function send(request: Request, response: Response<any,Locals>): Promise<v
             await events.once(response.locals.stream,"finish").catch(e => {
                 //This happens if response.locals.stream is destroyed before finishing
                 err = true
-                console.dir(e)
             })
         }
         if(err){
@@ -207,11 +206,16 @@ export default function getApp<E extends Endpoint<any,any,any,any,L> = Endpoint<
     }
     app.use("/",router)
     app.use((err: Error, request: Request, response: Response, next: (err?: Error) => void) => {
-        response.on("error",e => {
-            console.dir(e)
-        })
+        if(log){
+            log.main.error(err.message)
+        }
         response.locals.stream.destroy()
-        next(err)
+        if(response.getHeader("Transfer-Encoding")){
+            response.status(500).end()
+        }else{
+            next(err)
+        }
+        
     })
     app.disable("x-powered-by")
     return app

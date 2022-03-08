@@ -81,7 +81,7 @@ async function expectStatements(expected: Map<Resource, Answer[]>): Promise<void
     await Promise.all(promises)
 }
 
-describe("writeToLearnerRecord", () => {
+describe("writeRawData", () => {
     const test = supertest(getApp(ip, repo, prefixes, [writeRawData]))
     const userID = "1234"
     const content = "http://www.ontologyrepository.com/CommonCoreOntologies/testContent"
@@ -148,7 +148,7 @@ describe("writeToLearnerRecord", () => {
     })
 })
 
-describe("writeToLearnerRecord", () => {
+describe("writeRawData", () => {
     let server: null | Server = null
     const mockIp=`http://localhost:${port}`
     const userID = "1234"
