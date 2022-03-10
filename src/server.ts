@@ -12,7 +12,12 @@ import PassThroughLength, { LengthTrackingDuplex } from "./util/streams/PassThro
 import events from "events"
 import {createGzip} from "zlib"
 
-export const ttlInstance = Joi.alternatives(Joi.string().regex(/^[^:]*:/).required(), Joi.string().uri().required())
+export const ttlInstance = Joi.alternatives(Joi.string().regex(/^[^:]*:/).required(), Joi.string().uri({
+    scheme:[
+        "http",
+        "https"
+    ]
+}).required())
 
 export type plainOrArrayOf<T> = Array<T> | T
 export type RawData = number | boolean | string
@@ -48,7 +53,7 @@ export interface Endpoint<
     schema: RequestSchema,
     route: string,
     method: Method,
-    process: processor<P,S,R,Q,L>
+    process: processor<P,S,R,Q,L>,
 }
 
 export interface Locals{
@@ -108,6 +113,16 @@ async function send(request: Request, response: Response<any,Locals>): Promise<v
     }
 }
 
+function getPolicy(request: Request, response: Response, next: (e?: Error) => void, policy: XSSControl): void{
+    if(policy.allowOrigin){
+        response.header("Access-Control-Allow-Origin",policy.allowOrigin)
+    }
+    if(policy.securityPolicy){
+        response.header("Content-Security-Policy",policy.securityPolicy)
+    }
+    next()
+}
+
 /**
  * Sends the user an error depending on what required fields they missed or what fields they added that weren't needed, and lists the optional fields.
  * @param requiredFields The fields that the calling function needs a request to have.
@@ -144,12 +159,17 @@ interface Responder{
     method: Method
     //Any is used here because the getApp function doesn't do any input validation or request handling, so it doesn't need to worry about the types of the input at all.
     process: processor<any,any,any,any,any> //eslint-disable-line
-    schema: RequestSchema   
+    schema: RequestSchema
 }
 
 export interface Logger{
     middleware?: Handler
     main: winston.Logger
+}
+
+export interface XSSControl{
+    securityPolicy?: string
+    allowOrigin?: string
 }
 
 /**Constructs an Express object from a list of Endpoint objects that executes checkRequest on the endpoints' schemas, their processors, and then send for each endpoint.  
@@ -160,16 +180,11 @@ export interface Logger{
  * @param log Whether or not to log requests to the console.
  * @returns an Express object that will host the desired Endpoint objects.
  */
-export default function getApp<E extends Endpoint<any,any,any,any,L> = Endpoint<any,any,any,any,Locals>, L extends Locals = Locals>(ip: string, repo: string, prefixes: Array<[string, string]>, endpoints: Array<E>, log?: Logger): Express { //eslint-disable-line
+export default function getApp<E extends Endpoint<any,any,any,any,L> = Endpoint<any,any,any,any,Locals>, L extends Locals = Locals>(ip: string, repo: string, prefixes: Array<[string, string]>, endpoints: Array<E>, policies?: Map<string,XSSControl>, log?: Logger): Express { //eslint-disable-line
     const app = express()
-    //Use the morgan logging library to log requests if desired
-    
-
     //Use the json body parser
     app.use(express.json())
     app.use(express.urlencoded({ extended: true }))
-
-    
     //Map the various routes to endpoints
     const routes = new Map<string, Responder[]>()
     for (const endpoint of endpoints) {
@@ -186,6 +201,11 @@ export default function getApp<E extends Endpoint<any,any,any,any,L> = Endpoint<
     for(const entry of routes.entries()){
         const route = router.route(entry[0])
         for(const responder of entry[1]){
+            if(policies?.get(entry[0])){
+                route[responder.method]((request: Request, response: Response, next: (e?: Error) => void,) => {
+                    getPolicy(request,response,next,policies.get(entry[0]) as XSSControl)
+                })
+            }
             route[responder.method]((request: Request, response: Response<unknown,Locals>, next: () => void) => {
                 checkRequest(request,response,next,responder.schema)
             })
@@ -195,6 +215,11 @@ export default function getApp<E extends Endpoint<any,any,any,any,L> = Endpoint<
             route[responder.method](handler)
             route[responder.method](send)
             if(responder.method == Method.GET){
+                if(policies?.get(entry[0])){
+                    route.head((request: Request, response: Response, next: (e?: Error) => void,) => {
+                        getPolicy(request,response,next,policies.get(entry[0]) as XSSControl)
+                    })
+                }
                 route.head((request,response: Response<unknown,Locals>,next) => {
                     checkRequest(request,response,next,responder.schema)
                 })

@@ -7,7 +7,7 @@ import rollback from "../util/transaction/rollback"
 import { createInterface } from "readline"
 import { extractLines } from "./getPrereqs"
 import { Logger } from "winston"
-import normalize from "../util/toURI"
+import normalize, { toURI } from "../util/toURI"
 import { ttlInstance } from "../server"
 import Joi from "joi"
 
@@ -25,8 +25,9 @@ function getSubjectsQuery(prefixes: [string, string][], ...classes: string[]){
     let output = getPrefixes(prefixes)
     output += `select ?p where {`
     for(const ttlClass of classes){
-        output += `?p a ${ttlClass}`
+        output += `{?p a <${ttlClass}> .} UNION `
     }
+    output = output.replace(/ UNION $/,"")
     output += "}"
     return output
 }
@@ -34,9 +35,16 @@ function getSubjectsQuery(prefixes: [string, string][], ...classes: string[]){
 async function processGetSubjects(request: Request<EmptyObject,string,EmptyObject,ReqQuery,EmptyObject>, response: Response<string,Locals>, next: (err?: Error) => void, ip: string, repo: string, log: Logger | null, prefixes: [string, string][]): Promise<void>{
     let allowedClasses = new Array<string>()
     if(request.query.allowedClasses !== undefined){
-        allowedClasses = [...new Set(normalize(request.query.allowedClasses,prefixes))]
+        try{
+            allowedClasses = [...new Set(normalize(request.query.allowedClasses,prefixes))]
+        }catch(e){
+            response.status(400)
+            next(e as Error)
+            return
+        }
+        
     }else{
-        allowedClasses.push("owl:NamedIndividual")
+        allowedClasses.push("http://www.w3.org/2002/07/owl#NamedIndividual")
     }
     startTransaction(ip, repo).then(location => {
         execTransaction(BodyAction.QUERY,location,prefixes,getSubjectsQuery(prefixes,...allowedClasses)).then(data => {
@@ -52,8 +60,6 @@ async function processGetSubjects(request: Request<EmptyObject,string,EmptyObjec
                 })
             })
             response.header("Content-Type","application/json")
-            response.header("Content-Security-Policy", "default-src http://localhost:3000; script-src 'none'")
-            response.header("Access-Control-Allow-Origin", "http://localhost:3000")
             response.header("Transfer-Encoding","Chunked")
             response.header("Content-Encoding","gzip")
             const rl = createInterface(data.body)
