@@ -84,7 +84,7 @@ async function send(request: Request, response: Response<any,Locals>): Promise<v
         }
         let err = false
         if(!stream.writableEnded){
-            await events.once(response.locals.stream,"finish").catch(e => {
+            await events.once(response.locals.stream,"finish").catch(() => {
                 //This happens if response.locals.stream is destroyed before finishing
                 err = true
             })

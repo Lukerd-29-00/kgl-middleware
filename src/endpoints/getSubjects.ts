@@ -7,7 +7,7 @@ import rollback from "../util/transaction/rollback"
 import { createInterface } from "readline"
 import { extractLines } from "./getPrereqs"
 import { Logger } from "winston"
-import normalize, { toURI } from "../util/toURI"
+import normalize from "../util/toURI"
 import { ttlInstance } from "../server"
 import Joi from "joi"
 
@@ -23,7 +23,7 @@ interface ReqQuery{
 
 function getSubjectsQuery(prefixes: [string, string][], ...classes: string[]){
     let output = getPrefixes(prefixes)
-    output += `select ?p where {`
+    output += "select ?p where {"
     for(const ttlClass of classes){
         output += `{?p a <${ttlClass}> .} UNION `
     }

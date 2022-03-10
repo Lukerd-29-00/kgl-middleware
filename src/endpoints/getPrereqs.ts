@@ -23,7 +23,7 @@ export function extractLines(lines: Interface, writeTo: LengthTrackingDuplex): v
             firstLine = false
             return
         }
-        if(line === ''){
+        if(line === ""){
             lines.close()
             return
         }
