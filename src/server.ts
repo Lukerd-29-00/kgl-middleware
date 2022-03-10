@@ -12,6 +12,8 @@ import PassThroughLength, { LengthTrackingDuplex } from "./util/streams/PassThro
 import events from "events"
 import {createGzip} from "zlib"
 
+export const ttlInstance = Joi.alternatives(Joi.string().regex(/^[^:]*:/).required(), Joi.string().uri().required())
+
 export type plainOrArrayOf<T> = Array<T> | T
 export type RawData = number | boolean | string
 export type Optional<T> = T | undefined

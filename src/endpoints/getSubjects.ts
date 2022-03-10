@@ -7,19 +7,39 @@ import rollback from "../util/transaction/rollback"
 import { createInterface } from "readline"
 import { extractLines } from "./getPrereqs"
 import { Logger } from "winston"
+import normalize from "../util/toURI"
+import { ttlInstance } from "../server"
+import Joi from "joi"
+
 const route = "/content"
 
-function getSubjectsQuery(prefixes: [string, string][]){
-    const output = getPrefixes(prefixes)
-    return output +`select ?p where {
-        ?p a owl:NamedIndividual .
-    }`
+const querySchema = Joi.object({
+    allowedClasses: Joi.alternatives(ttlInstance,Joi.array().items(ttlInstance)).optional()
+})
+
+interface ReqQuery{
+    allowedClasses?: string[] | string
 }
 
+function getSubjectsQuery(prefixes: [string, string][], ...classes: string[]){
+    let output = getPrefixes(prefixes)
+    output += `select ?p where {`
+    for(const ttlClass of classes){
+        output += `?p a ${ttlClass}`
+    }
+    output += "}"
+    return output
+}
 
-async function processGetSubjects(request: Request<EmptyObject,string,EmptyObject,EmptyObject,EmptyObject>, response: Response<string,Locals>, next: (err?: Error) => void, ip: string, repo: string, log: Logger | null, prefixes: [string, string][]): Promise<void>{
+async function processGetSubjects(request: Request<EmptyObject,string,EmptyObject,ReqQuery,EmptyObject>, response: Response<string,Locals>, next: (err?: Error) => void, ip: string, repo: string, log: Logger | null, prefixes: [string, string][]): Promise<void>{
+    let allowedClasses = new Array<string>()
+    if(request.query.allowedClasses !== undefined){
+        allowedClasses = [...new Set(normalize(request.query.allowedClasses,prefixes))]
+    }else{
+        allowedClasses.push("owl:NamedIndividual")
+    }
     startTransaction(ip, repo).then(location => {
-        execTransaction(BodyAction.QUERY,location,prefixes,getSubjectsQuery(prefixes)).then(data => {
+        execTransaction(BodyAction.QUERY,location,prefixes,getSubjectsQuery(prefixes,...allowedClasses)).then(data => {
             execTransaction(BodyLessAction.COMMIT,location).catch(e => {
                 rollback(location).then(() => {
                     if(log){
@@ -53,7 +73,7 @@ async function processGetSubjects(request: Request<EmptyObject,string,EmptyObjec
 
 const endpoint: Endpoint<EmptyObject,string,EmptyObject,EmptyObject,Locals> = {
     process: processGetSubjects,
-    schema: {},
+    schema: {query: querySchema},
     route,
     method: Method.GET
 }

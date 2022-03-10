@@ -23,6 +23,10 @@ export function extractLines(lines: Interface, writeTo: LengthTrackingDuplex): v
             firstLine = false
             return
         }
+        if(line === ''){
+            lines.close()
+            return
+        }
         if(!secondLine){
             writeTo.write(",")
         }else{
